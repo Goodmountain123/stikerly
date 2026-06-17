@@ -285,3 +285,73 @@ body{
   border-radius:999px; box-shadow:var(--shadow-2); }
 
 @media (prefers-reduced-motion:reduce){ *{ transition:none !important; } }
+
+
+/* Fix: keep sticker tray from covering the canvas */
+.screen--editor {
+  height: 100dvh;
+  overflow: hidden;
+}
+
+.screen--editor .stage-wrap {
+  flex: 1 1 auto;
+  min-height: 180px;
+}
+
+.tray {
+  flex: 0 0 auto;
+  max-height: 34dvh;
+  overflow: hidden;
+}
+
+.tray-panel {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.carousel {
+  max-height: 96px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  align-items: center;
+}
+
+.carousel--packs {
+  max-height: 54px;
+}
+
+.carousel--stickers {
+  max-height: 84px;
+}
+
+.carousel--bg {
+  max-height: 92px;
+}
+
+.carousel--stickers .sticker-chip {
+  width: 64px;
+  height: 64px;
+}
+
+.pack-chip {
+  min-height: 42px;
+}
+
+@media (max-height: 700px) {
+  .tray {
+    max-height: 30dvh;
+  }
+
+  .carousel--stickers .sticker-chip {
+    width: 56px;
+    height: 56px;
+  }
+
+  .carousel {
+    max-height: 76px;
+  }
+
+  .carousel--packs {
+    max-height: 48px;
+  }
+}
