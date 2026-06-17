@@ -1,0 +1,6 @@
+{
+  "id": "speech",
+  "name": "말풍선팩",
+  "thumbnail": "bubble_round.png",
+  "stickers": ["bubble_round.png", "bubble_rect.png", "bubble_think.png"]
+}

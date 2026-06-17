@@ -1,0 +1,6 @@
+{
+  "id": "decor",
+  "name": "장식팩",
+  "thumbnail": "star.png",
+  "stickers": ["star.png", "heart.png", "sparkle.png"]
+}

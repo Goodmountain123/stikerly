@@ -1,0 +1,6 @@
+{
+  "id": "food",
+  "name": "음식팩",
+  "thumbnail": "cake.png",
+  "stickers": ["cake.png", "coffee.png", "pizza.png"]
+}

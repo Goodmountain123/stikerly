@@ -1,0 +1,6 @@
+{
+  "id": "animals",
+  "name": "동물팩",
+  "thumbnail": "cat.png",
+  "stickers": ["cat.png", "dog.png", "rabbit.png"]
+}
