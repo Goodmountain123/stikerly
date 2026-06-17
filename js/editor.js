@@ -1,41 +1,38 @@
-// editor.js — the sticker editing surface.
+// editor.js — sticker editing surface.
+// Drop-in replacement for the broken main/js/editor.js.
+
 import { putProject } from "./storage.js";
 import { CANVAS, ZOOM, newStickerItem } from "./model.js";
 import { getPacks, findSticker, loadImage } from "./packs.js";
 import { buildItemGroup } from "./sticker.js";
 import { exportPNG } from "./export.js";
-import { getBackgrounds, backgroundSrc, coverCrop, loadBgImage } from "./backgrounds.js";
+import {
+  getBackgrounds,
+  backgroundSrc,
+  coverCrop,
+  loadBgImage,
+} from "./backgrounds.js";
 
-const PAD = 56;            // viewport padding around the page when fitting
+const PAD = 56;
+const PAN_MARGIN = 80;
+
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
-
-const ICONS = {
-  flipH: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18"/><path d="M7 8 3 12l4 4"/><path d="M17 8l4 4-4 4"/></svg>`,
-  flipV: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h18"/><path d="M8 7 12 3l4 4"/><path d="M8 17l4 4 4-4"/></svg>`,
-  forward: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="3" width="13" height="13" rx="2"/><path d="M3 8v11a2 2 0 0 0 2 2h11" opacity=".5"/></svg>`,
-  backward: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="8" width="13" height="13" rx="2"/><path d="M21 16V5a2 2 0 0 0-2-2H8" opacity=".5"/></svg>`,
-  effects: `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l1.8 4.7L18 8.2l-3.5 3 1 4.8L12 13.8 8.5 16l1-4.8L6 8.2l4.2-1.5z"/></svg>`,
-  delete: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/><path d="M6 7l1 13a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-13"/></svg>`,
-  floorShadow: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="8" y="4" width="8" height="9" rx="1.5"/><ellipse cx="12" cy="18" rx="8" ry="2.2" fill="currentColor" stroke="none" opacity=".55"/></svg>`,
-  outline: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><rect x="5" y="5" width="14" height="14" rx="3"/></svg>`,
-  blur: `<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="9" opacity=".25"/><circle cx="12" cy="12" r="5.5" opacity=".55"/><circle cx="12" cy="12" r="2.4"/></svg>`,
-  colorCorrection: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 3v18a9 9 0 0 0 0-18z" fill="currentColor" stroke="none"/></svg>`,
-};
+const clone = (v) => JSON.parse(JSON.stringify(v));
 
 const MENU_ACTIONS = [
-  { key: "flipH", tip: "좌우 반전" },
-  { key: "flipV", tip: "상하 반전" },
-  { key: "forward", tip: "앞으로 가져오기" },
-  { key: "backward", tip: "뒤로 보내기" },
-  { key: "effects", tip: "효과" },
-  { key: "delete", tip: "삭제", danger: true },
+  { key: "flipH", label: "↔", tip: "좌우 반전" },
+  { key: "flipV", label: "↕", tip: "상하 반전" },
+  { key: "forward", label: "↑", tip: "앞으로" },
+  { key: "backward", label: "↓", tip: "뒤로" },
+  { key: "effects", label: "✦", tip: "효과" },
+  { key: "delete", label: "×", tip: "삭제", danger: true },
 ];
 
-const EFFECT_KEYS = [
-  { key: "floorShadow", tip: "바닥 그림자" },
-  { key: "outline", tip: "외곽선" },
-  { key: "blur", tip: "블러" },
-  { key: "colorCorrection", tip: "색상 보정" },
+const EFFECTS = [
+  { key: "floorShadow", label: "▱", tip: "바닥 그림자" },
+  { key: "outline", label: "□", tip: "외곽선" },
+  { key: "blur", label: "◌", tip: "블러" },
+  { key: "colorCorrection", label: "☼", tip: "색상 보정" },
 ];
 
 let app = null;
@@ -50,64 +47,80 @@ class Editor {
   constructor(project, callbacks) {
     this.project = project;
     this.cb = callbacks;
-    this.refs = new Map();        // itemId -> node ref from buildItemGroup
+    this.refs = new Map();
     this.selectedId = null;
     this.zoom = ZOOM.base;
     this.worldBase = 1;
-    this.history = [JSON.stringify(project.stickerItems)];
-    this.hIndex = 0;
-    this.savedIndex = 0;
-    this.openEffectKey = null;
     this.bgNode = null;
     this.bgDirty = false;
+    this.effectsOpen = false;
+    this.openEffectKey = null;
+    this.history = [this.snapshot()];
+    this.hIndex = 0;
+    this.savedIndex = 0;
+    this.cleanup = [];
+    this.pinch = null;
+    this.pinchDragStates = null;
   }
 
-  // ---------- lifecycle ----------
   mount() {
     this.host = document.getElementById("stage-host");
-    this.host.style.touchAction = "none";
     this.wrap = document.getElementById("stage-wrap");
     this.menuEl = document.getElementById("sticker-menu");
     this.zoomReadout = document.getElementById("zoom-readout");
     this.titleInput = document.getElementById("title-input");
-    this.titleInput.value = this.project.title;
+
+    this.host.style.touchAction = "none";
+    this.titleInput.value = this.project.title || "제목 없는 프로젝트";
 
     this.buildStage();
-    this.buildTray();
+    this.bindChrome();
     this.bindTrayTabs();
-    this.buildBgPanel();
+    this.buildTray();
+    this.buildBackgroundPanel();
     this.renderAllItems();
     this.renderBackground();
-    this.bindChrome();
-    this.bindStageGestures();
     this.bindTrayDrag();
     this.updateHistoryButtons();
   }
 
   destroy() {
-    if (this.stage) this.stage.destroy();
-    if (this._onResize) window.removeEventListener("resize", this._onResize);
+    this.cleanup.forEach((fn) => fn());
+    this.cleanup = [];
     this.hideMenu();
+    this.refs.forEach((ref) => ref.group.destroy());
     this.refs.clear();
+    if (this.stage) this.stage.destroy();
   }
 
-  // ---------- stage ----------
+  // ---------- stage / viewport ----------
+
   buildStage() {
-    const { w, h } = CANVAS[this.project.canvasType];
-    this.canvasW = w; this.canvasH = h;
+    const spec = CANVAS[this.project.canvasType] || CANVAS.phone;
+    this.canvasW = spec.w;
+    this.canvasH = spec.h;
 
     this.stage = new Konva.Stage({
       container: this.host,
       width: this.host.clientWidth,
       height: this.host.clientHeight,
     });
+
     this.layer = new Konva.Layer();
     this.stage.add(this.layer);
 
     this.page = new Konva.Rect({
-      x: 0, y: 0, width: w, height: h, fill: "#ffffff", name: "page",
-      shadowColor: "rgba(36,31,46,1)", shadowBlur: 30, shadowOpacity: 0.12,
-      shadowOffsetY: 8, cornerRadius: 4,
+      x: 0,
+      y: 0,
+      width: this.canvasW,
+      height: this.canvasH,
+      fill: "#ffffff",
+      name: "page",
+      shadowColor: "rgba(36,31,46,1)",
+      shadowBlur: 30,
+      shadowOpacity: 0.12,
+      shadowOffsetY: 8,
+      cornerRadius: 4,
     });
     this.layer.add(this.page);
 
@@ -125,30 +138,40 @@ class Editor {
     });
     this.layer.add(this.transformer);
 
-    // empty-area tap deselects
     this.stage.on("click tap", (e) => {
-      if (e.target === this.stage || e.target === this.page) this.deselect();
+      if (this.isCanvasTarget(e.target)) this.deselect();
     });
 
-    this._onResize = () => this.resize();
-    window.addEventListener("resize", this._onResize);
+    this.bindCanvasNavigation();
+
+    const onResize = () => this.resize();
+    window.addEventListener("resize", onResize);
+    this.cleanup.push(() => window.removeEventListener("resize", onResize));
+
     this.fitView();
   }
 
+  isCanvasTarget(target) {
+    return target === this.stage || target === this.page || target === this.bgNode;
+  }
+
   resize() {
-    this.stage.size({ width: this.host.clientWidth, height: this.host.clientHeight });
+    this.stage.size({
+      width: this.host.clientWidth,
+      height: this.host.clientHeight,
+    });
     this.fitView();
     this.repositionMenu();
   }
 
   fitView() {
-    const cw = this.stage.width(), ch = this.stage.height();
-    this.worldBase = Math.min((cw - PAD) / this.canvasW, (ch - PAD) / this.canvasH);
+    const vw = Math.max(1, this.stage.width());
+    const vh = Math.max(1, this.stage.height());
+    this.worldBase = Math.min((vw - PAD) / this.canvasW, (vh - PAD) / this.canvasH);
     this.applyView(true);
   }
 
-  // Re-center the page; keep current zoom factor.
-  applyView(recenter) {
+  applyView(recenter = false) {
     const scale = this.worldBase * this.zoom;
     this.stage.scale({ x: scale, y: scale });
     if (recenter) {
@@ -156,6 +179,8 @@ class Editor {
         x: (this.stage.width() - this.canvasW * scale) / 2,
         y: (this.stage.height() - this.canvasH * scale) / 2,
       });
+    } else {
+      this.clampStagePosition();
     }
     this.syncTransformerScale(scale);
     this.updateZoomReadout();
@@ -163,35 +188,280 @@ class Editor {
   }
 
   syncTransformerScale(scale) {
-    // keep handle/border roughly constant on screen regardless of zoom
-    this.transformer.anchorSize(14 / scale);
-    this.transformer.rotateAnchorOffset(30 / scale);
-    this.transformer.borderStrokeWidth(1.5 / scale);
-    this.transformer.anchorStrokeWidth(1.5 / scale);
+    const s = Math.max(scale, 0.0001);
+    this.transformer.anchorSize(14 / s);
+    this.transformer.rotateAnchorOffset(30 / s);
+    this.transformer.borderStrokeWidth(1.5 / s);
+    this.transformer.anchorStrokeWidth(1.5 / s);
   }
 
   updateZoomReadout() {
     this.zoomReadout.textContent = Math.round(this.zoom * 100) + "%";
   }
 
-  // ---------- items ----------
-  renderAllItems() {
-    for (const ref of this.refs.values()) ref.group.destroy();
-    this.refs.clear();
-    this.transformer.nodes([]);
-    this.selectedId = null;
+  clampStagePosition() {
+    const scale = this.stage.scaleX();
+    const pageW = this.canvasW * scale;
+    const pageH = this.canvasH * scale;
+    const viewW = this.stage.width();
+    const viewH = this.stage.height();
 
-    const items = [...this.project.stickerItems].sort((a, b) => a.zIndex - b.zIndex);
-    Promise.all(items.map((item) => this.spawnNode(item))).then(() => {
-      this.reorderLayer();
-      this.layer.batchDraw();
+    let x = this.stage.x();
+    let y = this.stage.y();
+
+    if (pageW <= viewW - PAN_MARGIN * 2) {
+      x = (viewW - pageW) / 2;
+    } else {
+      x = clamp(x, viewW - pageW - PAN_MARGIN, PAN_MARGIN);
+    }
+
+    if (pageH <= viewH - PAN_MARGIN * 2) {
+      y = (viewH - pageH) / 2;
+    } else {
+      y = clamp(y, viewH - pageH - PAN_MARGIN, PAN_MARGIN);
+    }
+
+    this.stage.position({ x, y });
+  }
+
+  zoomAround(screenPoint, newScaleRaw) {
+    const min = this.worldBase * ZOOM.min;
+    const max = this.worldBase * ZOOM.max;
+    const oldScale = this.stage.scaleX();
+    const newScale = clamp(newScaleRaw, min, max);
+    const world = {
+      x: (screenPoint.x - this.stage.x()) / oldScale,
+      y: (screenPoint.y - this.stage.y()) / oldScale,
+    };
+
+    this.stage.scale({ x: newScale, y: newScale });
+    this.stage.position({
+      x: screenPoint.x - world.x * newScale,
+      y: screenPoint.y - world.y * newScale,
+    });
+    this.zoom = newScale / this.worldBase;
+    this.clampStagePosition();
+    this.syncTransformerScale(newScale);
+    this.updateZoomReadout();
+    this.stage.batchDraw();
+    this.repositionMenu();
+  }
+
+  bindCanvasNavigation() {
+    // Wheel zoom: desktop trackpad / mouse.
+    this.stage.on("wheel", (e) => {
+      e.evt.preventDefault();
+      const pointer = this.stage.getPointerPosition();
+      if (!pointer) return;
+      const direction = e.evt.deltaY > 0 ? -1 : 1;
+      this.zoomAround(pointer, this.stage.scaleX() * (1 + direction * 0.12));
+    });
+
+    // Mouse pan only starts from empty canvas/page. Sticker drag remains untouched.
+    let panning = false;
+    let last = null;
+
+    this.stage.on("mousedown", (e) => {
+      if (!this.isCanvasTarget(e.target)) return;
+      panning = true;
+      last = this.stage.getPointerPosition();
+      this.hideMenu();
+    });
+
+    this.stage.on("mousemove", () => {
+      if (!panning || !last) return;
+      const p = this.stage.getPointerPosition();
+      if (!p) return;
+      this.stage.position({
+        x: this.stage.x() + p.x - last.x,
+        y: this.stage.y() + p.y - last.y,
+      });
+      last = p;
+      this.clampStagePosition();
+      this.stage.batchDraw();
+      this.repositionMenu();
+    });
+
+    const stopMousePan = () => {
+      panning = false;
+      last = null;
+    };
+    this.stage.on("mouseup mouseleave", stopMousePan);
+
+    // Touch navigation: two fingers only. Start on touchstart so the gesture
+    // has a stable reference point and does not jump on the first touchmove.
+    const start = (e) => this.onTouchStart(e);
+    const move = (e) => this.onTouchMove(e);
+    const end = (e) => this.onTouchEnd(e);
+    this.host.addEventListener("touchstart", start, { passive: false });
+    this.host.addEventListener("touchmove", move, { passive: false });
+    this.host.addEventListener("touchend", end, { passive: false });
+    this.host.addEventListener("touchcancel", end, { passive: false });
+    this.cleanup.push(() => {
+      this.host.removeEventListener("touchstart", start);
+      this.host.removeEventListener("touchmove", move);
+      this.host.removeEventListener("touchend", end);
+      this.host.removeEventListener("touchcancel", end);
     });
   }
 
+  touchPoints(e) {
+    const rect = this.host.getBoundingClientRect();
+    return [...e.touches].map((t) => ({
+      x: t.clientX - rect.left,
+      y: t.clientY - rect.top,
+    }));
+  }
+
+  gestureInfo(e) {
+    const pts = this.touchPoints(e);
+    if (pts.length < 2) return null;
+    return {
+      pts,
+      dist: Math.max(1, Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y)),
+      mid: {
+        x: (pts[0].x + pts[1].x) / 2,
+        y: (pts[0].y + pts[1].y) / 2,
+      },
+    };
+  }
+
+  freezeItemDragging() {
+    if (this.pinchDragStates) return;
+    this.pinchDragStates = [];
+    this.refs.forEach((ref) => {
+      this.pinchDragStates.push([ref.group, ref.group.draggable()]);
+      ref.group.stopDrag();
+      ref.group.draggable(false);
+    });
+  }
+
+  restoreItemDragging() {
+    if (!this.pinchDragStates) return;
+    this.pinchDragStates.forEach(([group, draggable]) => group.draggable(draggable));
+    this.pinchDragStates = null;
+  }
+
+  onTouchStart(e) {
+    if (e.touches.length !== 2) return;
+    const g = this.gestureInfo(e);
+    if (!g) return;
+    e.preventDefault();
+    this.beginPinch(g);
+  }
+
+  beginPinch(g) {
+    this.freezeItemDragging();
+    this.hideMenu();
+
+    const ref = this.selectedRef();
+    const stageScale = this.stage.scaleX();
+    const stagePos = { x: this.stage.x(), y: this.stage.y() };
+
+    // Selection wins: when a sticker is selected, a two-finger gesture edits
+    // that sticker instead of accidentally panning/zooming the canvas.
+    if (ref) {
+      this.pinch = {
+        mode: "sticker",
+        startDist: g.dist,
+        startMid: g.mid,
+        startStageScale: stageScale,
+        startItemScale: ref.item.scale,
+        startItemPos: { x: ref.item.x, y: ref.item.y },
+      };
+      return;
+    }
+
+    this.pinch = {
+      mode: "canvas",
+      startDist: g.dist,
+      startScale: stageScale,
+      startMid: g.mid,
+      startStage: stagePos,
+      startWorld: {
+        x: (g.mid.x - stagePos.x) / stageScale,
+        y: (g.mid.y - stagePos.y) / stageScale,
+      },
+    };
+  }
+
+  onTouchMove(e) {
+    if (e.touches.length !== 2) return;
+    const g = this.gestureInfo(e);
+    if (!g) return;
+    e.preventDefault();
+
+    if (!this.pinch) this.beginPinch(g);
+    const p = this.pinch;
+    const factor = g.dist / p.startDist;
+
+    if (p.mode === "sticker") {
+      const ref = this.selectedRef();
+      if (!ref) return;
+      const dx = (g.mid.x - p.startMid.x) / p.startStageScale;
+      const dy = (g.mid.y - p.startMid.y) / p.startStageScale;
+      ref.item.x = p.startItemPos.x + dx;
+      ref.item.y = p.startItemPos.y + dy;
+      ref.item.scale = clamp(p.startItemScale * factor, 0.1, 8);
+      ref.group.position({ x: ref.item.x, y: ref.item.y });
+      ref.transformOnly();
+      this.transformer.forceUpdate();
+      this.layer.batchDraw();
+      this.repositionMenu();
+      return;
+    }
+
+    const min = this.worldBase * ZOOM.min;
+    const max = this.worldBase * ZOOM.max;
+    const newScale = clamp(p.startScale * factor, min, max);
+
+    this.stage.scale({ x: newScale, y: newScale });
+    this.stage.position({
+      x: g.mid.x - p.startWorld.x * newScale,
+      y: g.mid.y - p.startWorld.y * newScale,
+    });
+    this.zoom = newScale / this.worldBase;
+    this.clampStagePosition();
+    this.syncTransformerScale(newScale);
+    this.updateZoomReadout();
+    this.stage.batchDraw();
+    this.repositionMenu();
+  }
+
+  onTouchEnd(e) {
+    if (e && e.touches && e.touches.length >= 2) {
+      const g = this.gestureInfo(e);
+      if (g) this.beginPinch(g);
+      return;
+    }
+
+    if (this.pinch && this.pinch.mode === "sticker") {
+      const ref = this.selectedRef();
+      if (ref) ref.refresh();
+      this.commit();
+    }
+    this.restoreItemDragging();
+    this.pinch = null;
+  }
+
+  // ---------- stickers ----------
+
+  async renderAllItems() {
+    this.refs.forEach((ref) => ref.group.destroy());
+    this.refs.clear();
+    this.selectedId = null;
+    this.transformer.nodes([]);
+
+    const items = [...(this.project.stickerItems || [])].sort((a, b) => a.zIndex - b.zIndex);
+    await Promise.all(items.map((item) => this.spawnNode(item)));
+    this.reorderLayer();
+    this.layer.batchDraw();
+  }
+
   async spawnNode(item) {
-    const s = findSticker(item.packId, item.assetId);
-    if (!s) return;
-    const img = await loadImage(s.url);
+    const sticker = findSticker(item.packId, item.assetId);
+    if (!sticker) return null;
+    const img = await loadImage(sticker.url);
     const ref = buildItemGroup(item, img, { interactive: true });
     ref.item = item;
     this.wireItem(ref);
@@ -202,20 +472,39 @@ class Editor {
 
   wireItem(ref) {
     const { group, art } = ref;
-    art.on("click tap", () => this.select(ref.item.id));
-    group.on("dragstart", () => { this.hideMenu(); this.select(ref.item.id); });
-    group.on("dragmove", () => this.transformer.forceUpdate());
+
+    art.on("click tap", (e) => {
+      e.cancelBubble = true;
+      this.select(ref.item.id);
+    });
+
+    group.on("dragstart", () => {
+      this.hideMenu();
+      this.select(ref.item.id);
+    });
+
+    group.on("dragmove", () => {
+      this.transformer.forceUpdate();
+      this.repositionMenu();
+    });
+
     group.on("dragend", () => {
       ref.item.x = group.x();
       ref.item.y = group.y();
       this.commit();
     });
-    art.on("dbltap dblclick", () => { this.select(ref.item.id); this.openMenu(ref.item.id); });
-    // live rotation via the transformer handle
+
+    art.on("dblclick dbltap", (e) => {
+      e.cancelBubble = true;
+      this.select(ref.item.id);
+      this.openMenu(ref.item.id);
+    });
+
     art.on("transform", () => {
       ref.item.rotation = art.rotation();
       ref.transformOnly();
     });
+
     art.on("transformend", () => {
       ref.item.rotation = art.rotation();
       ref.refresh();
@@ -226,18 +515,17 @@ class Editor {
   reorderLayer() {
     this.page.moveToBottom();
     if (this.bgNode) {
-      this.bgNode.moveToBottom();   // bg to index 0
-      this.page.moveToBottom();     // page back under bg → page(0), bg(1)
+      this.bgNode.moveToTop();
     }
-    const items = [...this.project.stickerItems].sort((a, b) => a.zIndex - b.zIndex);
-    for (const item of items) {
+
+    const sorted = [...(this.project.stickerItems || [])].sort((a, b) => a.zIndex - b.zIndex);
+    sorted.forEach((item) => {
       const ref = this.refs.get(item.id);
       if (ref) ref.group.moveToTop();
-    }
+    });
     this.transformer.moveToTop();
   }
 
-  // ---------- selection ----------
   select(id) {
     const ref = this.refs.get(id);
     if (!ref) return;
@@ -245,7 +533,7 @@ class Editor {
     this.transformer.nodes([ref.art]);
     this.transformer.moveToTop();
     this.layer.batchDraw();
-    if (!this.menuEl.hidden) this.repositionMenu();
+    this.repositionMenu();
   }
 
   deselect() {
@@ -255,163 +543,59 @@ class Editor {
     this.layer.batchDraw();
   }
 
-  selectedRef() { return this.selectedId ? this.refs.get(this.selectedId) : null; }
-
-  // ---------- gestures: pan / zoom / pinch ----------
-  bindStageGestures() {
-    // desktop wheel zoom around cursor
-    this.stage.on("wheel", (e) => {
-      e.evt.preventDefault();
-      const pointer = this.stage.getPointerPosition();
-      const oldScale = this.stage.scaleX();
-      const dir = e.evt.deltaY > 0 ? -1 : 1;
-      const factor = 1 + dir * 0.12;
-      this.zoomAround(pointer, oldScale * factor);
-    });
-
-    // desktop empty-area drag-pan
-    let panning = false, last = null;
-    this.stage.on("mousedown", (e) => {
-      if (e.target === this.stage || e.target === this.page) {
-        panning = true;
-        last = this.stage.getPointerPosition();
-      }
-    });
-    this.stage.on("mousemove", () => {
-      if (!panning) return;
-      const p = this.stage.getPointerPosition();
-      this.stage.position({
-        x: this.stage.x() + (p.x - last.x),
-        y: this.stage.y() + (p.y - last.y),
-      });
-      last = p;
-      this.stage.batchDraw();
-      this.repositionMenu();
-    });
-    const endPan = () => { panning = false; };
-    this.stage.on("mouseup", endPan);
-
-    // touch: 1-finger empty pan + 2-finger pinch (canvas or selected sticker)
-    this.pinch = null;
-    this.host.addEventListener("touchmove", (e) => this.onTouchMove(e), { passive: false });
-    this.host.addEventListener("touchend", () => this.onTouchEnd());
-    this.host.addEventListener("touchcancel", () => this.onTouchEnd());
+  selectedRef() {
+    return this.selectedId ? this.refs.get(this.selectedId) : null;
   }
 
-  zoomAround(screenPoint, newScaleRaw) {
-    const min = this.worldBase * ZOOM.min, max = this.worldBase * ZOOM.max;
-    const newScale = clamp(newScaleRaw, min, max);
-    const oldScale = this.stage.scaleX();
-    const world = {
-      x: (screenPoint.x - this.stage.x()) / oldScale,
-      y: (screenPoint.y - this.stage.y()) / oldScale,
-    };
-    this.stage.scale({ x: newScale, y: newScale });
-    this.stage.position({
-      x: screenPoint.x - world.x * newScale,
-      y: screenPoint.y - world.y * newScale,
-    });
-    this.zoom = newScale / this.worldBase;
-    this.syncTransformerScale(newScale);
-    this.updateZoomReadout();
-    this.stage.batchDraw();
-    this.repositionMenu();
+  async addSticker(packId, assetId, x, y) {
+    const maxZ = (this.project.stickerItems || []).reduce((m, it) => Math.max(m, it.zIndex || 0), -1);
+    const item = newStickerItem(packId, assetId, x, y, maxZ + 1);
+    this.project.stickerItems = this.project.stickerItems || [];
+    this.project.stickerItems.push(item);
+    await this.spawnNode(item);
+    this.reorderLayer();
+    this.select(item.id);
+    this.commit();
   }
 
-  touchPoints(e) {
-    const r = this.host.getBoundingClientRect();
-    return [...e.touches].map((t) => ({ x: t.clientX - r.left, y: t.clientY - r.top }));
-  }
+  // ---------- tray ----------
 
-  onTouchMove(e) {
-    if (e.touches.length !== 2) return;
-    e.preventDefault();
-    const pts = this.touchPoints(e);
-    const dist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
-    const mid = { x: (pts[0].x + pts[1].x) / 2, y: (pts[0].y + pts[1].y) / 2 };
-
-    if (!this.pinch) {
-      // begin: cancel any sticker drag, decide target
-      for (const ref of this.refs.values()) ref.group.stopDrag();
-      this.hideMenu();
-      const ref = this.selectedRef();
-      const overSel = ref && this.shapeAt(pts[0]) &&
-        this.shapeAt(pts[0]).getAttr("itemId") === this.selectedId;
-      this.pinch = {
-        mode: overSel ? "sticker" : "canvas",
-        startDist: dist,
-        startScale: this.stage.scaleX(),
-        startItemScale: ref ? ref.item.scale : 1,
-        startMid: mid,
-      };
-      return;
-    }
-
-    const p = this.pinch;
-    if (p.mode === "sticker") {
-      const ref = this.selectedRef();
-      if (!ref) return;
-      const factor = dist / p.startDist;
-      ref.item.scale = clamp(p.startItemScale * factor, 0.1, 8);
-      ref.transformOnly();
-      this.transformer.forceUpdate();
-      this.layer.batchDraw();
-    } else {
-      // canvas pan + zoom around the gesture midpoint
-      const factor = dist / p.startDist;
-      const min = this.worldBase * ZOOM.min, max = this.worldBase * ZOOM.max;
-      const newScale = clamp(p.startScale * factor, min, max);
-      const world = {
-        x: (p.startMid.x - this.stage.x()) / this.stage.scaleX(),
-        y: (p.startMid.y - this.stage.y()) / this.stage.scaleX(),
-      };
-      this.stage.scale({ x: newScale, y: newScale });
-      this.stage.position({ x: mid.x - world.x * newScale, y: mid.y - world.y * newScale });
-      this.zoom = newScale / this.worldBase;
-      this.syncTransformerScale(newScale);
-      this.updateZoomReadout();
-      this.layer.batchDraw();
-    }
-  }
-
-  onTouchEnd() {
-    if (this.pinch && this.pinch.mode === "sticker") {
-      const ref = this.selectedRef();
-      if (ref) ref.refresh();
-      this.commit();
-    }
-    this.pinch = null;
-  }
-
-  shapeAt(point) {
-    return this.stage.getIntersection(point);
-  }
-
-  // ---------- tray (pack + sticker carousels) ----------
   buildTray() {
     this.packCarousel = document.getElementById("pack-carousel");
     this.stickerCarousel = document.getElementById("sticker-carousel");
     this.packTab = document.getElementById("active-pack-tab");
 
     const packs = getPacks();
-    this.activePackId = packs[0] ? packs[0].id : null;
-
+    this.activePackId = packs[0]?.id || null;
     this.packCarousel.innerHTML = "";
+
     packs.forEach((pack) => {
       const chip = document.createElement("button");
+      chip.type = "button";
       chip.className = "pack-chip" + (pack.id === this.activePackId ? " is-active" : "");
-      chip.innerHTML = `<span class="pack-chip__thumb"><img src="${pack.thumbnailUrl}" alt=""></span>
-        <span class="pack-chip__name">${pack.name}</span>`;
+
+      if (pack.thumbnailUrl) {
+        const img = document.createElement("img");
+        img.src = pack.thumbnailUrl;
+        img.alt = "";
+        chip.appendChild(img);
+      }
+
+      const label = document.createElement("span");
+      label.textContent = pack.name;
+      chip.appendChild(label);
+
       chip.addEventListener("click", () => this.activatePack(pack.id));
       this.packCarousel.appendChild(chip);
     });
+
     this.renderStickerStrip();
   }
 
   activatePack(id) {
     this.activePackId = id;
-    [...this.packCarousel.children].forEach((c, i) => {
-      c.classList.toggle("is-active", getPacks()[i].id === id);
+    [...this.packCarousel.children].forEach((el) => {
+      el.classList.toggle("is-active", el.textContent.trim() === (getPacks().find((p) => p.id === id)?.name || ""));
     });
     this.renderStickerStrip();
   }
@@ -421,46 +605,69 @@ class Editor {
     this.packTab.textContent = pack ? pack.name : "";
     this.stickerCarousel.innerHTML = "";
     if (!pack) return;
-    pack.stickers.forEach((s) => {
+
+    pack.stickers.forEach((sticker) => {
       const chip = document.createElement("div");
       chip.className = "sticker-chip";
       chip.dataset.pack = pack.id;
-      chip.dataset.asset = s.assetId;
-      chip.dataset.url = s.url;
-      chip.innerHTML = `<img src="${s.url}" alt="">`;
+      chip.dataset.asset = sticker.assetId;
+      chip.dataset.url = sticker.url;
+
+      const img = document.createElement("img");
+      img.src = sticker.url;
+      img.alt = "";
+      chip.appendChild(img);
+
       this.stickerCarousel.appendChild(chip);
     });
   }
 
-  // drag a sticker out of the tray and drop it onto the canvas
   bindTrayDrag() {
     const ghost = document.getElementById("drag-ghost");
     let dragging = null;
 
-    const move = (x, y) => { ghost.style.left = x + "px"; ghost.style.top = y + "px"; };
+    const moveGhost = (x, y) => {
+      ghost.style.left = x + "px";
+      ghost.style.top = y + "px";
+    };
 
     const onDown = (e) => {
       const chip = e.target.closest(".sticker-chip");
       if (!chip) return;
       e.preventDefault();
-      dragging = { pack: chip.dataset.pack, asset: chip.dataset.asset, url: chip.dataset.url };
-      ghost.src = chip.dataset.url;
+      dragging = {
+        pack: chip.dataset.pack,
+        asset: chip.dataset.asset,
+        url: chip.dataset.url,
+      };
+      ghost.src = dragging.url;
       ghost.hidden = false;
-      move(e.clientX, e.clientY);
+      moveGhost(e.clientX, e.clientY);
       window.addEventListener("pointermove", onMove);
       window.addEventListener("pointerup", onUp);
     };
-    const onMove = (e) => { if (dragging) move(e.clientX, e.clientY); };
+
+    const onMove = (e) => {
+      if (!dragging) return;
+      moveGhost(e.clientX, e.clientY);
+    };
+
     const onUp = (e) => {
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
       ghost.hidden = true;
       if (!dragging) return;
+
       const rect = this.host.getBoundingClientRect();
-      const inside = e.clientX >= rect.left && e.clientX <= rect.right &&
-        e.clientY >= rect.top && e.clientY <= rect.bottom;
+      const inside =
+        e.clientX >= rect.left &&
+        e.clientX <= rect.right &&
+        e.clientY >= rect.top &&
+        e.clientY <= rect.bottom;
+
       if (inside) {
-        const sx = e.clientX - rect.left, sy = e.clientY - rect.top;
+        const sx = e.clientX - rect.left;
+        const sy = e.clientY - rect.top;
         const world = {
           x: (sx - this.stage.x()) / this.stage.scaleX(),
           y: (sy - this.stage.y()) / this.stage.scaleX(),
@@ -469,27 +676,27 @@ class Editor {
       }
       dragging = null;
     };
-    this.stickerCarousel.addEventListener("pointerdown", onDown);
-  }
 
-  async addSticker(packId, assetId, x, y) {
-    const maxZ = this.project.stickerItems.reduce((m, it) => Math.max(m, it.zIndex), -1);
-    const item = newStickerItem(packId, assetId, x, y, maxZ + 1);
-    this.project.stickerItems.push(item);
-    await this.spawnNode(item);
-    this.reorderLayer();
-    this.select(item.id);
-    this.commit();
+    this.stickerCarousel.addEventListener("pointerdown", onDown);
+    this.cleanup.push(() => this.stickerCarousel.removeEventListener("pointerdown", onDown));
   }
 
   // ---------- background ----------
+
   bindTrayTabs() {
     this.tabStickers = document.getElementById("tab-stickers");
     this.tabBg = document.getElementById("tab-bg");
     this.panelStickers = document.getElementById("panel-stickers");
     this.panelBg = document.getElementById("panel-bg");
-    this.tabStickers.addEventListener("click", () => this.switchTab("stickers"));
-    this.tabBg.addEventListener("click", () => this.switchTab("background"));
+
+    const showStickers = () => this.switchTab("stickers");
+    const showBg = () => this.switchTab("background");
+    this.tabStickers.addEventListener("click", showStickers);
+    this.tabBg.addEventListener("click", showBg);
+    this.cleanup.push(() => {
+      this.tabStickers.removeEventListener("click", showStickers);
+      this.tabBg.removeEventListener("click", showBg);
+    });
   }
 
   switchTab(name) {
@@ -500,7 +707,7 @@ class Editor {
     this.panelBg.hidden = stickers;
   }
 
-  buildBgPanel() {
+  buildBackgroundPanel() {
     this.bgCarousel = document.getElementById("bg-carousel");
     this.bgNoneBtn = document.getElementById("bg-none");
     this.bgUploadBtn = document.getElementById("bg-upload-btn");
@@ -509,22 +716,32 @@ class Editor {
     this.bgCarousel.innerHTML = "";
     getBackgrounds().forEach((bg) => {
       const chip = document.createElement("button");
+      chip.type = "button";
       chip.className = "bg-chip";
       chip.dataset.bgId = bg.id;
       chip.style.backgroundImage = `url("${bg.url}")`;
-      chip.innerHTML = `<span class="bg-chip__name">${bg.name}</span>`;
-      chip.addEventListener("click", () =>
-        this.setBackground({ type: "asset", id: bg.id, url: bg.url }));
+      chip.textContent = bg.name || "배경";
+      chip.addEventListener("click", () => this.setBackground({ type: "asset", id: bg.id, url: bg.url }));
       this.bgCarousel.appendChild(chip);
     });
 
-    this.bgNoneBtn.addEventListener("click", () => this.setBackground(null));
-    this.bgUploadBtn.addEventListener("click", () => this.bgFileInput.click());
-    this.bgFileInput.addEventListener("change", (e) => {
+    const clearBg = () => this.setBackground(null);
+    const pickBg = () => this.bgFileInput.click();
+    const onFile = (e) => {
       const file = e.target.files && e.target.files[0];
       if (file) this.onPhotoPick(file);
       this.bgFileInput.value = "";
+    };
+
+    this.bgNoneBtn.addEventListener("click", clearBg);
+    this.bgUploadBtn.addEventListener("click", pickBg);
+    this.bgFileInput.addEventListener("change", onFile);
+    this.cleanup.push(() => {
+      this.bgNoneBtn.removeEventListener("click", clearBg);
+      this.bgUploadBtn.removeEventListener("click", pickBg);
+      this.bgFileInput.removeEventListener("change", onFile);
     });
+
     this.markBgActive();
   }
 
@@ -532,6 +749,7 @@ class Editor {
     this.project.background = bg;
     this.bgDirty = true;
     this.renderBackground();
+    this.commit();
   }
 
   async onPhotoPick(file) {
@@ -540,27 +758,39 @@ class Editor {
       const dataUrl = await fileToScaledDataUrl(file, 2000);
       this.setBackground({ type: "photo", dataUrl });
     } catch (err) {
-      toast("사진을 불러오지 못했어요");
       console.error(err);
+      toast("사진을 불러오지 못했어요");
     }
   }
 
   async renderBackground() {
-    if (this.bgNode) { this.bgNode.destroy(); this.bgNode = null; }
+    if (this.bgNode) {
+      this.bgNode.destroy();
+      this.bgNode = null;
+    }
+
     const bg = this.project.background;
     if (bg) {
       try {
-        const img = await loadBgImage(backgroundSrc(bg));
+        const src = backgroundSrc(bg);
+        const img = await loadBgImage(src);
         const crop = coverCrop(img.width, img.height, this.canvasW, this.canvasH);
         this.bgNode = new Konva.Image({
-          image: img, x: 0, y: 0, width: this.canvasW, height: this.canvasH,
-          crop, listening: false, name: "bg",
+          image: img,
+          x: 0,
+          y: 0,
+          width: this.canvasW,
+          height: this.canvasH,
+          crop,
+          listening: false,
+          name: "bg",
         });
         this.layer.add(this.bgNode);
       } catch (err) {
-        console.error(err);
+        console.error("배경 렌더 실패", err);
       }
     }
+
     this.reorderLayer();
     this.layer.batchDraw();
     this.markBgActive();
@@ -569,37 +799,39 @@ class Editor {
   markBgActive() {
     const bg = this.project.background;
     const activeId = bg && bg.type === "asset" ? bg.id : null;
+
     if (this.bgCarousel) {
-      [...this.bgCarousel.children].forEach((c) =>
-        c.classList.toggle("is-active", c.dataset.bgId === activeId));
+      [...this.bgCarousel.children].forEach((el) => {
+        el.classList.toggle("is-active", el.dataset.bgId === activeId);
+      });
     }
     if (this.bgNoneBtn) this.bgNoneBtn.classList.toggle("is-active", !bg);
     if (this.bgUploadBtn) this.bgUploadBtn.classList.toggle("is-active", !!bg && bg.type === "photo");
   }
 
-  // ---------- double-tap menu ----------
+  // ---------- menu / effects ----------
+
   openMenu(id) {
     this.select(id);
     const ref = this.refs.get(id);
     if (!ref) return;
-    this.openEffectKey = this.openEffectKey || null;
+
     this.menuEl.hidden = false;
     this.menuEl.innerHTML = "";
 
-    // main action row
     const row = document.createElement("div");
     row.className = "menu-row";
-    MENU_ACTIONS.forEach((a) => row.appendChild(this.menuButton(a, () => this.onMenuAction(a.key, id))));
+    MENU_ACTIONS.forEach((def) => {
+      row.appendChild(this.menuButton(def, () => this.onMenuAction(def.key, id)));
+    });
     this.menuEl.appendChild(row);
 
-    // effects sub-row + slider
-    if (this._effectsOpen) {
+    if (this.effectsOpen) {
       const erow = document.createElement("div");
       erow.className = "menu-row";
-      EFFECT_KEYS.forEach((fx) => {
-        const on = ref.item.effects[fx.key] && ref.item.effects[fx.key].enabled;
-        const btn = this.menuButton(fx, () => this.toggleEffect(id, fx.key), on);
-        erow.appendChild(btn);
+      EFFECTS.forEach((def) => {
+        const fx = ref.item.effects?.[def.key];
+        erow.appendChild(this.menuButton(def, () => this.toggleEffect(id, def.key), !!fx?.enabled));
       });
       this.menuEl.appendChild(erow);
 
@@ -607,18 +839,28 @@ class Editor {
         const fx = ref.item.effects[this.openEffectKey];
         const slider = document.createElement("div");
         slider.className = "menu-slider";
-        slider.innerHTML = `<input type="range" min="0" max="1" step="0.01" value="${fx.intensity}">
-          <span>${Math.round(fx.intensity * 100)}</span>`;
-        const input = slider.querySelector("input");
-        const label = slider.querySelector("span");
+
+        const input = document.createElement("input");
+        input.type = "range";
+        input.min = "0";
+        input.max = "1";
+        input.step = "0.01";
+        input.value = String(fx.intensity ?? 0.5);
+
+        const label = document.createElement("span");
+        label.textContent = String(Math.round((fx.intensity ?? 0.5) * 100));
+
         input.addEventListener("input", () => {
-          fx.intensity = parseFloat(input.value);
+          fx.intensity = Number(input.value);
           fx.enabled = fx.intensity > 0;
-          label.textContent = Math.round(fx.intensity * 100);
+          label.textContent = String(Math.round(fx.intensity * 100));
           ref.refresh();
           this.layer.batchDraw();
         });
         input.addEventListener("change", () => this.commit());
+
+        slider.appendChild(input);
+        slider.appendChild(label);
         this.menuEl.appendChild(slider);
       }
     }
@@ -626,57 +868,56 @@ class Editor {
     this.repositionMenu();
   }
 
-  menuButton(def, onClick, isOn) {
+  menuButton(def, onClick, isOn = false) {
     const btn = document.createElement("button");
+    btn.type = "button";
     btn.className = "menu-btn" + (def.danger ? " is-danger" : "") + (isOn ? " is-on" : "");
-    btn.innerHTML = ICONS[def.key];
+    btn.textContent = def.label;
     btn.dataset.tip = def.tip;
-    btn.addEventListener("click", (e) => { e.stopPropagation(); onClick(); });
-    this.attachLongPress(btn);
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      onClick();
+    });
     return btn;
-  }
-
-  attachLongPress(btn) {
-    let t = null;
-    const start = () => { t = setTimeout(() => btn.classList.add("show-tip"), 420); };
-    const end = () => { clearTimeout(t); btn.classList.remove("show-tip"); };
-    btn.addEventListener("pointerdown", start);
-    btn.addEventListener("pointerup", end);
-    btn.addEventListener("pointerleave", end);
   }
 
   onMenuAction(key, id) {
     const ref = this.refs.get(id);
     if (!ref) return;
     const item = ref.item;
-    switch (key) {
-      case "flipH": item.flipX = !item.flipX; ref.refresh(); this.commit(); break;
-      case "flipV": item.flipY = !item.flipY; ref.refresh(); this.commit(); break;
-      case "forward": this.restack(id, +1); break;
-      case "backward": this.restack(id, -1); break;
-      case "delete": this.removeItem(id); return;
-      case "effects":
-        this._effectsOpen = !this._effectsOpen;
-        if (!this._effectsOpen) this.openEffectKey = null;
-        this.openMenu(id);
-        return;
+
+    if (key === "flipH") item.flipX = !item.flipX;
+    if (key === "flipV") item.flipY = !item.flipY;
+    if (key === "forward") return this.restack(id, 1);
+    if (key === "backward") return this.restack(id, -1);
+    if (key === "delete") return this.removeItem(id);
+    if (key === "effects") {
+      this.effectsOpen = !this.effectsOpen;
+      if (!this.effectsOpen) this.openEffectKey = null;
+      this.openMenu(id);
+      return;
     }
+
+    ref.refresh();
     this.layer.batchDraw();
+    this.commit();
     this.repositionMenu();
   }
 
   toggleEffect(id, key) {
     const ref = this.refs.get(id);
+    if (!ref) return;
     const fx = ref.item.effects[key];
+
     if (this.openEffectKey === key) {
-      // second tap on the open effect → toggle it off
       fx.enabled = !fx.enabled;
       if (!fx.enabled) this.openEffectKey = null;
     } else {
       this.openEffectKey = key;
       fx.enabled = true;
-      if (fx.intensity <= 0) fx.intensity = 0.5;
+      if (!fx.intensity || fx.intensity <= 0) fx.intensity = 0.5;
     }
+
     ref.refresh();
     this.layer.batchDraw();
     this.openMenu(id);
@@ -684,12 +925,15 @@ class Editor {
   }
 
   restack(id, dir) {
-    const sorted = [...this.project.stickerItems].sort((a, b) => a.zIndex - b.zIndex);
-    const idx = sorted.findIndex((it) => it.id === id);
+    const sorted = [...(this.project.stickerItems || [])].sort((a, b) => a.zIndex - b.zIndex);
+    const idx = sorted.findIndex((item) => item.id === id);
     const swap = idx + dir;
-    if (swap < 0 || swap >= sorted.length) return;
+    if (idx < 0 || swap < 0 || swap >= sorted.length) return;
+
     [sorted[idx], sorted[swap]] = [sorted[swap], sorted[idx]];
-    sorted.forEach((it, i) => { it.zIndex = i; });
+    sorted.forEach((item, i) => {
+      item.zIndex = i;
+    });
     this.reorderLayer();
     this.layer.batchDraw();
     this.commit();
@@ -699,57 +943,85 @@ class Editor {
     const ref = this.refs.get(id);
     if (ref) ref.group.destroy();
     this.refs.delete(id);
-    this.project.stickerItems = this.project.stickerItems.filter((it) => it.id !== id);
+    this.project.stickerItems = (this.project.stickerItems || []).filter((item) => item.id !== id);
     this.deselect();
     this.commit();
   }
 
   repositionMenu() {
-    if (this.menuEl.hidden) return;
+    if (!this.menuEl || this.menuEl.hidden) return;
     const ref = this.selectedRef();
     if (!ref) return;
     const box = ref.art.getClientRect();
-    this.menuEl.style.left = (box.x + box.width / 2) + "px";
+    this.menuEl.style.left = box.x + box.width / 2 + "px";
     this.menuEl.style.top = Math.max(54, box.y - 12) + "px";
   }
 
   hideMenu() {
-    this.menuEl.hidden = true;
-    this._effectsOpen = false;
+    if (this.menuEl) this.menuEl.hidden = true;
+    this.effectsOpen = false;
     this.openEffectKey = null;
   }
 
-  // ---------- history ----------
-  commit() {
-    this.history = this.history.slice(0, this.hIndex + 1);
-    this.history.push(JSON.stringify(this.project.stickerItems));
-    this.hIndex = this.history.length - 1;
-    this.updateHistoryButtons();
+  // ---------- history / persistence ----------
+
+  snapshot() {
+    return JSON.stringify({
+      title: this.project.title,
+      background: this.project.background || null,
+      stickerItems: clone(this.project.stickerItems || []),
+    });
   }
 
-  restoreHistory() {
-    this.project.stickerItems = JSON.parse(this.history[this.hIndex]);
-    this.renderAllItems();
+  async restoreSnapshot() {
+    const snap = JSON.parse(this.history[this.hIndex]);
+    this.project.title = snap.title || this.project.title || "제목 없는 프로젝트";
+    this.project.background = snap.background || null;
+    this.project.stickerItems = snap.stickerItems || [];
+    this.titleInput.value = this.project.title;
+    await this.renderAllItems();
+    await this.renderBackground();
     this.hideMenu();
     this.updateHistoryButtons();
   }
 
-  undo() { if (this.hIndex > 0) { this.hIndex--; this.restoreHistory(); } }
-  redo() { if (this.hIndex < this.history.length - 1) { this.hIndex++; this.restoreHistory(); } }
+  commit() {
+    const next = this.snapshot();
+    if (next === this.history[this.hIndex]) return;
+    this.history = this.history.slice(0, this.hIndex + 1);
+    this.history.push(next);
+    this.hIndex = this.history.length - 1;
+    this.updateHistoryButtons();
+  }
+
+  undo() {
+    if (this.hIndex <= 0) return;
+    this.hIndex--;
+    this.restoreSnapshot();
+  }
+
+  redo() {
+    if (this.hIndex >= this.history.length - 1) return;
+    this.hIndex++;
+    this.restoreSnapshot();
+  }
 
   updateHistoryButtons() {
     document.getElementById("btn-undo").disabled = this.hIndex <= 0;
     document.getElementById("btn-redo").disabled = this.hIndex >= this.history.length - 1;
   }
 
-  // ---------- chrome ----------
   bindChrome() {
     document.getElementById("btn-undo").onclick = () => this.undo();
     document.getElementById("btn-redo").onclick = () => this.redo();
     document.getElementById("btn-save").onclick = () => this.save();
     document.getElementById("btn-export").onclick = () => this.doExport();
     document.getElementById("btn-back").onclick = () => this.exit();
-    this.titleInput.oninput = () => { this.project.title = this.titleInput.value.trim() || "제목 없는 프로젝트"; };
+
+    this.titleInput.oninput = () => {
+      this.project.title = this.titleInput.value.trim() || "제목 없는 프로젝트";
+      this.commit();
+    };
   }
 
   async save() {
@@ -766,8 +1038,8 @@ class Editor {
     try {
       await exportPNG(this.project);
     } catch (err) {
-      toast("내보내기에 실패했어요");
       console.error(err);
+      toast("내보내기에 실패했어요");
     }
   }
 
@@ -784,31 +1056,37 @@ class Editor {
 let toastTimer = null;
 function toast(msg) {
   const el = document.getElementById("toast");
+  if (!el) return;
   el.textContent = msg;
   el.hidden = false;
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => { el.hidden = true; }, 1800);
+  toastTimer = setTimeout(() => {
+    el.hidden = true;
+  }, 1800);
 }
 
-// Read an uploaded image file, downscale to maxDim (longest side), return a JPEG data URL.
 function fileToScaledDataUrl(file, maxDim) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
+    reader.onerror = () => reject(reader.error);
     reader.onload = () => {
       const img = new Image();
-      img.onload = () => {
-        let w = img.width, h = img.height;
-        const scale = Math.min(1, maxDim / Math.max(w, h));
-        w = Math.round(w * scale); h = Math.round(h * scale);
-        const cv = document.createElement("canvas");
-        cv.width = w; cv.height = h;
-        cv.getContext("2d").drawImage(img, 0, 0, w, h);
-        resolve(cv.toDataURL("image/jpeg", 0.85));
-      };
       img.onerror = () => reject(new Error("이미지 디코딩 실패"));
+      img.onload = () => {
+        let { width, height } = img;
+        const scale = Math.min(1, maxDim / Math.max(width, height));
+        width = Math.round(width * scale);
+        height = Math.round(height * scale);
+
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL("image/jpeg", 0.85));
+      };
       img.src = reader.result;
     };
-    reader.onerror = () => reject(reader.error);
     reader.readAsDataURL(file);
   });
 }
