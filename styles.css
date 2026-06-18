@@ -335,3 +335,19 @@ body{
     height: 20px !important;
   }
 }
+
+/* 팩 캐러셀 섬네일 크기 강제 고정 */
+.carousel--packs img{
+  width:24px !important;
+  height:24px !important;
+  max-width:24px !important;
+  max-height:24px !important;
+  object-fit:contain !important;
+  display:block !important;
+}
+.carousel--packs > *{
+  flex:0 0 auto !important;
+  height:34px !important;
+  overflow:hidden !important;
+}
+
