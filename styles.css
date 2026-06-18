@@ -26,7 +26,6 @@
 }
 
 *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
-[hidden]{ display:none !important; }
 [hidden]{ display:none !important; }   /* must win over .modal/.sticker-menu display */
 html,body{ margin:0; height:100%; overscroll-behavior:none; }
 body{
@@ -162,6 +161,9 @@ body{
 .tray{
   background:var(--surface); border-top:1px solid var(--line);
   padding:8px 0 max(8px, env(safe-area-inset-bottom));
+  flex: 0 0 auto;
+  max-height: 40dvh;
+  overflow: hidden;
 }
 .tray__tabs{ display:flex; gap:6px; padding:2px 14px 8px; }
 .tray-tab{
@@ -169,7 +171,7 @@ body{
   background:transparent; border:0; padding:7px 16px; border-radius:999px; cursor:pointer;
 }
 .tray-tab.is-on{ background:var(--ink); color:#fff; }
-.tray-panel{ display:block; }
+.tray-panel{ display:block; min-height:0; overflow:hidden; }
 
 .tray__selected{ padding:0 14px 6px; }
 .pack-tab{
@@ -178,41 +180,43 @@ body{
 }
 .tray-hint{ flex:0 0 auto; align-self:center; color:var(--ink-soft); font-size:13px; padding:14px 4px; }
 
-.carousel{ display:flex; gap:10px; overflow-x:auto; padding:6px 14px; scrollbar-width:none; }
+.carousel{ display:flex; gap:10px; overflow-x:auto; padding:6px 14px; scrollbar-width:none; align-items:center; }
 .carousel::-webkit-scrollbar{ display:none; }
 
-.carousel--stickers .sticker-chip{
-  flex:0 0 auto; width:68px; height:68px; border-radius:16px; background:var(--surface-2);
-  display:grid; place-items:center; cursor:grab; touch-action:none;
-  box-shadow:inset 0 0 0 1.5px var(--line); transition:transform .1s;
-}
-.carousel--stickers .sticker-chip:active{ transform:scale(.94); cursor:grabbing; }
-.carousel--stickers .sticker-chip img{ max-width:80%; max-height:80%; pointer-events:none; }
-
-/* 팩 캐러셀 컨테이너 고정 */
-.carousel--packs{ 
-  padding:4px 14px; 
-  max-height:48px; 
-  display:flex; 
-  align-items:center;
-  overflow-x:auto;
-  overflow-y:hidden;
+/* 팩 캐러셀 가로 배치 고정 */
+.carousel--packs {
+  max-height: 48px;
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  padding: 4px 14px;
 }
 
-/* 팩 버튼 전체 크기 고정 */
-.pack-chip{
-  flex:0 0 auto; display:flex; align-items:center; gap:6px; padding:4px 12px 4px 4px;
-  height:36px; min-height:36px; border-radius:999px; background:var(--surface-2); cursor:pointer; border:0;
-  box-shadow:inset 0 0 0 1.5px transparent; transition:box-shadow .12s, background .12s;
+/* 팩 내부 버튼 디자인 및 크기 제한 */
+.pack-chip {
+  flex: 0 0 auto !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  height: 34px !important;
+  padding: 4px 12px 4px 4px !important;
+  border-radius: 999px !important;
+  background: var(--surface-2);
+  cursor: pointer;
+  border: 0;
+  box-shadow: inset 0 0 0 1.5px transparent;
+  transition: box-shadow .12s, background .12s;
 }
 .pack-chip.is-active{ background:#fff; box-shadow:inset 0 0 0 2px var(--pink); }
 
-/* [수정] 탈출하던 원형 썸네일 박스를 26px 정원으로 완벽 고정 */
-.carousel--packs .pack-chip__thumb {
-  width: 26px !important;
-  height: 26px !important;
-  max-width: 26px !important;
-  max-height: 26px !important;
+/* [해결] 탈출하던 원형 섬네일 박스 크기 강제 고정 */
+.pack-chip__thumb {
+  width: 24px !important;
+  height: 24px !important;
+  max-width: 24px !important;
+  max-height: 24px !important;
   border-radius: 50% !important;
   background: #fff !important;
   display: grid !important;
@@ -221,8 +225,8 @@ body{
   flex-shrink: 0 !important;
 }
 
-/* [수정] 원형 박스 내부 이미지 크기를 박스에 맞춰 100% 가두기 */
-.carousel--packs .pack-chip__thumb img {
+/* [해결] 원형 박스 내부 이미지 크기 완벽 통제 */
+.pack-chip__thumb img {
   width: 100% !important;
   height: 100% !important;
   max-width: 100% !important;
@@ -230,8 +234,17 @@ body{
   object-fit: contain !important;
   display: block !important;
 }
+.pack-chip__name{ font-size:12px; font-weight:600; color:var(--ink); line-height:1; white-space:nowrap; }
 
-.pack-chip__name{ font-size:12px; font-weight:600; color:var(--ink); line-height:1; }
+/* 스티커 목록 관련 크기 */
+.carousel--stickers { max-height: 84px; }
+.carousel--stickers .sticker-chip{
+  flex:0 0 auto; width:64px; height:64px; border-radius:16px; background:var(--surface-2);
+  display:grid; place-items:center; cursor:grab; touch-action:none;
+  box-shadow:inset 0 0 0 1.5px var(--line); transition:transform .1s;
+}
+.carousel--stickers .sticker-chip:active{ transform:scale(.94); cursor:grabbing; }
+.carousel--stickers .sticker-chip img{ max-width:80%; max-height:80%; pointer-events:none; }
 
 /* ---------- background panel ---------- */
 .bg-actions{ display:flex; gap:8px; padding:0 14px 2px; }
@@ -241,6 +254,8 @@ body{
   box-shadow:inset 0 0 0 1.5px var(--line);
 }
 .bg-pill--accent{ background:var(--pink); color:#fff; box-shadow:none; }
+
+.carousel--bg { max-height: 92px; }
 .carousel--bg .bg-chip{
   flex:0 0 auto; width:58px; height:78px; border-radius:12px; overflow:hidden; cursor:pointer;
   background:var(--surface-2); box-shadow:inset 0 0 0 2px transparent; position:relative;
@@ -287,46 +302,14 @@ body{
 
 @media (prefers-reduced-motion:reduce){ *{ transition:none !important; } }
 
-
-/* 레이아웃 스크롤 제어 */
+/* 레이아웃 스크롤 방지 전체 구조 */
 .screen--editor {
   height: 100dvh;
   overflow: hidden;
 }
-
 .screen--editor .stage-wrap {
   flex: 1 1 auto;
   min-height: 180px;
-}
-
-.tray {
-  flex: 0 0 auto;
-  max-height: 40dvh;
-  overflow: hidden;
-}
-
-.tray-panel {
-  min-height: 0;
-  overflow: hidden;
-}
-
-.carousel {
-  overflow-x: auto;
-  overflow-y: hidden;
-  align-items: center;
-}
-
-.carousel--stickers {
-  max-height: 84px;
-}
-
-.carousel--bg {
-  max-height: 92px;
-}
-
-.carousel--stickers .sticker-chip {
-  width: 64px;
-  height: 64px;
 }
 
 /* ---------- 미니 화면 대응 미디어 쿼리 ---------- */
@@ -335,10 +318,20 @@ body{
     max-height: 34dvh;
   }
   .carousel--stickers .sticker-chip {
-    width: 56px;
-    height: 56px;
+    width: 54px;
+    height: 54px;
   }
   .carousel {
-    max-height: 76px;
+    max-height: 74px;
+  }
+  .carousel--packs {
+    max-height: 42px;
+  }
+  .pack-chip {
+    height: 30px !important;
+  }
+  .pack-chip__thumb {
+    width: 20px !important;
+    height: 20px !important;
   }
 }
