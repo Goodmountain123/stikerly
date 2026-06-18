@@ -26,6 +26,7 @@
 }
 
 *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+[hidden]{ display:none !important; }
 [hidden]{ display:none !important; }   /* must win over .modal/.sticker-menu display */
 html,body{ margin:0; height:100%; overscroll-behavior:none; }
 body{
@@ -188,39 +189,49 @@ body{
 .carousel--stickers .sticker-chip:active{ transform:scale(.94); cursor:grabbing; }
 .carousel--stickers .sticker-chip img{ max-width:80%; max-height:80%; pointer-events:none; }
 
-/* 팩 캐러셀 영역 높이 안정화 */
+/* 팩 캐러셀 컨테이너 고정 */
 .carousel--packs{ 
-  padding:6px 14px; 
+  padding:4px 14px; 
   max-height:48px; 
-  display:flex;
+  display:flex; 
   align-items:center;
+  overflow-x:auto;
+  overflow-y:hidden;
 }
 
-/* 팩 칩 구조 고정 */
+/* 팩 버튼 전체 크기 고정 */
 .pack-chip{
-  flex:0 0 auto; display:flex; align-items:center; gap:8px; padding:4px 12px 4px 4px;
-  height:34px; min-height:34px; border-radius:999px; background:var(--surface-2); cursor:pointer; border:0;
+  flex:0 0 auto; display:flex; align-items:center; gap:6px; padding:4px 12px 4px 4px;
+  height:36px; min-height:36px; border-radius:999px; background:var(--surface-2); cursor:pointer; border:0;
   box-shadow:inset 0 0 0 1.5px transparent; transition:box-shadow .12s, background .12s;
 }
 .pack-chip.is-active{ background:#fff; box-shadow:inset 0 0 0 2px var(--pink); }
 
-/* [해결] 거대해지던 팩 썸네일 크기 고정 및 찌그러짐 방지 */
-.pack-chip__thumb{ 
-  width:26px; 
-  height:26px; 
-  border-radius:50%; 
-  background:#fff; 
-  display:grid; 
-  place-items:center; 
-  overflow:hidden; 
-  flex-shrink:0; 
+/* [수정] 탈출하던 원형 썸네일 박스를 26px 정원으로 완벽 고정 */
+.carousel--packs .pack-chip__thumb {
+  width: 26px !important;
+  height: 26px !important;
+  max-width: 26px !important;
+  max-height: 26px !important;
+  border-radius: 50% !important;
+  background: #fff !important;
+  display: grid !important;
+  place-items: center !important;
+  overflow: hidden !important;
+  flex-shrink: 0 !important;
 }
-.pack-chip__thumb img{ 
-  width:100%; 
-  height:100%; 
-  object-fit:contain; 
+
+/* [수정] 원형 박스 내부 이미지 크기를 박스에 맞춰 100% 가두기 */
+.carousel--packs .pack-chip__thumb img {
+  width: 100% !important;
+  height: 100% !important;
+  max-width: 100% !important;
+  max-height: 100% !important;
+  object-fit: contain !important;
+  display: block !important;
 }
-.pack-chip__name{ font-size:13px; font-weight:600; color:var(--ink); line-height:1; }
+
+.pack-chip__name{ font-size:12px; font-weight:600; color:var(--ink); line-height:1; }
 
 /* ---------- background panel ---------- */
 .bg-actions{ display:flex; gap:8px; padding:0 14px 2px; }
@@ -277,7 +288,7 @@ body{
 @media (prefers-reduced-motion:reduce){ *{ transition:none !important; } }
 
 
-/* 레이아웃 스크롤 방지 및 높이 맞춤 */
+/* 레이아웃 스크롤 제어 */
 .screen--editor {
   height: 100dvh;
   overflow: hidden;
@@ -290,7 +301,7 @@ body{
 
 .tray {
   flex: 0 0 auto;
-  max-height: 50dvh;
+  max-height: 40dvh;
   overflow: hidden;
 }
 
@@ -300,7 +311,6 @@ body{
 }
 
 .carousel {
-  max-height: 96px;
   overflow-x: auto;
   overflow-y: hidden;
   align-items: center;
@@ -324,31 +334,11 @@ body{
   .tray {
     max-height: 34dvh;
   }
-
   .carousel--stickers .sticker-chip {
     width: 56px;
     height: 56px;
   }
-
   .carousel {
     max-height: 76px;
-  }
-
-  .carousel--packs {
-    max-height: 44px;
-    padding: 4px 12px;
-    gap: 8px;
-  }
-
-  .carousel--packs .pack-chip {
-    height: 32px;
-    min-height: 32px;
-    padding: 2px 8px;
-    gap: 4px;
-  }
-
-  .carousel--packs .pack-chip__thumb {
-    width: 22px;
-    height: 22px;
   }
 }
