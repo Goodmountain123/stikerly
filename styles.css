@@ -304,7 +304,7 @@ body{
 /* ---------- 미니 화면 대응 미디어 쿼리 ---------- */
 @media (max-height: 700px) {
   .tray {
-    max-height: 24dvh;
+    max-height: 34dvh;
   }
 
   .carousel--stickers .sticker-chip {
