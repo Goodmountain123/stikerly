@@ -351,13 +351,33 @@ body{
     max-height: 76px;
   }
 
-  .pack-chip__thumb {
-  width: 26px;
-  height: 26px;
-}
-
 .carousel--packs {
   max-height: 44px;
+  padding: 4px 12px;
+  gap: 8px;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.carousel--packs .pack-chip {
+  height: 36px;
+  min-height: 36px;
+  padding: 4px 10px;
+  gap: 6px;
+  flex: 0 0 auto;
+}
+
+.carousel--packs .pack-chip__thumb,
+.carousel--packs .pack-chip img {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+}
+
+.carousel--packs .pack-chip__label,
+.carousel--packs .pack-chip span {
+  font-size: 12px;
+  line-height: 1;
 }
    
 }
