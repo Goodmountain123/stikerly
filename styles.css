@@ -339,7 +339,7 @@ body{
 
 @media (max-height: 700px) {
   .tray {
-    max-height: 30dvh;
+    max-height: 24dvh;
   }
 
   .carousel--stickers .sticker-chip {
