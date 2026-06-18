@@ -272,7 +272,7 @@ body{
 
 .tray {
   flex: 0 0 auto;
-  max-height: 34dvh;
+  max-height: 50dvh;
   overflow: hidden;
 }
 
