@@ -73,6 +73,7 @@ class Editor {
     this.cb = callbacks;
     this.refs = new Map();
     this.selectedId = null;
+    this.selectedPart = "art";
     this.zoom = ZOOM.base;
     this.worldBase = 1;
     this.bgNode = null;
@@ -285,6 +286,14 @@ class Editor {
       return;
     }
 
+    if (this.selectedPart === "shadow" && ref.shadow) {
+      const rect = ref.shadow.getClientRect({ relativeTo: this.layer });
+      this.transformHandle.position({ x: rect.x + rect.width, y: rect.y });
+      this.transformHandle.visible(true);
+      this.transformHandle.moveToTop();
+      return;
+    }
+
     const rotation = ref.item.rotation * Math.PI / 180;
     const cornerX = (ref.size.w / 2) * ref.item.scale;
     const cornerY = -(ref.size.h / 2) * ref.item.scale;
@@ -304,7 +313,22 @@ class Editor {
       if (!ref || !pointer) return;
 
       ref.group.draggable(false);
+      if (ref.shadow) ref.shadow.draggable(false);
       this.hideMenu();
+      if (this.selectedPart === "shadow" && ref.shadow) {
+        const center = {
+          x: ref.group.x() + ref.shadow.x(),
+          y: ref.group.y() + ref.shadow.y(),
+        };
+        this.handleGesture = {
+          mode: "shadow",
+          ref,
+          center,
+          startScale: ref.item.effects.floorShadow.scale || 1,
+          startDistance: Math.max(1, Math.hypot(pointer.x - center.x, pointer.y - center.y)),
+        };
+        return;
+      }
       const dx = pointer.x - ref.item.x;
       const dy = pointer.y - ref.item.y;
       this.handleGesture = {
@@ -323,6 +347,22 @@ class Editor {
       if (!gesture || !pointer) return;
 
       const { ref } = gesture;
+      if (gesture.mode === "shadow") {
+        const distance = Math.max(
+          1,
+          Math.hypot(pointer.x - gesture.center.x, pointer.y - gesture.center.y)
+        );
+        ref.item.effects.floorShadow.scale = clamp(
+          gesture.startScale * (distance / gesture.startDistance),
+          0.2,
+          5
+        );
+        ref.refresh();
+        this.transformer.forceUpdate();
+        this.positionTransformHandle();
+        this.layer.batchDraw();
+        return;
+      }
       const dx = pointer.x - ref.item.x;
       const dy = pointer.y - ref.item.y;
       const distance = Math.max(1, Math.hypot(dx, dy));
@@ -347,6 +387,9 @@ class Editor {
       const gesture = this.handleGesture;
       if (!gesture) return;
       gesture.ref.group.draggable(true);
+      if (gesture.ref.shadow && this.selectedPart === "shadow") {
+        gesture.ref.shadow.draggable(true);
+      }
       gesture.ref.refresh();
       this.handleGesture = null;
       this.positionTransformHandle();
@@ -700,7 +743,7 @@ class Editor {
   }
 
   wireItem(ref) {
-    const { group, art } = ref;
+    const { group, art, shadow } = ref;
 
     art.on("click tap", (e) => {
       e.cancelBubble = true;
@@ -743,6 +786,34 @@ class Editor {
       ref.refresh();
       this.commit();
     });
+
+    if (shadow) {
+      shadow.on("click tap", (e) => {
+        e.cancelBubble = true;
+        if (!ref.item.effects.floorShadow.enabled) return;
+        this.select(ref.item.id, "shadow");
+      });
+      shadow.on("dragstart", (e) => {
+        e.cancelBubble = true;
+        group.draggable(false);
+        this.select(ref.item.id, "shadow");
+      });
+      shadow.on("dragmove", (e) => {
+        e.cancelBubble = true;
+        const fs = ref.item.effects.floorShadow;
+        fs.x = shadow.x();
+        fs.y = shadow.y() - (ref.size.h / 2) * ref.item.scale - 12 * ref.item.scale;
+        this.transformer.forceUpdate();
+        this.positionTransformHandle();
+        this.layer.batchDraw();
+      });
+      shadow.on("dragend", (e) => {
+        e.cancelBubble = true;
+        group.draggable(true);
+        ref.refresh();
+        this.commit();
+      });
+    }
   }
 
   reorderLayer() {
@@ -760,11 +831,15 @@ class Editor {
     this.transformHandle.moveToTop();
   }
 
-  select(id) {
+  select(id, part = "art") {
     const ref = this.refs.get(id);
     if (!ref) return;
+    const previous = this.selectedRef();
+    if (previous?.shadow && previous !== ref) previous.shadow.draggable(false);
     this.selectedId = id;
-    this.transformer.nodes([ref.art]);
+    this.selectedPart = part === "shadow" && ref.shadow ? "shadow" : "art";
+    if (ref.shadow) ref.shadow.draggable(this.selectedPart === "shadow");
+    this.transformer.nodes([this.selectedPart === "shadow" ? ref.shadow : ref.art]);
     this.transformer.moveToTop();
     this.positionTransformHandle();
     this.layer.batchDraw();
@@ -772,7 +847,10 @@ class Editor {
   }
 
   deselect() {
+    const ref = this.selectedRef();
+    if (ref?.shadow) ref.shadow.draggable(false);
     this.selectedId = null;
+    this.selectedPart = "art";
     this.transformer.nodes([]);
     this.transformHandle.visible(false);
     this.hideMenu();
@@ -1330,6 +1408,10 @@ class Editor {
             label.textContent = format(next);
             onInput(next);
             ref.refresh();
+            if (this.selectedPart === "shadow") {
+              this.transformer.forceUpdate();
+              this.positionTransformHandle();
+            }
             this.layer.batchDraw();
           });
           input.addEventListener("change", () => this.commit());
@@ -1358,22 +1440,140 @@ class Editor {
 
         if (this.openEffectKey === "floorShadow") {
           addSlider({
-            title: "위치",
-            min: -0.8,
-            max: 0.8,
+            title: "블러",
+            min: 0,
+            max: 1,
             step: 0.01,
-            value: fx.offsetY ?? 0,
-            format: (value) => `${value >= 0 ? "+" : ""}${Math.round(value * 100)}`,
+            value: fx.blur ?? 0.5,
+            format: (value) => String(Math.round(value * 100)),
             onInput: (value) => {
-              fx.offsetY = value;
+              fx.blur = value;
             },
           });
         }
         this.menuEl.appendChild(controls);
+        if (this.openEffectKey === "outglow") {
+          this.menuEl.appendChild(this.buildGlowColorPicker(ref, fx));
+        }
       }
     }
 
+    if (this.openEffectKey === "floorShadow" && ref.item.effects.floorShadow.enabled) {
+      this.select(id, "shadow");
+    }
     this.repositionMenu();
+  }
+
+  buildGlowColorPicker(ref, fx) {
+    const editor = document.createElement("div");
+    editor.className = "text-editor glow-color-editor";
+    const color = parseHsl(
+      fx.color || this.project.lastGlowColor || "hsl(205 100% 74%)"
+    );
+
+    const box = document.createElement("div");
+    box.className = "hsl-box";
+    box.style.setProperty("--hue", color.h);
+    const cursor = document.createElement("span");
+    cursor.className = "hsl-box__cursor";
+    box.appendChild(cursor);
+
+    const hue = document.createElement("input");
+    hue.className = "hsl-hue";
+    hue.type = "range";
+    hue.min = "0";
+    hue.max = "360";
+    hue.value = String(color.h);
+    hue.setAttribute("aria-label", "아웃글로우 색상");
+
+    const palette = document.createElement("div");
+    palette.className = "color-palette";
+    const addButton = document.createElement("button");
+    addButton.type = "button";
+    addButton.className = "color-palette__add";
+    addButton.textContent = "+";
+    addButton.setAttribute("aria-label", "현재 글로우 색상을 팔레트에 추가");
+
+    const positionCursor = () => {
+      cursor.style.left = color.s + "%";
+      cursor.style.top = (100 - color.l) + "%";
+    };
+    const applyColor = () => {
+      fx.color = hslString(color.h, color.s, color.l);
+      ref.refresh();
+      this.layer.batchDraw();
+    };
+    const rememberColor = () => {
+      this.project.lastGlowColor = hslString(color.h, color.s, color.l);
+      this.commit();
+    };
+    const addToPalette = () => {
+      const next = hslString(color.h, color.s, color.l);
+      fx.color = next;
+      this.project.lastGlowColor = next;
+      this.project.glowPalette = [
+        next,
+        ...(this.project.glowPalette || []).filter((value) => value !== next),
+      ].slice(0, 8);
+      renderPalette();
+      this.commit();
+    };
+    const updateFromPointer = (event) => {
+      const rect = box.getBoundingClientRect();
+      color.s = clamp(((event.clientX - rect.left) / rect.width) * 100, 0, 100);
+      color.l = clamp(100 - ((event.clientY - rect.top) / rect.height) * 100, 0, 100);
+      positionCursor();
+      applyColor();
+    };
+    const beginColorDrag = (event) => {
+      event.preventDefault();
+      updateFromPointer(event);
+      const move = (e) => updateFromPointer(e);
+      const end = () => {
+        window.removeEventListener("pointermove", move);
+        window.removeEventListener("pointerup", end);
+        rememberColor();
+      };
+      window.addEventListener("pointermove", move);
+      window.addEventListener("pointerup", end);
+    };
+    const renderPalette = () => {
+      palette.innerHTML = "";
+      (this.project.glowPalette || []).forEach((value) => {
+        const swatch = document.createElement("button");
+        swatch.type = "button";
+        swatch.className = "color-swatch" + (value === fx.color ? " is-active" : "");
+        swatch.style.background = value;
+        swatch.setAttribute("aria-label", `최근 글로우 색상 ${value}`);
+        swatch.addEventListener("click", () => {
+          Object.assign(color, parseHsl(value));
+          hue.value = String(color.h);
+          box.style.setProperty("--hue", color.h);
+          positionCursor();
+          applyColor();
+          rememberColor();
+          renderPalette();
+        });
+        palette.appendChild(swatch);
+      });
+      palette.appendChild(addButton);
+    };
+
+    box.addEventListener("pointerdown", beginColorDrag);
+    hue.addEventListener("input", () => {
+      color.h = Number(hue.value);
+      box.style.setProperty("--hue", color.h);
+      applyColor();
+    });
+    hue.addEventListener("change", rememberColor);
+    addButton.addEventListener("click", addToPalette);
+
+    positionCursor();
+    renderPalette();
+    editor.appendChild(box);
+    editor.appendChild(hue);
+    editor.appendChild(palette);
+    return editor;
   }
 
   openTextEditor(id) {
@@ -1583,7 +1783,10 @@ class Editor {
 
     if (this.openEffectKey === key) {
       fx.enabled = !fx.enabled;
-      if (!fx.enabled) this.openEffectKey = null;
+      if (!fx.enabled) {
+        this.openEffectKey = null;
+        this.select(id, "art");
+      }
     } else {
       this.openEffectKey = key;
       fx.enabled = true;
@@ -1592,11 +1795,15 @@ class Editor {
       } else if (!fx.intensity || fx.intensity <= 0) {
         fx.intensity = 0.5;
       }
+      if (key === "outglow") {
+        fx.color = this.project.lastGlowColor || fx.color || "hsl(205 100% 74%)";
+      }
     }
 
     ref.refresh();
     this.layer.batchDraw();
     this.openMenu(id);
+    if (key === "floorShadow" && fx.enabled) this.select(id, "shadow");
     this.commit();
   }
 
@@ -1760,6 +1967,8 @@ class Editor {
       textItems: clone(this.project.textItems || []),
       lastTextColor: this.project.lastTextColor || DEFAULT_TEXT_COLOR,
       textPalette: clone(this.project.textPalette || []),
+      lastGlowColor: this.project.lastGlowColor || "hsl(205 100% 74%)",
+      glowPalette: clone(this.project.glowPalette || []),
     });
   }
 
@@ -1772,6 +1981,8 @@ class Editor {
     this.project.textItems = snap.textItems || [];
     this.project.lastTextColor = snap.lastTextColor || DEFAULT_TEXT_COLOR;
     this.project.textPalette = snap.textPalette || [];
+    this.project.lastGlowColor = snap.lastGlowColor || "hsl(205 100% 74%)";
+    this.project.glowPalette = snap.glowPalette || [];
     this.titleInput.value = this.project.title;
     await this.changeCanvasType(this.project.canvasType, {
       repositionItems: false,

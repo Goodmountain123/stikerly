@@ -51,6 +51,8 @@ export function newProject(title, canvasType) {
     textItems: [],
     lastTextColor: "hsl(340 82% 62%)",
     textPalette: [],
+    lastGlowColor: "hsl(205 100% 74%)",
+    glowPalette: [],
   };
 }
 

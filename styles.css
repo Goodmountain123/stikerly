@@ -496,3 +496,142 @@ body{
   overflow:hidden !important;
 }
 
+/* ---------- landscape-first editor layout ---------- */
+.screen--editor.is-active{
+  display:grid;
+  grid-template-columns:minmax(0, 1fr) clamp(250px, 25vw, 310px);
+  grid-template-rows:auto minmax(0, 1fr);
+  height:100dvh;
+}
+.screen--editor .topbar--editor{
+  grid-column:1 / -1;
+  grid-row:1;
+  min-width:0;
+  flex-wrap:nowrap;
+  gap:7px;
+  padding:max(7px, env(safe-area-inset-top)) 10px 7px;
+}
+.screen--editor .stage-wrap{
+  grid-column:1;
+  grid-row:2;
+  min-width:0;
+  min-height:0;
+}
+.screen--editor .tray{
+  grid-column:2;
+  grid-row:2;
+  min-width:0;
+  max-height:none;
+  height:100%;
+  overflow-y:auto;
+  overflow-x:hidden;
+  border-top:0;
+  border-left:1px solid var(--line);
+  padding:8px 0 max(8px, env(safe-area-inset-bottom));
+}
+.screen--editor.ui-hidden .stage-wrap{
+  grid-column:1 / -1;
+  grid-row:1 / -1;
+}
+.topbar--editor .iconbtn{
+  width:34px;
+  height:34px;
+  border-radius:10px;
+  font-size:18px;
+}
+.topbar--editor .btn{
+  padding:7px 12px;
+  font-size:13px;
+}
+.topbar--editor .title-input{
+  flex:0 1 180px;
+  font-size:16px;
+  padding:4px 6px;
+}
+.topbar--editor .ratio-select{
+  height:34px;
+  padding:0 8px;
+  border-radius:9px;
+  font-size:12px;
+}
+.tray__tabs{
+  gap:4px;
+  padding:0 9px 7px;
+}
+.tray-tab{
+  flex:1;
+  padding:6px 8px;
+  font-size:12px;
+}
+.carousel{
+  gap:7px;
+  padding:5px 9px;
+}
+.carousel-scroll{
+  width:calc(100% - 18px);
+  margin:0 9px 4px;
+}
+.carousel--stickers .sticker-chip{
+  width:54px;
+  height:54px;
+  border-radius:13px;
+}
+.text-chip{
+  width:94px;
+  height:54px;
+  border-radius:13px;
+  font-size:25px;
+}
+.carousel--bg .bg-chip{
+  width:52px;
+  height:68px;
+}
+.menu-row{
+  gap:2px;
+  padding:4px;
+  border-radius:13px;
+}
+.menu-btn{
+  width:34px;
+  height:34px;
+  border-radius:9px;
+}
+.menu-btn img{
+  width:29px;
+  height:29px;
+  border-radius:7px;
+}
+.text-editor{
+  width:220px;
+  padding:9px;
+  gap:8px;
+}
+.hsl-box{ height:96px; }
+.effect-controls .menu-slider{
+  width:230px;
+  padding:7px 10px;
+}
+.canvas-bg-adjust{
+  width:36px;
+  height:36px;
+  right:10px;
+  top:10px;
+  border-radius:10px;
+  font-size:19px;
+}
+.ui-toggle{
+  width:38px;
+  height:38px;
+  right:10px;
+  bottom:10px;
+  font-size:20px;
+}
+
+@media (max-width:760px){
+  .screen--editor.is-active{
+    grid-template-columns:minmax(0, 1fr) 230px;
+  }
+  .topbar--editor .title-input{ flex-basis:120px; }
+  .topbar--editor .btn{ padding-inline:9px; }
+}
+

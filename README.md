@@ -91,10 +91,10 @@ StickerItem {
   id, packId, assetId,
   x, y, scale, rotation, flipX, flipY, zIndex,
   effects: {
-    floorShadow: { enabled, intensity, offsetY },
+    floorShadow: { enabled, intensity, blur, x, y, scale },
     blur:        { enabled, intensity },
     brightness:  { enabled, intensity },
-    outglow:     { enabled, intensity }
+    outglow:     { enabled, intensity, color }
   }
 }
 ```

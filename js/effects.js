@@ -17,7 +17,10 @@ export function ensureEffects(effects) {
     floorShadow: normalizeEffect(source.floorShadow, {
       enabled: false,
       intensity: 0.5,
-      offsetY: 0,
+      blur: 0.5,
+      x: 0,
+      y: 0,
+      scale: 1,
     }),
     blur: normalizeEffect(source.blur, { enabled: false, intensity: 0.5 }),
     brightness: normalizeEffect(source.brightness, {
@@ -27,6 +30,7 @@ export function ensureEffects(effects) {
     outglow: normalizeEffect(source.outglow, {
       enabled: false,
       intensity: 0.5,
+      color: "hsl(205 100% 74%)",
     }),
   };
 }
@@ -47,7 +51,7 @@ export function configureArt(artNode, effects) {
 
   const glowOn = e.outglow.enabled && e.outglow.intensity > 0;
   if (glowOn) {
-    artNode.shadowColor("#7CCBFF");
+    artNode.shadowColor(e.outglow.color || "hsl(205 100% 74%)");
     artNode.shadowBlur(8 + e.outglow.intensity * 34);
     artNode.shadowOpacity(Math.min(0.9, 0.25 + e.outglow.intensity * 0.65));
     artNode.shadowOffset({ x: 0, y: 0 });
@@ -65,7 +69,9 @@ export function configureArt(artNode, effects) {
 export function makeShadowNode() {
   return new Konva.Ellipse({
     fill: "#342D40",
-    listening: false,
+    listening: true,
+    draggable: false,
+    name: "item-shadow",
     shadowColor: "#342D40",
     shadowOffset: { x: 0, y: 3 },
   });
@@ -80,24 +86,36 @@ export function updateShadow(shadowNode, { w, h, scale, effects }) {
     return;
   }
   shadowNode.visible(true);
-  const verticalOffset = (fs.offsetY || 0) * h * scale;
+  shadowNode.rotation(0);
   shadowNode.position({
-    x: 0,
-    y: (h / 2) * scale + 12 * scale + verticalOffset,
+    x: fs.x || 0,
+    y: (h / 2) * scale + 12 * scale + (fs.y || 0),
   });
-  shadowNode.radiusX(Math.max(24, w * 0.34) * scale);
-  shadowNode.radiusY(Math.max(9, Math.min(w, h) * 0.075) * scale);
+  const shadowScale = Math.max(0.2, Math.min(5, fs.scale || 1));
+  shadowNode.radiusX(Math.max(24, w * 0.34) * scale * shadowScale);
+  shadowNode.radiusY(Math.max(9, Math.min(w, h) * 0.075) * scale * shadowScale);
   shadowNode.opacity(0.12 + fs.intensity * SHADOW_MAX_OPACITY);
-  shadowNode.shadowBlur(4 + fs.intensity * SHADOW_MAX_BLUR);
+  shadowNode.shadowBlur(2 + (fs.blur ?? 0.5) * 28);
   shadowNode.shadowOpacity(0.12 + fs.intensity * 0.28);
 }
 
 // Default effect block for a new sticker.
 export function defaultEffects() {
   return {
-    floorShadow: { enabled: false, intensity: 0.5, offsetY: 0 },
+    floorShadow: {
+      enabled: false,
+      intensity: 0.5,
+      blur: 0.5,
+      x: 0,
+      y: 0,
+      scale: 1,
+    },
     blur: { enabled: false, intensity: 0.5 },
     brightness: { enabled: false, intensity: 0.25 },
-    outglow: { enabled: false, intensity: 0.5 },
+    outglow: {
+      enabled: false,
+      intensity: 0.5,
+      color: "hsl(205 100% 74%)",
+    },
   };
 }
