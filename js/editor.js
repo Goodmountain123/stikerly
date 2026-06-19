@@ -61,6 +61,7 @@ class Editor {
     this.cleanup = [];
     this.pinch = null;
     this.pinchDragStates = null;
+    this.handleGesture = null;
   }
 
   mount() {
@@ -126,17 +127,26 @@ class Editor {
 
     this.transformer = new Konva.Transformer({
       resizeEnabled: false,
-      rotateEnabled: true,
-      rotateAnchorOffset: 30,
+      rotateEnabled: false,
+      enabledAnchors: [],
       borderStroke: "#3D7DFF",
       borderStrokeWidth: 1.5,
-      anchorStroke: "#3D7DFF",
-      anchorFill: "#ffffff",
-      anchorSize: 14,
-      anchorCornerRadius: 7,
+      listening: false,
       name: "transformer",
     });
     this.layer.add(this.transformer);
+
+    this.transformHandle = new Konva.Circle({
+      radius: 9,
+      fill: "#ffffff",
+      stroke: "#3D7DFF",
+      strokeWidth: 2,
+      draggable: true,
+      visible: false,
+      name: "transform-handle",
+    });
+    this.layer.add(this.transformHandle);
+    this.bindTransformHandle();
 
     this.stage.on("click tap", (e) => {
       if (this.isCanvasTarget(e.target)) this.deselect();
@@ -189,10 +199,96 @@ class Editor {
 
   syncTransformerScale(scale) {
     const s = Math.max(scale, 0.0001);
-    this.transformer.anchorSize(14 / s);
-    this.transformer.rotateAnchorOffset(30 / s);
     this.transformer.borderStrokeWidth(1.5 / s);
-    this.transformer.anchorStrokeWidth(1.5 / s);
+    this.transformHandle.radius(9 / s);
+    this.transformHandle.strokeWidth(2 / s);
+    this.positionTransformHandle();
+  }
+
+  pointerInCanvas() {
+    const pointer = this.stage.getPointerPosition();
+    if (!pointer) return null;
+    const scale = this.stage.scaleX();
+    return {
+      x: (pointer.x - this.stage.x()) / scale,
+      y: (pointer.y - this.stage.y()) / scale,
+    };
+  }
+
+  positionTransformHandle() {
+    const ref = this.selectedRef();
+    if (!ref || !this.transformHandle) {
+      if (this.transformHandle) this.transformHandle.visible(false);
+      return;
+    }
+
+    const rotation = ref.item.rotation * Math.PI / 180;
+    const cornerX = (ref.size.w / 2) * ref.item.scale;
+    const cornerY = -(ref.size.h / 2) * ref.item.scale;
+    this.transformHandle.position({
+      x: ref.item.x + cornerX * Math.cos(rotation) - cornerY * Math.sin(rotation),
+      y: ref.item.y + cornerX * Math.sin(rotation) + cornerY * Math.cos(rotation),
+    });
+    this.transformHandle.visible(true);
+    this.transformHandle.moveToTop();
+  }
+
+  bindTransformHandle() {
+    this.transformHandle.on("dragstart", (e) => {
+      e.cancelBubble = true;
+      const ref = this.selectedRef();
+      const pointer = this.pointerInCanvas();
+      if (!ref || !pointer) return;
+
+      ref.group.draggable(false);
+      this.hideMenu();
+      const dx = pointer.x - ref.item.x;
+      const dy = pointer.y - ref.item.y;
+      this.handleGesture = {
+        ref,
+        startScale: ref.item.scale,
+        startRotation: ref.item.rotation,
+        startDistance: Math.max(1, Math.hypot(dx, dy)),
+        startAngle: Math.atan2(dy, dx),
+      };
+    });
+
+    this.transformHandle.on("dragmove", (e) => {
+      e.cancelBubble = true;
+      const gesture = this.handleGesture;
+      const pointer = this.pointerInCanvas();
+      if (!gesture || !pointer) return;
+
+      const { ref } = gesture;
+      const dx = pointer.x - ref.item.x;
+      const dy = pointer.y - ref.item.y;
+      const distance = Math.max(1, Math.hypot(dx, dy));
+      const angle = Math.atan2(dy, dx);
+      const angleDelta = (angle - gesture.startAngle) * 180 / Math.PI;
+
+      ref.item.scale = clamp(
+        gesture.startScale * (distance / gesture.startDistance),
+        0.1,
+        8
+      );
+      ref.item.rotation = gesture.startRotation + angleDelta;
+      ref.transformOnly();
+      this.transformer.forceUpdate();
+      this.positionTransformHandle();
+      this.layer.batchDraw();
+      this.repositionMenu();
+    });
+
+    this.transformHandle.on("dragend", (e) => {
+      e.cancelBubble = true;
+      const gesture = this.handleGesture;
+      if (!gesture) return;
+      gesture.ref.group.draggable(true);
+      gesture.ref.refresh();
+      this.handleGesture = null;
+      this.positionTransformHandle();
+      this.commit();
+    });
   }
 
   updateZoomReadout() {
@@ -354,23 +450,8 @@ class Editor {
     this.freezeItemDragging();
     this.hideMenu();
 
-    const ref = this.selectedRef();
     const stageScale = this.stage.scaleX();
     const stagePos = { x: this.stage.x(), y: this.stage.y() };
-
-    // Selection wins: when a sticker is selected, a two-finger gesture edits
-    // that sticker instead of accidentally panning/zooming the canvas.
-    if (ref) {
-      this.pinch = {
-        mode: "sticker",
-        startDist: g.dist,
-        startMid: g.mid,
-        startStageScale: stageScale,
-        startItemScale: ref.item.scale,
-        startItemPos: { x: ref.item.x, y: ref.item.y },
-      };
-      return;
-    }
 
     this.pinch = {
       mode: "canvas",
@@ -394,22 +475,6 @@ class Editor {
     if (!this.pinch) this.beginPinch(g);
     const p = this.pinch;
     const factor = g.dist / p.startDist;
-
-    if (p.mode === "sticker") {
-      const ref = this.selectedRef();
-      if (!ref) return;
-      const dx = (g.mid.x - p.startMid.x) / p.startStageScale;
-      const dy = (g.mid.y - p.startMid.y) / p.startStageScale;
-      ref.item.x = p.startItemPos.x + dx;
-      ref.item.y = p.startItemPos.y + dy;
-      ref.item.scale = clamp(p.startItemScale * factor, 0.1, 8);
-      ref.group.position({ x: ref.item.x, y: ref.item.y });
-      ref.transformOnly();
-      this.transformer.forceUpdate();
-      this.layer.batchDraw();
-      this.repositionMenu();
-      return;
-    }
 
     const min = this.worldBase * ZOOM.min;
     const max = this.worldBase * ZOOM.max;
@@ -435,11 +500,6 @@ class Editor {
       return;
     }
 
-    if (this.pinch && this.pinch.mode === "sticker") {
-      const ref = this.selectedRef();
-      if (ref) ref.refresh();
-      this.commit();
-    }
     this.restoreItemDragging();
     this.pinch = null;
   }
@@ -485,6 +545,7 @@ class Editor {
 
     group.on("dragmove", () => {
       this.transformer.forceUpdate();
+      this.positionTransformHandle();
       this.repositionMenu();
     });
 
@@ -524,6 +585,7 @@ class Editor {
       if (ref) ref.group.moveToTop();
     });
     this.transformer.moveToTop();
+    this.transformHandle.moveToTop();
   }
 
   select(id) {
@@ -532,6 +594,7 @@ class Editor {
     this.selectedId = id;
     this.transformer.nodes([ref.art]);
     this.transformer.moveToTop();
+    this.positionTransformHandle();
     this.layer.batchDraw();
     this.repositionMenu();
   }
@@ -539,6 +602,7 @@ class Editor {
   deselect() {
     this.selectedId = null;
     this.transformer.nodes([]);
+    this.transformHandle.visible(false);
     this.hideMenu();
     this.layer.batchDraw();
   }
@@ -899,6 +963,8 @@ class Editor {
     }
 
     ref.refresh();
+    this.transformer.forceUpdate();
+    this.positionTransformHandle();
     this.layer.batchDraw();
     this.commit();
     this.repositionMenu();
