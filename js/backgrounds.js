@@ -35,6 +35,24 @@ export function coverCrop(iw, ih, W, H) {
   return { x: 0, y: (ih - ch) / 2, width: iw, height: ch };
 }
 
+// Cover crop with user-controlled zoom and normalized pan (-1..1).
+export function adjustableCoverCrop(iw, ih, W, H, transform = {}) {
+  const base = coverCrop(iw, ih, W, H);
+  const zoom = Math.max(1, Math.min(5, transform.zoom || 1));
+  const width = base.width / zoom;
+  const height = base.height / zoom;
+  const panX = Math.max(-1, Math.min(1, transform.x || 0));
+  const panY = Math.max(-1, Math.min(1, transform.y || 0));
+  const maxX = Math.max(0, iw - width);
+  const maxY = Math.max(0, ih - height);
+  return {
+    x: maxX * (panX + 1) / 2,
+    y: maxY * (panY + 1) / 2,
+    width,
+    height,
+  };
+}
+
 // Load an image from a url or data URL (no caching — photo data URLs can be large).
 export function loadBgImage(src) {
   return new Promise((resolve, reject) => {

@@ -1,7 +1,7 @@
 // export.js — render the project to a PNG at native canvas size (ignores zoom).
 import { CANVAS, normalizeCanvasType } from "./model.js";
 import { findSticker, loadImage } from "./packs.js";
-import { backgroundSrc, coverCrop, loadBgImage } from "./backgrounds.js";
+import { adjustableCoverCrop, backgroundSrc, loadBgImage } from "./backgrounds.js";
 import { buildItemGroup } from "./sticker.js";
 import { buildTextGroup } from "./text.js";
 
@@ -24,7 +24,13 @@ export async function exportPNG(project) {
   if (project.background) {
     try {
       const img = await loadBgImage(backgroundSrc(project.background));
-      const crop = coverCrop(img.width, img.height, w, h);
+      const crop = adjustableCoverCrop(
+        img.width,
+        img.height,
+        w,
+        h,
+        project.background.transform
+      );
       layer.add(new Konva.Image({ image: img, x: 0, y: 0, width: w, height: h, crop }));
     } catch (err) {
       console.error("배경 내보내기 실패", err);
