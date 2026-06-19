@@ -277,22 +277,6 @@ body{
 
 .carousel{ display:flex; gap:10px; overflow-x:auto; padding:6px 14px; scrollbar-width:none; align-items:center; }
 .carousel::-webkit-scrollbar{ display:none; }
-.carousel-scroll{
-  display:block; width:calc(100% - 28px); height:14px; margin:0 14px 5px;
-  appearance:none; background:transparent; cursor:pointer;
-}
-.carousel-scroll::-webkit-slider-runnable-track{
-  height:5px; border-radius:999px; background:var(--line);
-}
-.carousel-scroll::-webkit-slider-thumb{
-  appearance:none; width:34px; height:11px; margin-top:-3px; border:0;
-  border-radius:999px; background:var(--pink); box-shadow:0 1px 3px rgba(36,31,46,.2);
-}
-.carousel-scroll::-moz-range-track{ height:5px; border-radius:999px; background:var(--line); }
-.carousel-scroll::-moz-range-thumb{
-  width:34px; height:11px; border:0; border-radius:999px; background:var(--pink);
-}
-.carousel-scroll.is-disabled{ opacity:.28; cursor:default; }
 
 /* 팩 캐러셀 가로 배치 고정 */
 .carousel--packs {
@@ -706,10 +690,6 @@ body{
   gap:7px;
   padding:5px 9px;
 }
-.carousel-scroll{
-  width:calc(100% - 18px);
-  margin:0 9px 4px;
-}
 .carousel--stickers .sticker-chip{
   width:54px;
   height:54px;
@@ -828,7 +808,6 @@ body{
 .text-chip:nth-child(3){ background:#ECFFF7; }
 .canvas-bg-adjust{ background:linear-gradient(135deg,#FFF3C9,#FFE9F4); }
 .sticker-pack-back{ background:linear-gradient(135deg,#EAF6FF,#F1ECFF); }
-.carousel-scroll::-webkit-slider-thumb{ background:linear-gradient(90deg,var(--pink),var(--purple)); }
 .ui-toggle{ background:linear-gradient(135deg,#59466F,#7A62A0); }
 .new-background-card:nth-child(3n+1){ background-color:#FFF0F6; }
 .new-background-card:nth-child(3n+2){ background-color:#EDF8FF; }

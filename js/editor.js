@@ -203,7 +203,6 @@ class Editor {
     });
     this.fitView();
     this.repositionMenu();
-    this.syncAllCarouselSliders();
   }
 
   fitView() {
@@ -918,6 +917,7 @@ class Editor {
     const showPacks = () => this.showStickerPacks();
     this.stickerPackBack.addEventListener("click", showPacks);
     this.cleanup.push(() => this.stickerPackBack.removeEventListener("click", showPacks));
+    this.bindPointerScroller(this.packCarousel, "y");
     this.showStickerPacks();
   }
 
@@ -958,77 +958,107 @@ class Editor {
     });
   }
 
-  syncCarouselSlider(carousel, slider) {
-    if (!carousel || !slider) return;
-    const max = Math.max(0, carousel.scrollWidth - carousel.clientWidth);
-    slider.max = String(max);
-    slider.value = String(Math.min(max, carousel.scrollLeft));
-    slider.disabled = max <= 0;
-    slider.classList.toggle("is-disabled", max <= 0);
-  }
-
-  bindCarouselSlider(carousel, slider) {
-    if (!carousel || !slider || slider.dataset.bound) return;
-    slider.dataset.bound = "true";
-    const fromSlider = () => {
-      carousel.scrollLeft = Number(slider.value);
+  bindPointerScroller(container, axis = "x") {
+    if (!container || container.dataset.dragScrollBound) return;
+    container.dataset.dragScrollBound = "true";
+    let state = null;
+    const down = (e) => {
+      if (e.button !== 0) return;
+      state = {
+        x: e.clientX,
+        y: e.clientY,
+        left: container.scrollLeft,
+        top: container.scrollTop,
+        moved: false,
+      };
+      window.addEventListener("pointermove", move, { passive: false });
+      window.addEventListener("pointerup", up);
+      window.addEventListener("pointercancel", up);
     };
-    const fromCarousel = () => {
-      slider.value = String(carousel.scrollLeft);
+    const move = (e) => {
+      if (!state) return;
+      const dx = e.clientX - state.x;
+      const dy = e.clientY - state.y;
+      if (Math.hypot(dx, dy) > 5) state.moved = true;
+      if (!state.moved) return;
+      e.preventDefault();
+      if (axis === "y") container.scrollTop = state.top - dy;
+      else container.scrollLeft = state.left - dx;
     };
-    slider.addEventListener("input", fromSlider);
-    carousel.addEventListener("scroll", fromCarousel, { passive: true });
+    const up = () => {
+      if (state?.moved) {
+        const blockClick = (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+        };
+        container.addEventListener("click", blockClick, { capture: true, once: true });
+      }
+      state = null;
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      window.removeEventListener("pointercancel", up);
+    };
+    container.addEventListener("pointerdown", down);
     this.cleanup.push(() => {
-      slider.removeEventListener("input", fromSlider);
-      carousel.removeEventListener("scroll", fromCarousel);
-      delete slider.dataset.bound;
+      container.removeEventListener("pointerdown", down);
+      delete container.dataset.dragScrollBound;
     });
-    requestAnimationFrame(() => this.syncCarouselSlider(carousel, slider));
-  }
-
-  syncAllCarouselSliders() {
-    [
-      [this.bgCarousel, this.bgScroll],
-      [this.textCarousel, this.textScroll],
-    ].forEach(([carousel, slider]) => this.syncCarouselSlider(carousel, slider));
   }
 
   bindTrayDrag() {
     const ghost = document.getElementById("drag-ghost");
     const textGhost = document.getElementById("text-drag-ghost");
-    let dragging = null;
+    const tray = document.querySelector(".tray");
+    let gesture = null;
 
     const moveGhost = (x, y) => {
       ghost.style.left = x + "px";
       ghost.style.top = y + "px";
+    };
+    const isInsideTray = (e) => {
+      const rect = tray.getBoundingClientRect();
+      return e.clientX >= rect.left && e.clientX <= rect.right &&
+        e.clientY >= rect.top && e.clientY <= rect.bottom;
     };
 
     const onDown = (e) => {
       const chip = e.target.closest(".sticker-chip");
       if (!chip) return;
       e.preventDefault();
-      dragging = {
+      gesture = {
+        type: "sticker",
         pack: chip.dataset.pack,
         asset: chip.dataset.asset,
         url: chip.dataset.url,
+        lastY: e.clientY,
+        extracting: false,
       };
-      ghost.src = dragging.url;
-      ghost.hidden = false;
-      moveGhost(e.clientX, e.clientY);
       window.addEventListener("pointermove", onMove);
       window.addEventListener("pointerup", onUp);
+      window.addEventListener("pointercancel", onUp);
     };
 
     const onMove = (e) => {
-      if (!dragging) return;
+      if (!gesture || gesture.type !== "sticker") return;
+      if (!gesture.extracting && isInsideTray(e)) {
+        this.stickerCarousel.scrollTop -= e.clientY - gesture.lastY;
+        gesture.lastY = e.clientY;
+        return;
+      }
+      if (!gesture.extracting) {
+        gesture.extracting = true;
+        ghost.src = gesture.url;
+        ghost.hidden = false;
+      }
       moveGhost(e.clientX, e.clientY);
     };
 
     const onUp = (e) => {
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onUp);
       ghost.hidden = true;
-      if (!dragging) return;
+      if (!gesture || gesture.type !== "sticker") return;
 
       const rect = this.host.getBoundingClientRect();
       const inside =
@@ -1037,16 +1067,16 @@ class Editor {
         e.clientY >= rect.top &&
         e.clientY <= rect.bottom;
 
-      if (inside) {
+      if (gesture.extracting && inside) {
         const sx = e.clientX - rect.left;
         const sy = e.clientY - rect.top;
         const world = {
           x: (sx - this.stage.x()) / this.stage.scaleX(),
           y: (sy - this.stage.y()) / this.stage.scaleX(),
         };
-        this.addSticker(dragging.pack, dragging.asset, world.x, world.y);
+        this.addSticker(gesture.pack, gesture.asset, world.x, world.y);
       }
-      dragging = null;
+      gesture = null;
     };
 
     this.stickerCarousel.addEventListener("pointerdown", onDown);
@@ -1054,13 +1084,17 @@ class Editor {
       const chip = e.target.closest(".text-chip");
       if (!chip) return;
       e.preventDefault();
-      dragging = { font: chip.dataset.font, type: "text" };
+      gesture = {
+        font: chip.dataset.font,
+        type: "text",
+        lastX: e.clientX,
+        extracting: false,
+      };
       textGhost.style.fontFamily = chip.dataset.font;
       textGhost.style.color = this.project.lastTextColor || DEFAULT_TEXT_COLOR;
-      textGhost.hidden = false;
-      moveTextGhost(e.clientX, e.clientY);
       window.addEventListener("pointermove", onTextMove);
       window.addEventListener("pointerup", onTextUp);
+      window.addEventListener("pointercancel", onTextUp);
     };
 
     const moveTextGhost = (x, y) => {
@@ -1069,15 +1103,25 @@ class Editor {
     };
 
     const onTextMove = (e) => {
-      if (!dragging || dragging.type !== "text") return;
+      if (!gesture || gesture.type !== "text") return;
+      if (!gesture.extracting && isInsideTray(e)) {
+        this.textCarousel.scrollLeft -= e.clientX - gesture.lastX;
+        gesture.lastX = e.clientX;
+        return;
+      }
+      if (!gesture.extracting) {
+        gesture.extracting = true;
+        textGhost.hidden = false;
+      }
       moveTextGhost(e.clientX, e.clientY);
     };
 
     const onTextUp = (e) => {
       window.removeEventListener("pointermove", onTextMove);
       window.removeEventListener("pointerup", onTextUp);
+      window.removeEventListener("pointercancel", onTextUp);
       textGhost.hidden = true;
-      if (!dragging || dragging.type !== "text") return;
+      if (!gesture || gesture.type !== "text") return;
 
       const rect = this.host.getBoundingClientRect();
       const inside =
@@ -1085,16 +1129,16 @@ class Editor {
         e.clientX <= rect.right &&
         e.clientY >= rect.top &&
         e.clientY <= rect.bottom;
-      if (inside) {
+      if (gesture.extracting && inside) {
         const sx = e.clientX - rect.left;
         const sy = e.clientY - rect.top;
         this.addText(
-          dragging.font,
+          gesture.font,
           (sx - this.stage.x()) / this.stage.scaleX(),
           (sy - this.stage.y()) / this.stage.scaleX()
         );
       }
-      dragging = null;
+      gesture = null;
     };
 
     this.textCarousel.addEventListener("pointerdown", onTextDown);
@@ -1114,8 +1158,6 @@ class Editor {
     this.panelBg = document.getElementById("panel-bg");
     this.panelText = document.getElementById("panel-text");
     this.textCarousel = document.getElementById("text-carousel");
-    this.textScroll = document.getElementById("text-scroll");
-    this.bindCarouselSlider(this.textCarousel, this.textScroll);
 
     const showStickers = () => this.switchTab("stickers");
     const showBg = () => this.switchTab("background");
@@ -1144,12 +1186,10 @@ class Editor {
       this.setBackgroundAdjustMode(false);
       this.commit();
     }
-    requestAnimationFrame(() => this.syncAllCarouselSliders());
   }
 
   buildBackgroundPanel() {
     this.bgCarousel = document.getElementById("bg-carousel");
-    this.bgScroll = document.getElementById("bg-scroll");
     this.bgAdjustBtn = document.getElementById("bg-adjust-btn");
     this.bgFileInput = document.getElementById("bg-file");
 
@@ -1208,7 +1248,7 @@ class Editor {
       this.bgFileInput.removeEventListener("change", onFile);
     });
 
-    this.bindCarouselSlider(this.bgCarousel, this.bgScroll);
+    this.bindPointerScroller(this.bgCarousel, "x");
     this.markBgActive();
   }
 
