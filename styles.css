@@ -142,6 +142,16 @@ body{
   background:var(--surface); color:var(--ink-soft); font-size:12px; font-weight:600;
   padding:5px 10px; border-radius:999px; box-shadow:var(--shadow-1); pointer-events:none;
 }
+.canvas-bg-adjust{
+  position:absolute; right:14px; top:14px; z-index:18; width:44px; height:44px;
+  border:0; border-radius:13px; background:rgba(255,255,255,.94); color:var(--ink);
+  box-shadow:var(--shadow-1), inset 0 0 0 1.5px var(--line);
+  display:grid; place-items:center; font-size:23px; cursor:pointer;
+}
+.canvas-bg-adjust:hover{ background:#fff; }
+.canvas-bg-adjust.is-active{ background:var(--blue); color:#fff; box-shadow:var(--shadow-1); }
+.canvas-bg-adjust:disabled{ opacity:.38; cursor:not-allowed; }
+.screen--editor.ui-hidden .canvas-bg-adjust{ display:none; }
 
 /* ---------- sticker double-tap menu ---------- */
 .sticker-menu{
@@ -270,6 +280,22 @@ body{
 
 .carousel{ display:flex; gap:10px; overflow-x:auto; padding:6px 14px; scrollbar-width:none; align-items:center; }
 .carousel::-webkit-scrollbar{ display:none; }
+.carousel-scroll{
+  display:block; width:calc(100% - 28px); height:14px; margin:0 14px 5px;
+  appearance:none; background:transparent; cursor:pointer;
+}
+.carousel-scroll::-webkit-slider-runnable-track{
+  height:5px; border-radius:999px; background:var(--line);
+}
+.carousel-scroll::-webkit-slider-thumb{
+  appearance:none; width:34px; height:11px; margin-top:-3px; border:0;
+  border-radius:999px; background:var(--pink); box-shadow:0 1px 3px rgba(36,31,46,.2);
+}
+.carousel-scroll::-moz-range-track{ height:5px; border-radius:999px; background:var(--line); }
+.carousel-scroll::-moz-range-thumb{
+  width:34px; height:11px; border:0; border-radius:999px; background:var(--pink);
+}
+.carousel-scroll.is-disabled{ opacity:.28; cursor:default; }
 
 /* 팩 캐러셀 가로 배치 고정 */
 .carousel--packs {
@@ -343,16 +369,6 @@ body{
 .text-chip:active{ transform:scale(.96); cursor:grabbing; }
 
 /* ---------- background panel ---------- */
-.bg-actions{ display:flex; gap:8px; padding:0 14px 2px; }
-.bg-pill{
-  font-family:var(--font-ui); font-weight:600; font-size:13px; color:var(--ink);
-  background:var(--surface-2); border:0; padding:9px 16px; border-radius:999px; cursor:pointer;
-  box-shadow:inset 0 0 0 1.5px var(--line);
-}
-.bg-pill--accent{ background:var(--pink); color:#fff; box-shadow:none; }
-.bg-pill.is-active{ background:var(--blue); color:#fff; box-shadow:none; }
-.bg-pill:disabled{ opacity:.42; cursor:not-allowed; }
-
 .carousel--bg { max-height: 92px; }
 .carousel--bg .bg-chip{
   flex:0 0 auto; width:58px; height:78px; border-radius:12px; overflow:hidden; cursor:pointer;
@@ -360,6 +376,21 @@ body{
   background-repeat:no-repeat; box-shadow:inset 0 0 0 2px transparent; position:relative;
 }
 .carousel--bg .bg-chip.is-active{ box-shadow:inset 0 0 0 3px var(--pink); }
+.carousel--bg .bg-chip--action{
+  border:0; color:var(--ink); display:flex; flex-direction:column; align-items:center;
+  justify-content:center; gap:5px; padding:5px; font-family:var(--font-ui);
+}
+.bg-chip__action-icon{
+  width:32px; height:32px; border-radius:50%; display:grid; place-items:center;
+  background:#fff; color:var(--pink); font-size:24px; font-weight:500;
+  box-shadow:inset 0 0 0 1.5px var(--line);
+}
+.bg-chip__action-label{
+  font-size:10px; font-weight:700; line-height:1.1; color:var(--ink-soft);
+}
+.bg-chip--action.is-active .bg-chip__action-icon{
+  background:var(--pink); color:#fff; box-shadow:none;
+}
 .carousel--bg .bg-chip img{ width:100%; height:100%; object-fit:cover; display:block; }
 .carousel--bg .bg-chip__label{
   position:absolute; left:0; right:0; bottom:0; font-size:10px; font-weight:600; color:#fff;

@@ -2,21 +2,8 @@
 //
 // Effects: projected shadow, blur, brightness adjustment, and outer glow.
 
-const SHADOW_RGB = [46, 40, 58];      // ground-shadow tint
 const SHADOW_MAX_OPACITY = 0.5;
-const SHADOW_SQUASH = 0.42;           // how flat the shadow lies
-const SHADOW_SKEW = 0.55;             // horizontal projection slant
 const SHADOW_MAX_BLUR = 16;
-
-// Turn every opaque pixel into the shadow colour, keeping alpha as the mask.
-function DarkTint(imageData) {
-  const d = imageData.data;
-  for (let i = 0; i < d.length; i += 4) {
-    d[i] = SHADOW_RGB[0];
-    d[i + 1] = SHADOW_RGB[1];
-    d[i + 2] = SHADOW_RGB[2];
-  }
-}
 
 function normalizeEffect(effect, defaults = {}) {
   return { ...defaults, ...(effect || {}) };
@@ -74,36 +61,35 @@ export function configureArt(artNode, effects) {
   else artNode.clearCache();
 }
 
-// Build the floor-shadow node for an item (created once per item group).
-export function makeShadowNode(image) {
-  return new Konva.Image({
-    image,
+// A soft, simple ellipse gives every sticker the same cute grounded shadow.
+export function makeShadowNode() {
+  return new Konva.Ellipse({
+    fill: "#342D40",
     listening: false,
-    filters: [DarkTint, Konva.Filters.Blur],
+    shadowColor: "#342D40",
+    shadowOffset: { x: 0, y: 3 },
   });
 }
 
 // Update the shadow node from the current art geometry + effect intensity.
 // w,h are the art node's unscaled display size; scale/flipX from the item.
-export function updateShadow(shadowNode, { w, h, scale, flipX, effects }) {
+export function updateShadow(shadowNode, { w, h, scale, effects }) {
   const fs = ensureEffects(effects).floorShadow;
   if (!fs || !fs.enabled || fs.intensity <= 0) {
     shadowNode.visible(false);
-    shadowNode.clearCache();
     return;
   }
   shadowNode.visible(true);
-  shadowNode.size({ width: w, height: h });
-  shadowNode.offset({ x: w / 2, y: h / 2 });
   const verticalOffset = (fs.offsetY || 0) * h * scale;
-  shadowNode.position({ x: 0, y: (h / 2) * scale + verticalOffset });
-  shadowNode.scaleX(scale * (flipX ? -1 : 1));
-  // Flip the previous floor-shadow rendering vertically.
-  shadowNode.scaleY(scale * SHADOW_SQUASH);
-  shadowNode.skewX(SHADOW_SKEW);
-  shadowNode.opacity(fs.intensity * SHADOW_MAX_OPACITY);
-  shadowNode.blurRadius(2 + fs.intensity * SHADOW_MAX_BLUR);
-  shadowNode.cache();
+  shadowNode.position({
+    x: 0,
+    y: (h / 2) * scale + 12 * scale + verticalOffset,
+  });
+  shadowNode.radiusX(Math.max(24, w * 0.34) * scale);
+  shadowNode.radiusY(Math.max(9, Math.min(w, h) * 0.075) * scale);
+  shadowNode.opacity(0.12 + fs.intensity * SHADOW_MAX_OPACITY);
+  shadowNode.shadowBlur(4 + fs.intensity * SHADOW_MAX_BLUR);
+  shadowNode.shadowOpacity(0.12 + fs.intensity * 0.28);
 }
 
 // Default effect block for a new sticker.

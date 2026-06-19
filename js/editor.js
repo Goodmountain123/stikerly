@@ -203,6 +203,7 @@ class Editor {
     });
     this.fitView();
     this.repositionMenu();
+    this.syncAllCarouselSliders();
   }
 
   fitView() {
@@ -811,7 +812,8 @@ class Editor {
   buildTray() {
     this.packCarousel = document.getElementById("pack-carousel");
     this.stickerCarousel = document.getElementById("sticker-carousel");
-    this.packTab = document.getElementById("active-pack-tab");
+    this.packScroll = document.getElementById("pack-scroll");
+    this.stickerScroll = document.getElementById("sticker-scroll");
 
     const packs = getPacks();
     this.activePackId = packs[0]?.id || null;
@@ -838,6 +840,9 @@ class Editor {
     });
 
     this.renderStickerStrip();
+    this.bindCarouselSlider(this.packCarousel, this.packScroll);
+    this.bindCarouselSlider(this.stickerCarousel, this.stickerScroll);
+    requestAnimationFrame(() => this.syncAllCarouselSliders());
   }
 
   activatePack(id) {
@@ -850,7 +855,6 @@ class Editor {
 
   renderStickerStrip() {
     const pack = getPacks().find((p) => p.id === this.activePackId);
-    this.packTab.textContent = pack ? pack.name : "";
     this.stickerCarousel.innerHTML = "";
     if (!pack) return;
 
@@ -868,6 +872,44 @@ class Editor {
 
       this.stickerCarousel.appendChild(chip);
     });
+    requestAnimationFrame(() => this.syncCarouselSlider(this.stickerCarousel, this.stickerScroll));
+  }
+
+  syncCarouselSlider(carousel, slider) {
+    if (!carousel || !slider) return;
+    const max = Math.max(0, carousel.scrollWidth - carousel.clientWidth);
+    slider.max = String(max);
+    slider.value = String(Math.min(max, carousel.scrollLeft));
+    slider.disabled = max <= 0;
+    slider.classList.toggle("is-disabled", max <= 0);
+  }
+
+  bindCarouselSlider(carousel, slider) {
+    if (!carousel || !slider || slider.dataset.bound) return;
+    slider.dataset.bound = "true";
+    const fromSlider = () => {
+      carousel.scrollLeft = Number(slider.value);
+    };
+    const fromCarousel = () => {
+      slider.value = String(carousel.scrollLeft);
+    };
+    slider.addEventListener("input", fromSlider);
+    carousel.addEventListener("scroll", fromCarousel, { passive: true });
+    this.cleanup.push(() => {
+      slider.removeEventListener("input", fromSlider);
+      carousel.removeEventListener("scroll", fromCarousel);
+      delete slider.dataset.bound;
+    });
+    requestAnimationFrame(() => this.syncCarouselSlider(carousel, slider));
+  }
+
+  syncAllCarouselSliders() {
+    [
+      [this.packCarousel, this.packScroll],
+      [this.stickerCarousel, this.stickerScroll],
+      [this.bgCarousel, this.bgScroll],
+      [this.textCarousel, this.textScroll],
+    ].forEach(([carousel, slider]) => this.syncCarouselSlider(carousel, slider));
   }
 
   bindTrayDrag() {
@@ -991,6 +1033,8 @@ class Editor {
     this.panelBg = document.getElementById("panel-bg");
     this.panelText = document.getElementById("panel-text");
     this.textCarousel = document.getElementById("text-carousel");
+    this.textScroll = document.getElementById("text-scroll");
+    this.bindCarouselSlider(this.textCarousel, this.textScroll);
 
     const showStickers = () => this.switchTab("stickers");
     const showBg = () => this.switchTab("background");
@@ -1019,16 +1063,39 @@ class Editor {
       this.setBackgroundAdjustMode(false);
       this.commit();
     }
+    requestAnimationFrame(() => this.syncAllCarouselSliders());
   }
 
   buildBackgroundPanel() {
     this.bgCarousel = document.getElementById("bg-carousel");
-    this.bgNoneBtn = document.getElementById("bg-none");
-    this.bgUploadBtn = document.getElementById("bg-upload-btn");
+    this.bgScroll = document.getElementById("bg-scroll");
     this.bgAdjustBtn = document.getElementById("bg-adjust-btn");
     this.bgFileInput = document.getElementById("bg-file");
 
     this.bgCarousel.innerHTML = "";
+    const makeActionChip = (id, icon, label, onClick) => {
+      const chip = document.createElement("button");
+      chip.type = "button";
+      chip.id = id;
+      chip.className = "bg-chip bg-chip--action";
+      const symbol = document.createElement("span");
+      symbol.className = "bg-chip__action-icon";
+      symbol.textContent = icon;
+      const text = document.createElement("span");
+      text.className = "bg-chip__action-label";
+      text.textContent = label;
+      chip.appendChild(symbol);
+      chip.appendChild(text);
+      chip.addEventListener("click", onClick);
+      this.bgCarousel.appendChild(chip);
+      return chip;
+    };
+
+    const clearBg = () => this.setBackground(null);
+    const pickBg = () => this.bgFileInput.click();
+    this.bgUploadBtn = makeActionChip("bg-upload-btn", "+", "내 사진", pickBg);
+    this.bgNoneBtn = makeActionChip("bg-none", "×", "배경 없음", clearBg);
+
     getBackgrounds().forEach((bg) => {
       const chip = document.createElement("button");
       chip.type = "button";
@@ -1038,13 +1105,14 @@ class Editor {
       chip.style.backgroundSize = "contain";
       chip.style.backgroundPosition = "center";
       chip.style.backgroundRepeat = "no-repeat";
-      chip.textContent = bg.name || "배경";
+      const label = document.createElement("span");
+      label.className = "bg-chip__label";
+      label.textContent = bg.name || "배경";
+      chip.appendChild(label);
       chip.addEventListener("click", () => this.setBackground({ type: "asset", id: bg.id, url: bg.url }));
       this.bgCarousel.appendChild(chip);
     });
 
-    const clearBg = () => this.setBackground(null);
-    const pickBg = () => this.bgFileInput.click();
     const toggleAdjust = () => this.toggleBackgroundAdjust();
     const onFile = (e) => {
       const file = e.target.files && e.target.files[0];
@@ -1052,17 +1120,14 @@ class Editor {
       this.bgFileInput.value = "";
     };
 
-    this.bgNoneBtn.addEventListener("click", clearBg);
-    this.bgUploadBtn.addEventListener("click", pickBg);
     this.bgAdjustBtn.addEventListener("click", toggleAdjust);
     this.bgFileInput.addEventListener("change", onFile);
     this.cleanup.push(() => {
-      this.bgNoneBtn.removeEventListener("click", clearBg);
-      this.bgUploadBtn.removeEventListener("click", pickBg);
       this.bgAdjustBtn.removeEventListener("click", toggleAdjust);
       this.bgFileInput.removeEventListener("change", onFile);
     });
 
+    this.bindCarouselSlider(this.bgCarousel, this.bgScroll);
     this.markBgActive();
   }
 
@@ -1148,7 +1213,10 @@ class Editor {
     if (this.bgAdjustBtn) {
       this.bgAdjustBtn.disabled = !bg;
       this.bgAdjustBtn.classList.toggle("is-active", this.bgAdjustMode && !!bg);
-      this.bgAdjustBtn.textContent = this.bgAdjustMode ? "조정 완료" : "배경 조정";
+      this.bgAdjustBtn.textContent = this.bgAdjustMode ? "✓" : "▧";
+      const label = this.bgAdjustMode ? "배경 조정 완료" : "배경 조정";
+      this.bgAdjustBtn.setAttribute("aria-label", label);
+      this.bgAdjustBtn.title = label;
     }
   }
 

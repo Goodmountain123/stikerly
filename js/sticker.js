@@ -24,7 +24,7 @@ export function buildItemGroup(item, image, opts = {}) {
   });
   group.setAttr("itemId", item.id);
 
-  const shadow = makeShadowNode(image);
+  const shadow = makeShadowNode();
   const art = new Konva.Image({
     image,
     width: w,
@@ -48,14 +48,14 @@ export function buildItemGroup(item, image, opts = {}) {
   // without re-caching the art's pixel filters.
   function transformOnly() {
     applyTransform();
-    updateShadow(shadow, { w, h, scale: item.scale, flipX: item.flipX, effects: item.effects });
+    updateShadow(shadow, { w, h, scale: item.scale, effects: item.effects });
   }
 
   // Full update: transform + re-apply pixel effects.
   function refresh() {
     applyTransform();
     configureArt(art, item.effects);
-    updateShadow(shadow, { w, h, scale: item.scale, flipX: item.flipX, effects: item.effects });
+    updateShadow(shadow, { w, h, scale: item.scale, effects: item.effects });
   }
   refresh();
 
