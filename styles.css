@@ -674,15 +674,16 @@ body{
   flex:1;
   min-height:0;
   overflow-y:auto;
-  display:grid;
-  grid-template-columns:repeat(2, minmax(0, 1fr));
+  display:flex;
+  flex-direction:column;
   align-content:start;
   gap:8px;
   padding:8px;
 }
 .sticker-list .sticker-chip{
+  flex:0 0 auto;
   width:100%;
-  aspect-ratio:1;
+  min-height:84px;
   border-radius:14px;
   background:var(--surface-2);
   display:grid;
@@ -693,9 +694,41 @@ body{
 }
 .sticker-list .sticker-chip:active{ cursor:grabbing; transform:scale(.96); }
 .sticker-list .sticker-chip img{
-  max-width:82%;
-  max-height:82%;
+  max-width:76px;
+  max-height:76px;
   pointer-events:none;
+}
+.tray-card-list{
+  height:100%;
+  overflow-y:auto;
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  padding:8px;
+}
+.background-list .bg-chip{
+  flex:0 0 auto;
+  width:100%;
+  height:96px;
+  border-radius:15px;
+}
+.background-list .bg-chip--action{
+  min-height:76px;
+  flex-direction:row;
+  justify-content:flex-start;
+  padding:10px 14px;
+  gap:12px;
+}
+.background-list .bg-chip__action-label{
+  font-size:12px;
+  color:var(--ink);
+}
+.text-list .text-chip{
+  flex:0 0 auto;
+  width:100%;
+  height:82px;
+  font-size:32px;
+  border-radius:15px;
 }
 .carousel{
   gap:7px;

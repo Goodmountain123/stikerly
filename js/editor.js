@@ -1087,7 +1087,7 @@ class Editor {
       gesture = {
         font: chip.dataset.font,
         type: "text",
-        lastX: e.clientX,
+        lastY: e.clientY,
         extracting: false,
       };
       textGhost.style.fontFamily = chip.dataset.font;
@@ -1105,8 +1105,8 @@ class Editor {
     const onTextMove = (e) => {
       if (!gesture || gesture.type !== "text") return;
       if (!gesture.extracting && isInsideTray(e)) {
-        this.textCarousel.scrollLeft -= e.clientX - gesture.lastX;
-        gesture.lastX = e.clientX;
+        this.textCarousel.scrollTop -= e.clientY - gesture.lastY;
+        gesture.lastY = e.clientY;
         return;
       }
       if (!gesture.extracting) {
@@ -1248,7 +1248,7 @@ class Editor {
       this.bgFileInput.removeEventListener("change", onFile);
     });
 
-    this.bindPointerScroller(this.bgCarousel, "x");
+    this.bindPointerScroller(this.bgCarousel, "y");
     this.markBgActive();
   }
 
