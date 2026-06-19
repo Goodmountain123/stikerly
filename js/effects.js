@@ -1,8 +1,6 @@
 // effects.js — sticker effect rendering helpers built on Konva filters.
 //
-// MVP base effect = Floor Shadow (a squashed silhouette on the "ground"
-// beneath the sticker, not a generic drop shadow). Blur, colour correction
-// and outline are included via Konva built-ins / node shadow as extensions.
+// Effects: projected shadow, blur, brightness adjustment, and outer glow.
 
 const SHADOW_RGB = [46, 40, 58];      // ground-shadow tint
 const SHADOW_MAX_OPACITY = 0.5;
@@ -20,30 +18,51 @@ function DarkTint(imageData) {
   }
 }
 
-// Configure the foreground art node: blur, colour correction, outline glow.
+function normalizeEffect(effect, defaults = {}) {
+  return { ...defaults, ...(effect || {}) };
+}
+
+// Fill in effects added after older projects were saved.
+export function ensureEffects(effects) {
+  const source = effects || {};
+  return {
+    ...source,
+    floorShadow: normalizeEffect(source.floorShadow, {
+      enabled: false,
+      intensity: 0.5,
+      offsetY: 0,
+    }),
+    blur: normalizeEffect(source.blur, { enabled: false, intensity: 0.5 }),
+    brightness: normalizeEffect(source.brightness, {
+      enabled: false,
+      intensity: 0.25,
+    }),
+    outglow: normalizeEffect(source.outglow, {
+      enabled: false,
+      intensity: 0.5,
+    }),
+  };
+}
+
+// Configure the foreground art node: blur, brightness, and outer glow.
 export function configureArt(artNode, effects) {
-  const e = effects || {};
+  const e = ensureEffects(effects);
   const filters = [];
   const blurOn = e.blur && e.blur.enabled && e.blur.intensity > 0;
-  const ccOn = e.colorCorrection && e.colorCorrection.enabled && e.colorCorrection.intensity > 0;
+  const brightnessOn = e.brightness.enabled && Math.abs(e.brightness.intensity) > 0.001;
 
   if (blurOn) filters.push(Konva.Filters.Blur);
-  if (ccOn) filters.push(Konva.Filters.HSL);
+  if (brightnessOn) filters.push(Konva.Filters.Brighten);
 
   artNode.filters(filters);
   if (blurOn) artNode.blurRadius(e.blur.intensity * 14);
-  if (ccOn) {
-    // boost saturation + a touch of brightness as a simple "colour correction"
-    artNode.saturation(e.colorCorrection.intensity * 1.6);
-    artNode.luminance(e.colorCorrection.intensity * 0.12);
-  }
+  artNode.brightness(brightnessOn ? e.brightness.intensity * 0.85 : 0);
 
-  // Outline → tight glow around the alpha shape using the node's shadow.
-  const outOn = e.outline && e.outline.enabled && e.outline.intensity > 0;
-  if (outOn) {
-    artNode.shadowColor("#ffffff");
-    artNode.shadowBlur(2 + e.outline.intensity * 10);
-    artNode.shadowOpacity(Math.min(1, 0.4 + e.outline.intensity));
+  const glowOn = e.outglow.enabled && e.outglow.intensity > 0;
+  if (glowOn) {
+    artNode.shadowColor("#7CCBFF");
+    artNode.shadowBlur(8 + e.outglow.intensity * 34);
+    artNode.shadowOpacity(Math.min(0.9, 0.25 + e.outglow.intensity * 0.65));
     artNode.shadowOffset({ x: 0, y: 0 });
     artNode.shadowForStrokeEnabled(false);
   } else {
@@ -67,7 +86,7 @@ export function makeShadowNode(image) {
 // Update the shadow node from the current art geometry + effect intensity.
 // w,h are the art node's unscaled display size; scale/flipX from the item.
 export function updateShadow(shadowNode, { w, h, scale, flipX, effects }) {
-  const fs = effects && effects.floorShadow;
+  const fs = ensureEffects(effects).floorShadow;
   if (!fs || !fs.enabled || fs.intensity <= 0) {
     shadowNode.visible(false);
     shadowNode.clearCache();
@@ -76,11 +95,11 @@ export function updateShadow(shadowNode, { w, h, scale, flipX, effects }) {
   shadowNode.visible(true);
   shadowNode.size({ width: w, height: h });
   shadowNode.offset({ x: w / 2, y: h / 2 });
-  // Anchor the shadow's top at the sticker's bottom-centre, then squash + flip
-  // downward (negative scaleY mirrors it onto the "floor") and skew sideways.
-  shadowNode.position({ x: 0, y: (h / 2) * scale });
+  const verticalOffset = (fs.offsetY || 0) * h * scale;
+  shadowNode.position({ x: 0, y: (h / 2) * scale + verticalOffset });
   shadowNode.scaleX(scale * (flipX ? -1 : 1));
-  shadowNode.scaleY(-scale * SHADOW_SQUASH);
+  // Flip the previous floor-shadow rendering vertically.
+  shadowNode.scaleY(scale * SHADOW_SQUASH);
   shadowNode.skewX(SHADOW_SKEW);
   shadowNode.opacity(fs.intensity * SHADOW_MAX_OPACITY);
   shadowNode.blurRadius(2 + fs.intensity * SHADOW_MAX_BLUR);
@@ -90,9 +109,9 @@ export function updateShadow(shadowNode, { w, h, scale, flipX, effects }) {
 // Default effect block for a new sticker.
 export function defaultEffects() {
   return {
-    floorShadow: { enabled: false, intensity: 0.5 },
-    outline: { enabled: false, intensity: 0.5 },
+    floorShadow: { enabled: false, intensity: 0.5, offsetY: 0 },
     blur: { enabled: false, intensity: 0.5 },
-    colorCorrection: { enabled: false, intensity: 0.5 },
+    brightness: { enabled: false, intensity: 0.25 },
+    outglow: { enabled: false, intensity: 0.5 },
   };
 }

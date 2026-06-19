@@ -37,10 +37,10 @@ const MENU_ACTIONS = [
 ];
 
 const EFFECTS = [
-  { key: "floorShadow", label: "▱", tip: "바닥 그림자" },
-  { key: "outline", label: "□", tip: "외곽선" },
-  { key: "blur", label: "◌", tip: "블러" },
-  { key: "colorCorrection", label: "☼", tip: "색상 보정" },
+  { key: "floorShadow", icon: "shadow.png", tip: "그림자" },
+  { key: "blur", icon: "blur.png", tip: "블러" },
+  { key: "brightness", icon: "brightness.png", tip: "밝기" },
+  { key: "outglow", icon: "outglow.png", tip: "아웃글로우" },
 ];
 
 const TEXT_MENU_ACTIONS = MENU_ACTIONS.filter((item) =>
@@ -1070,31 +1070,67 @@ class Editor {
 
       if (this.openEffectKey) {
         const fx = ref.item.effects[this.openEffectKey];
-        const slider = document.createElement("div");
-        slider.className = "menu-slider";
+        const controls = document.createElement("div");
+        controls.className = "effect-controls";
 
-        const input = document.createElement("input");
-        input.type = "range";
-        input.min = "0";
-        input.max = "1";
-        input.step = "0.01";
-        input.value = String(fx.intensity ?? 0.5);
+        const addSlider = ({ title, min, max, step, value, format, onInput }) => {
+          const row = document.createElement("div");
+          row.className = "menu-slider";
+          const name = document.createElement("strong");
+          name.textContent = title;
+          const input = document.createElement("input");
+          input.type = "range";
+          input.min = String(min);
+          input.max = String(max);
+          input.step = String(step);
+          input.value = String(value);
+          const label = document.createElement("span");
+          label.textContent = format(Number(input.value));
+          input.addEventListener("input", () => {
+            const next = Number(input.value);
+            label.textContent = format(next);
+            onInput(next);
+            ref.refresh();
+            this.layer.batchDraw();
+          });
+          input.addEventListener("change", () => this.commit());
+          row.appendChild(name);
+          row.appendChild(input);
+          row.appendChild(label);
+          controls.appendChild(row);
+        };
 
-        const label = document.createElement("span");
-        label.textContent = String(Math.round((fx.intensity ?? 0.5) * 100));
-
-        input.addEventListener("input", () => {
-          fx.intensity = Number(input.value);
-          fx.enabled = fx.intensity > 0;
-          label.textContent = String(Math.round(fx.intensity * 100));
-          ref.refresh();
-          this.layer.batchDraw();
+        const brightness = this.openEffectKey === "brightness";
+        addSlider({
+          title: brightness ? "밝기" : "강도",
+          min: brightness ? -1 : 0,
+          max: 1,
+          step: 0.01,
+          value: fx.intensity ?? (brightness ? 0.25 : 0.5),
+          format: (value) =>
+            brightness
+              ? `${value >= 0 ? "+" : ""}${Math.round(value * 100)}`
+              : String(Math.round(value * 100)),
+          onInput: (value) => {
+            fx.intensity = value;
+            fx.enabled = brightness ? Math.abs(value) > 0.001 : value > 0;
+          },
         });
-        input.addEventListener("change", () => this.commit());
 
-        slider.appendChild(input);
-        slider.appendChild(label);
-        this.menuEl.appendChild(slider);
+        if (this.openEffectKey === "floorShadow") {
+          addSlider({
+            title: "위치",
+            min: -0.8,
+            max: 0.8,
+            step: 0.01,
+            value: fx.offsetY ?? 0,
+            format: (value) => `${value >= 0 ? "+" : ""}${Math.round(value * 100)}`,
+            onInput: (value) => {
+              fx.offsetY = value;
+            },
+          });
+        }
+        this.menuEl.appendChild(controls);
       }
     }
 
@@ -1312,7 +1348,11 @@ class Editor {
     } else {
       this.openEffectKey = key;
       fx.enabled = true;
-      if (!fx.intensity || fx.intensity <= 0) fx.intensity = 0.5;
+      if (key === "brightness") {
+        if (!fx.intensity) fx.intensity = 0.25;
+      } else if (!fx.intensity || fx.intensity <= 0) {
+        fx.intensity = 0.5;
+      }
     }
 
     ref.refresh();

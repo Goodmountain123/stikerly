@@ -91,10 +91,10 @@ StickerItem {
   id, packId, assetId,
   x, y, scale, rotation, flipX, flipY, zIndex,
   effects: {
-    floorShadow:     { enabled, intensity },
-    outline:         { enabled, intensity },
-    blur:            { enabled, intensity },
-    colorCorrection: { enabled, intensity }
+    floorShadow: { enabled, intensity, offsetY },
+    blur:        { enabled, intensity },
+    brightness:  { enabled, intensity },
+    outglow:     { enabled, intensity }
   }
 }
 ```
@@ -114,7 +114,7 @@ sticker-editor/
     packs.js       팩 로딩 / 이미지 캐시
     model.js       데이터 모델 + 캔버스 규격
     sticker.js     스티커 노드(이미지+그림자) 빌더
-    effects.js     바닥 그림자 / 블러 / 색보정 / 외곽선
+    effects.js     그림자 / 블러 / 밝기 / 아웃글로우
     editor.js      에디터(스테이지·제스처·메뉴·되돌리기)
     export.js      원본 크기 PNG 내보내기
   assets/sticker_packs/...   번들 스티커팩

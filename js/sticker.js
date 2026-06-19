@@ -1,7 +1,7 @@
 // sticker.js — builds the Konva node tree for one StickerItem.
 // Used by both the interactive editor and the static PNG export.
 import { STICKER_BASE } from "./model.js";
-import { configureArt, makeShadowNode, updateShadow } from "./effects.js";
+import { configureArt, ensureEffects, makeShadowNode, updateShadow } from "./effects.js";
 
 // Fit the image into STICKER_BASE (longest side) and return display w/h.
 function displaySize(image) {
@@ -14,6 +14,7 @@ function displaySize(image) {
 // opts.interactive: wire pointer/drag affordances (editor) vs static (export)
 export function buildItemGroup(item, image, opts = {}) {
   const { w, h } = displaySize(image);
+  item.effects = ensureEffects(item.effects);
 
   const group = new Konva.Group({
     x: item.x,
@@ -50,7 +51,7 @@ export function buildItemGroup(item, image, opts = {}) {
     updateShadow(shadow, { w, h, scale: item.scale, flipX: item.flipX, effects: item.effects });
   }
 
-  // Full update: transform + re-apply pixel effects (blur/colour/outline).
+  // Full update: transform + re-apply pixel effects.
   function refresh() {
     applyTransform();
     configureArt(art, item.effects);

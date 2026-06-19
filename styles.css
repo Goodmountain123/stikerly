@@ -150,10 +150,12 @@ body{
 }
 .sticker-menu > .menu-row,
 .sticker-menu > .text-editor,
-.sticker-menu > .menu-slider{ cursor:grab; }
+.sticker-menu > .menu-slider,
+.sticker-menu > .effect-controls{ cursor:grab; }
 .sticker-menu.is-dragging > .menu-row,
 .sticker-menu.is-dragging > .text-editor,
-.sticker-menu.is-dragging > .menu-slider{ cursor:grabbing; }
+.sticker-menu.is-dragging > .menu-slider,
+.sticker-menu.is-dragging > .effect-controls{ cursor:grabbing; }
 .sticker-menu button,
 .sticker-menu input,
 .sticker-menu .hsl-box{ cursor:auto; }
@@ -182,7 +184,15 @@ body{
 .menu-btn.show-tip::after{ opacity:1; }
 .menu-slider{
   display:flex; align-items:center; gap:10px; padding:8px 14px; background:var(--surface);
-  border-radius:14px; box-shadow:var(--shadow-2); width:210px;
+  width:260px;
+}
+.effect-controls{
+  overflow:hidden; border-radius:14px; background:var(--surface); box-shadow:var(--shadow-2);
+  cursor:grab;
+}
+.effect-controls .menu-slider + .menu-slider{ border-top:1px solid var(--line); }
+.menu-slider strong{
+  flex:0 0 34px; font-size:11px; color:var(--ink-soft); font-weight:700;
 }
 .menu-slider span{ font-size:12px; font-weight:600; color:var(--ink-soft); width:30px; text-align:right; }
 .menu-slider input[type=range]{ flex:1; accent-color:var(--pink); }
