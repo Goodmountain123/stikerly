@@ -226,8 +226,8 @@ class Editor {
     const cornerX = (ref.size.w / 2) * ref.item.scale;
     const cornerY = -(ref.size.h / 2) * ref.item.scale;
     this.transformHandle.position({
-      x: ref.item.x + cornerX * Math.cos(rotation) - cornerY * Math.sin(rotation),
-      y: ref.item.y + cornerX * Math.sin(rotation) + cornerY * Math.cos(rotation),
+      x: ref.group.x() + cornerX * Math.cos(rotation) - cornerY * Math.sin(rotation),
+      y: ref.group.y() + cornerX * Math.sin(rotation) + cornerY * Math.cos(rotation),
     });
     this.transformHandle.visible(true);
     this.transformHandle.moveToTop();
