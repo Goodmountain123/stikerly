@@ -3,11 +3,11 @@
 
 import { putProject } from "./storage.js";
 import {
-  CANVAS,
   ZOOM,
+  canvasSizeFromImage,
   newStickerItem,
   newTextItem,
-  normalizeCanvasType,
+  projectCanvasSize,
 } from "./model.js";
 import { getPacks, findSticker, loadImage } from "./packs.js";
 import { buildItemGroup } from "./sticker.js";
@@ -69,7 +69,6 @@ export function openEditor(project, callbacks = {}) {
 class Editor {
   constructor(project, callbacks) {
     this.project = project;
-    this.project.canvasType = normalizeCanvasType(this.project.canvasType);
     this.cb = callbacks;
     this.refs = new Map();
     this.selectedId = null;
@@ -129,7 +128,7 @@ class Editor {
   // ---------- stage / viewport ----------
 
   buildStage() {
-    const spec = CANVAS[this.project.canvasType] || CANVAS.square;
+    const spec = projectCanvasSize(this.project);
     this.canvasW = spec.w;
     this.canvasH = spec.h;
 
@@ -238,11 +237,7 @@ class Editor {
     this.positionTransformHandle();
   }
 
-  async changeCanvasType(type, { repositionItems = true, commit = true } = {}) {
-    const nextType = normalizeCanvasType(type);
-    const spec = CANVAS[nextType];
-    if (!spec) return;
-
+  changeCanvasSize(spec, { repositionItems = true } = {}) {
     const oldW = this.canvasW || spec.w;
     const oldH = this.canvasH || spec.h;
     if (repositionItems && (oldW !== spec.w || oldH !== spec.h)) {
@@ -256,17 +251,15 @@ class Editor {
       });
     }
 
-    this.project.canvasType = nextType;
+    this.project.canvasWidth = spec.w;
+    this.project.canvasHeight = spec.h;
     this.canvasW = spec.w;
     this.canvasH = spec.h;
     this.page.size({ width: spec.w, height: spec.h });
-    this.ratioSelect.value = nextType;
-    await this.renderBackground();
     this.fitView();
     this.transformer.forceUpdate();
     this.positionTransformHandle();
     this.layer.batchDraw();
-    if (commit) this.commit();
   }
 
   pointerInCanvas() {
@@ -1219,13 +1212,18 @@ class Editor {
     this.markBgActive();
   }
 
-  setBackground(bg) {
+  async setBackground(bg) {
     this.setBackgroundAdjustMode(false);
     this.project.background = bg
       ? { ...bg, transform: { zoom: 1, x: 0, y: 0 } }
       : null;
     this.bgDirty = true;
-    this.renderBackground();
+    if (bg) {
+      await this.renderBackground();
+    } else {
+      this.changeCanvasSize({ w: 1080, h: 1080 });
+      await this.renderBackground();
+    }
     this.commit();
   }
 
@@ -1233,7 +1231,7 @@ class Editor {
     toast("사진을 불러오는 중…");
     try {
       const dataUrl = await fileToScaledDataUrl(file, 2000);
-      this.setBackground({ type: "photo", dataUrl });
+      await this.setBackground({ type: "photo", dataUrl });
     } catch (err) {
       console.error(err);
       toast("사진을 불러오지 못했어요");
@@ -1252,6 +1250,10 @@ class Editor {
       try {
         const src = backgroundSrc(bg);
         const img = await loadBgImage(src);
+        const nextSize = canvasSizeFromImage(img.width, img.height);
+        if (nextSize.w !== this.canvasW || nextSize.h !== this.canvasH) {
+          this.changeCanvasSize(nextSize);
+        }
         bg.transform = {
           zoom: 1,
           x: 0,
@@ -1971,7 +1973,8 @@ class Editor {
   snapshot() {
     return JSON.stringify({
       title: this.project.title,
-      canvasType: this.project.canvasType,
+      canvasWidth: this.canvasW,
+      canvasHeight: this.canvasH,
       background: this.project.background || null,
       stickerItems: clone(this.project.stickerItems || []),
       textItems: clone(this.project.textItems || []),
@@ -1985,7 +1988,8 @@ class Editor {
   async restoreSnapshot() {
     const snap = JSON.parse(this.history[this.hIndex]);
     this.project.title = snap.title || this.project.title || "제목 없는 프로젝트";
-    this.project.canvasType = normalizeCanvasType(snap.canvasType || this.project.canvasType);
+    this.project.canvasWidth = snap.canvasWidth || this.project.canvasWidth || 1080;
+    this.project.canvasHeight = snap.canvasHeight || this.project.canvasHeight || 1080;
     this.project.background = snap.background || null;
     this.project.stickerItems = snap.stickerItems || [];
     this.project.textItems = snap.textItems || [];
@@ -1994,10 +1998,11 @@ class Editor {
     this.project.lastGlowColor = snap.lastGlowColor || "hsl(205 100% 74%)";
     this.project.glowPalette = snap.glowPalette || [];
     this.titleInput.value = this.project.title;
-    await this.changeCanvasType(this.project.canvasType, {
-      repositionItems: false,
-      commit: false,
-    });
+    this.changeCanvasSize(
+      { w: this.project.canvasWidth, h: this.project.canvasHeight },
+      { repositionItems: false }
+    );
+    await this.renderBackground();
     await this.renderAllItems();
     this.hideMenu();
     this.updateHistoryButtons();
@@ -2030,10 +2035,6 @@ class Editor {
   }
 
   bindChrome() {
-    this.ratioSelect = document.getElementById("canvas-ratio-select");
-    this.ratioSelect.value = this.project.canvasType;
-    this.ratioSelect.onchange = () => this.changeCanvasType(this.ratioSelect.value);
-
     const screen = document.getElementById("screen-editor");
     const toggleUi = document.getElementById("btn-toggle-ui");
     screen.classList.remove("ui-hidden");

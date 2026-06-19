@@ -83,7 +83,7 @@ assets/sticker_packs/
 
 ```jsonc
 Project {
-  id, title, canvasType: "phone" | "tablet",
+  id, title, canvasWidth, canvasHeight,
   createdAt, updatedAt,
   stickerItems: [ StickerItem ]
 }

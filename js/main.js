@@ -1,8 +1,13 @@
 // main.js — app entry: project list, new-project modal, screen routing.
 import { listProjects, getProject, putProject, deleteProject } from "./storage.js";
 import { loadPacks, findSticker } from "./packs.js";
-import { loadBackgrounds, backgroundSrc } from "./backgrounds.js";
-import { CANVAS, newProject, normalizeCanvasType } from "./model.js";
+import {
+  loadBackgrounds,
+  getBackgrounds,
+  backgroundSrc,
+  loadBgImage,
+} from "./backgrounds.js";
+import { canvasSizeFromImage, newProject, projectCanvasSize } from "./model.js";
 import { openEditor } from "./editor.js";
 
 const screenProjects = document.getElementById("screen-projects");
@@ -12,7 +17,7 @@ const emptyState = document.getElementById("empty-state");
 
 const modal = document.getElementById("modal-new");
 const newTitle = document.getElementById("new-title");
-let newCanvas = "square";
+let newBackgroundId = null;
 
 function showScreen(which) {
   screenProjects.classList.toggle("is-active", which === "projects");
@@ -42,10 +47,11 @@ async function renderList() {
       const s = findSticker(top.packId, top.assetId);
       if (s) thumbInner = `<img src="${s.url}" alt="">`;
     }
+    const size = projectCanvasSize(p);
     const bgStyle = p.background
-      ? ` style="background-image:url(&quot;${backgroundSrc(p.background)}&quot;);background-size:cover;background-position:center"`
-      : "";
-    const badge = CANVAS[normalizeCanvasType(p.canvasType)]?.ratio || "1 : 1";
+      ? ` style="aspect-ratio:${size.w}/${size.h};background-image:url(&quot;${backgroundSrc(p.background)}&quot;);background-size:cover;background-position:center"`
+      : ` style="aspect-ratio:${size.w}/${size.h}"`;
+    const badge = `${size.w} × ${size.h}`;
     const stickerCount = (p.stickerItems || []).length;
     const textCount = (p.textItems || []).length;
 
@@ -100,9 +106,29 @@ async function remove(p) {
 // ---------- new project modal ----------
 function openModal() {
   newTitle.value = "";
-  newCanvas = "square";
-  modal.querySelectorAll(".choice__opt").forEach((b) =>
-    b.classList.toggle("is-on", b.dataset.canvas === "square"));
+  const backgrounds = getBackgrounds();
+  newBackgroundId = backgrounds[0]?.id || null;
+  const backgroundGrid = document.getElementById("new-background-grid");
+  backgroundGrid.innerHTML = "";
+  backgrounds.forEach((bg) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "new-background-card";
+    button.dataset.bgId = bg.id;
+    button.style.backgroundImage = `url("${bg.url}")`;
+    const label = document.createElement("span");
+    label.textContent = bg.name;
+    button.appendChild(label);
+    button.addEventListener("click", () => {
+      newBackgroundId = bg.id;
+      [...backgroundGrid.children].forEach((item) =>
+        item.classList.toggle("is-on", item === button));
+    });
+    backgroundGrid.appendChild(button);
+  });
+  if (backgroundGrid.firstElementChild) {
+    backgroundGrid.firstElementChild.classList.add("is-on");
+  }
   modal.hidden = false;
   newTitle.focus();
 }
@@ -111,14 +137,15 @@ function closeModal() { modal.hidden = true; }
 document.getElementById("btn-new").addEventListener("click", openModal);
 document.getElementById("new-cancel").addEventListener("click", closeModal);
 modal.addEventListener("click", (e) => { if (e.target === modal) closeModal(); });
-modal.querySelectorAll(".choice__opt").forEach((btn) => {
-  btn.addEventListener("click", () => {
-    newCanvas = btn.dataset.canvas;
-    modal.querySelectorAll(".choice__opt").forEach((b) => b.classList.toggle("is-on", b === btn));
-  });
-});
 document.getElementById("new-create").addEventListener("click", async () => {
-  const project = newProject(newTitle.value.trim(), newCanvas);
+  const bg = getBackgrounds().find((item) => item.id === newBackgroundId);
+  if (!bg) return;
+  const image = await loadBgImage(bg.url);
+  const project = newProject(
+    newTitle.value.trim(),
+    { type: "asset", id: bg.id, url: bg.url, transform: { zoom: 1, x: 0, y: 0 } },
+    canvasSizeFromImage(image.width, image.height)
+  );
   await putProject(project);
   closeModal();
   showScreen("editor");

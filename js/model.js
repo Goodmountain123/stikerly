@@ -29,6 +29,23 @@ export function normalizeCanvasType(type) {
   return CANVAS_CHOICES.includes(type) ? type : "square";
 }
 
+export function canvasSizeFromImage(width, height) {
+  const w = Math.max(1, Number(width) || 1);
+  const h = Math.max(1, Number(height) || 1);
+  const scale = 1920 / Math.max(w, h);
+  return {
+    w: Math.max(1, Math.round(w * scale)),
+    h: Math.max(1, Math.round(h * scale)),
+  };
+}
+
+export function projectCanvasSize(project) {
+  if (project?.canvasWidth && project?.canvasHeight) {
+    return { w: project.canvasWidth, h: project.canvasHeight };
+  }
+  return CANVAS[normalizeCanvasType(project?.canvasType)] || CANVAS.square;
+}
+
 // Longest side of a freshly dropped sticker, in canvas units, at scale 1.
 export const STICKER_BASE = 260;
 
@@ -38,15 +55,16 @@ function uid(prefix) {
   return prefix + "_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 }
 
-export function newProject(title, canvasType) {
+export function newProject(title, background, canvasSize) {
   const now = Date.now();
   return {
     id: uid("prj"),
     title: title || "제목 없는 프로젝트",
-    canvasType: normalizeCanvasType(canvasType),
+    canvasWidth: canvasSize?.w || 1080,
+    canvasHeight: canvasSize?.h || 1080,
     createdAt: now,
     updatedAt: now,
-    background: null,        // null | {type:"asset", id, url} | {type:"photo", dataUrl}
+    background: background || null,
     stickerItems: [],
     textItems: [],
     lastTextColor: "hsl(340 82% 62%)",

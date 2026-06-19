@@ -36,14 +36,6 @@
     <header class="topbar topbar--editor">
       <button id="btn-back" class="iconbtn" aria-label="목록으로">‹</button>
       <input id="title-input" class="title-input" maxlength="40" />
-      <select id="canvas-ratio-select" class="ratio-select" aria-label="캔버스 비율">
-        <option value="square">1 : 1</option>
-        <option value="portrait45">4 : 5</option>
-        <option value="portrait34">3 : 4</option>
-        <option value="story">9 : 16</option>
-        <option value="landscape169">16 : 9</option>
-        <option value="landscape43">4 : 3</option>
-      </select>
       <div class="topbar__spacer"></div>
       <button id="btn-undo" class="iconbtn" aria-label="실행 취소" title="실행 취소">↶</button>
       <button id="btn-redo" class="iconbtn" aria-label="다시 실행" title="다시 실행">↷</button>
@@ -108,39 +100,8 @@
         <span class="field__label">이름</span>
         <input id="new-title" class="field__input" placeholder="제목 없는 프로젝트" maxlength="40" />
       </label>
-      <span class="field__label">캔버스</span>
-      <div class="choice">
-        <button class="choice__opt is-on" data-canvas="square">
-          <span class="choice__frame" style="aspect-ratio:1/1"></span>
-          <span class="choice__name">정사각형</span>
-          <span class="choice__ratio">1 : 1</span>
-        </button>
-        <button class="choice__opt" data-canvas="portrait45">
-          <span class="choice__frame" style="aspect-ratio:4/5"></span>
-          <span class="choice__name">세로형</span>
-          <span class="choice__ratio">4 : 5</span>
-        </button>
-        <button class="choice__opt" data-canvas="portrait34">
-          <span class="choice__frame" style="aspect-ratio:3/4"></span>
-          <span class="choice__name">세로형</span>
-          <span class="choice__ratio">3 : 4</span>
-        </button>
-        <button class="choice__opt" data-canvas="story">
-          <span class="choice__frame" style="aspect-ratio:9/16"></span>
-          <span class="choice__name">스토리</span>
-          <span class="choice__ratio">9 : 16</span>
-        </button>
-        <button class="choice__opt" data-canvas="landscape169">
-          <span class="choice__frame" style="aspect-ratio:16/9"></span>
-          <span class="choice__name">와이드</span>
-          <span class="choice__ratio">16 : 9</span>
-        </button>
-        <button class="choice__opt" data-canvas="landscape43">
-          <span class="choice__frame" style="aspect-ratio:4/3"></span>
-          <span class="choice__name">가로형</span>
-          <span class="choice__ratio">4 : 3</span>
-        </button>
-      </div>
+      <span class="field__label">배경을 골라주세요</span>
+      <div id="new-background-grid" class="new-background-grid"></div>
       <div class="modal__actions">
         <button id="new-cancel" class="btn btn--ghost">취소</button>
         <button id="new-create" class="btn btn--primary">만들기</button>
