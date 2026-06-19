@@ -1888,24 +1888,12 @@ class Editor {
     const pad = 12;
     const viewWidth = this.wrap.clientWidth;
     const viewHeight = this.wrap.clientHeight;
-    const scale = this.stage.scaleX();
-    const page = {
-      left: this.stage.x(),
-      top: this.stage.y(),
-      right: this.stage.x() + this.canvasW * scale,
-      bottom: this.stage.y() + this.canvasH * scale,
+    return {
+      left: pad,
+      top: pad,
+      right: Math.max(pad + menuWidth, viewWidth - pad),
+      bottom: Math.max(pad + menuHeight, viewHeight - pad),
     };
-
-    let bounds = {
-      left: Math.max(pad, page.left + pad),
-      top: Math.max(pad, page.top + pad),
-      right: Math.min(viewWidth - pad, page.right - pad),
-      bottom: Math.min(viewHeight - pad, page.bottom - pad),
-    };
-    if (bounds.right - bounds.left < menuWidth || bounds.bottom - bounds.top < menuHeight) {
-      bounds = { left: pad, top: pad, right: viewWidth - pad, bottom: viewHeight - pad };
-    }
-    return bounds;
   }
 
   clampMenuPosition(x, y) {
