@@ -2099,12 +2099,14 @@ class Editor {
   }
 
   async doExport() {
-    toast("PNG를 만드는 중…");
+    toast("멋진 작품을 준비하는 중…");
     try {
-      await exportPNG(this.project);
+      const result = await exportPNG(this.project);
+      if (result === "shared") toast("사진으로 저장해 주세요!");
+      if (result === "downloaded") toast("완성한 그림을 저장했어요!");
     } catch (err) {
       console.error(err);
-      toast("내보내기에 실패했어요");
+      toast("그림 저장에 실패했어요");
     }
   }
 

@@ -9,6 +9,22 @@ function safeName(name) {
   return (name || "sticker").replace(/[\\/:*?"<>|]+/g, "_").slice(0, 60) || "sticker";
 }
 
+function isMobileDevice() {
+  return navigator.userAgentData?.mobile
+    ?? /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+}
+
+function downloadFile(file) {
+  const url = URL.createObjectURL(file);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = file.name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
 export async function exportPNG(project) {
   const { w, h } = projectCanvasSize(project);
 
@@ -60,10 +76,28 @@ export async function exportPNG(project) {
   stage.destroy();
   host.remove();
 
-  const a = document.createElement("a");
-  a.href = dataURL;
-  a.download = safeName(project.title) + ".png";
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
+  const blob = await (await fetch(dataURL)).blob();
+  const file = new File([blob], safeName(project.title) + ".png", {
+    type: "image/png",
+  });
+
+  if (
+    isMobileDevice()
+    && navigator.share
+    && navigator.canShare?.({ files: [file] })
+  ) {
+    try {
+      await navigator.share({
+        files: [file],
+        title: project.title || "완성한 그림",
+      });
+      return "shared";
+    } catch (err) {
+      if (err?.name === "AbortError") return "cancelled";
+      console.warn("사진 저장 화면을 열지 못해 파일로 저장합니다.", err);
+    }
+  }
+
+  downloadFile(file);
+  return "downloaded";
 }
