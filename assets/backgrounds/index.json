@@ -1,4 +1,5 @@
 [
+  { "id": "ballet-studio", "name": "발레 스튜디오", "file": "ballet studio.png" },
   { "id": "sunset",   "name": "노을",   "file": "sunset.jpg" },
   { "id": "ocean",    "name": "바다",   "file": "ocean.jpg" },
   { "id": "mint",     "name": "민트",   "file": "mint.jpg" },
