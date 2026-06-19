@@ -86,6 +86,7 @@ class Editor {
     this.pinch = null;
     this.pinchDragStates = null;
     this.handleGesture = null;
+    this.menuManuallyPositioned = false;
   }
 
   mount() {
@@ -106,6 +107,7 @@ class Editor {
     this.renderAllItems();
     this.renderBackground();
     this.bindTrayDrag();
+    this.bindMenuDrag();
     this.updateHistoryButtons();
   }
 
@@ -1048,6 +1050,7 @@ class Editor {
 
     this.menuEl.hidden = false;
     this.menuEl.innerHTML = "";
+    this.menuManuallyPositioned = false;
 
     const row = document.createElement("div");
     row.className = "menu-row";
@@ -1105,6 +1108,7 @@ class Editor {
 
     this.menuEl.hidden = false;
     this.menuEl.innerHTML = "";
+    this.menuManuallyPositioned = false;
 
     const actions = document.createElement("div");
     actions.className = "menu-row";
@@ -1342,17 +1346,126 @@ class Editor {
     this.commit();
   }
 
+  menuBounds(menuWidth, menuHeight) {
+    const pad = 12;
+    const viewWidth = this.wrap.clientWidth;
+    const viewHeight = this.wrap.clientHeight;
+    const scale = this.stage.scaleX();
+    const page = {
+      left: this.stage.x(),
+      top: this.stage.y(),
+      right: this.stage.x() + this.canvasW * scale,
+      bottom: this.stage.y() + this.canvasH * scale,
+    };
+
+    let bounds = {
+      left: Math.max(pad, page.left + pad),
+      top: Math.max(pad, page.top + pad),
+      right: Math.min(viewWidth - pad, page.right - pad),
+      bottom: Math.min(viewHeight - pad, page.bottom - pad),
+    };
+    if (bounds.right - bounds.left < menuWidth || bounds.bottom - bounds.top < menuHeight) {
+      bounds = { left: pad, top: pad, right: viewWidth - pad, bottom: viewHeight - pad };
+    }
+    return bounds;
+  }
+
+  clampMenuPosition(x, y) {
+    const width = this.menuEl.offsetWidth;
+    const height = this.menuEl.offsetHeight;
+    const bounds = this.menuBounds(width, height);
+    return {
+      x: clamp(x, bounds.left, Math.max(bounds.left, bounds.right - width)),
+      y: clamp(y, bounds.top, Math.max(bounds.top, bounds.bottom - height)),
+    };
+  }
+
+  bindMenuDrag() {
+    const onPointerDown = (event) => {
+      if (this.menuEl.hidden || event.button !== 0) return;
+      if (event.target.closest("button, input, .hsl-box")) return;
+
+      event.preventDefault();
+      const startX = event.clientX;
+      const startY = event.clientY;
+      const startLeft = parseFloat(this.menuEl.style.left) || 0;
+      const startTop = parseFloat(this.menuEl.style.top) || 0;
+      this.menuManuallyPositioned = true;
+      this.menuEl.classList.add("is-dragging");
+
+      const move = (e) => {
+        const next = this.clampMenuPosition(
+          startLeft + e.clientX - startX,
+          startTop + e.clientY - startY
+        );
+        this.menuEl.style.left = next.x + "px";
+        this.menuEl.style.top = next.y + "px";
+      };
+      const end = () => {
+        this.menuEl.classList.remove("is-dragging");
+        window.removeEventListener("pointermove", move);
+        window.removeEventListener("pointerup", end);
+        window.removeEventListener("pointercancel", end);
+      };
+      window.addEventListener("pointermove", move);
+      window.addEventListener("pointerup", end);
+      window.addEventListener("pointercancel", end);
+    };
+
+    this.menuEl.addEventListener("pointerdown", onPointerDown);
+    this.cleanup.push(() => this.menuEl.removeEventListener("pointerdown", onPointerDown));
+  }
+
   repositionMenu() {
     if (!this.menuEl || this.menuEl.hidden) return;
+    if (this.menuManuallyPositioned) {
+      const position = this.clampMenuPosition(
+        parseFloat(this.menuEl.style.left) || 0,
+        parseFloat(this.menuEl.style.top) || 0
+      );
+      this.menuEl.style.left = position.x + "px";
+      this.menuEl.style.top = position.y + "px";
+      return;
+    }
     const ref = this.selectedRef();
     if (!ref) return;
     const box = ref.art.getClientRect();
-    this.menuEl.style.left = box.x + box.width / 2 + "px";
-    this.menuEl.style.top = Math.max(54, box.y - 12) + "px";
+    const width = this.menuEl.offsetWidth;
+    const height = this.menuEl.offsetHeight;
+    const gap = 14;
+    const bounds = this.menuBounds(width, height);
+    const centerX = box.x + box.width / 2;
+    const centerY = box.y + box.height / 2;
+    const candidates = [
+      { x: centerX - width / 2, y: box.y - gap - height },
+      { x: centerX - width / 2, y: box.y + box.height + gap },
+      { x: box.x + box.width + gap, y: centerY - height / 2 },
+      { x: box.x - gap - width, y: centerY - height / 2 },
+    ];
+    const overlapArea = (candidate) => {
+      const left = Math.max(candidate.x, box.x);
+      const top = Math.max(candidate.y, box.y);
+      const right = Math.min(candidate.x + width, box.x + box.width);
+      const bottom = Math.min(candidate.y + height, box.y + box.height);
+      return Math.max(0, right - left) * Math.max(0, bottom - top);
+    };
+    const overflow = (candidate) =>
+      Math.max(0, bounds.left - candidate.x) +
+      Math.max(0, bounds.top - candidate.y) +
+      Math.max(0, candidate.x + width - bounds.right) +
+      Math.max(0, candidate.y + height - bounds.bottom);
+
+    candidates.sort((a, b) =>
+      overflow(a) * 1000 + overlapArea(a) - (overflow(b) * 1000 + overlapArea(b))
+    );
+    const position = this.clampMenuPosition(candidates[0].x, candidates[0].y);
+    this.menuEl.style.left = position.x + "px";
+    this.menuEl.style.top = position.y + "px";
   }
 
   hideMenu() {
     if (this.menuEl) this.menuEl.hidden = true;
+    this.menuManuallyPositioned = false;
     this.effectsOpen = false;
     this.openEffectKey = null;
   }

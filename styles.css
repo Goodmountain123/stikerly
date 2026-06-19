@@ -147,8 +147,17 @@ body{
 /* ---------- sticker double-tap menu ---------- */
 .sticker-menu{
   position:absolute; z-index:20; display:flex; flex-direction:column; gap:8px;
-  align-items:center; transform:translate(-50%,-100%);
+  align-items:center; touch-action:none;
 }
+.sticker-menu > .menu-row,
+.sticker-menu > .text-editor,
+.sticker-menu > .menu-slider{ cursor:grab; }
+.sticker-menu.is-dragging > .menu-row,
+.sticker-menu.is-dragging > .text-editor,
+.sticker-menu.is-dragging > .menu-slider{ cursor:grabbing; }
+.sticker-menu button,
+.sticker-menu input,
+.sticker-menu .hsl-box{ cursor:auto; }
 .menu-row{
   display:flex; gap:4px; padding:6px; background:var(--surface);
   border-radius:16px; box-shadow:var(--shadow-2);
