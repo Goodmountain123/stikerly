@@ -91,8 +91,7 @@ body{
 .ui-toggle:hover{ background:#3a3348; }
 .screen--editor.ui-hidden .topbar--editor,
 .screen--editor.ui-hidden .tray,
-.screen--editor.ui-hidden .zoom-readout,
-.screen--editor.ui-hidden .sticker-menu{ display:none; }
+.screen--editor.ui-hidden .zoom-readout{ display:none; }
 .screen--editor.ui-hidden .ui-toggle{ transform:rotate(180deg); }
 
 /* ---------- project list ---------- */

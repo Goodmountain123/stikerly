@@ -1542,7 +1542,6 @@ class Editor {
     toggleUi.title = "UI 숨기기";
     toggleUi.onclick = () => {
       const hidden = screen.classList.toggle("ui-hidden");
-      if (hidden) this.hideMenu();
       toggleUi.textContent = hidden ? "⌃" : "⌄";
       toggleUi.setAttribute("aria-label", hidden ? "UI 펼치기" : "UI 숨기기");
       toggleUi.title = hidden ? "UI 펼치기" : "UI 숨기기";
