@@ -890,26 +890,31 @@ class Editor {
   buildTray() {
     this.packCarousel = document.getElementById("pack-carousel");
     this.stickerCarousel = document.getElementById("sticker-carousel");
-    this.packScroll = document.getElementById("pack-scroll");
-    this.stickerScroll = document.getElementById("sticker-scroll");
+    this.stickerPackDetail = document.getElementById("sticker-pack-detail");
+    this.stickerPackBack = document.getElementById("sticker-pack-back");
+    this.stickerPackTitle = document.getElementById("sticker-pack-title");
 
     const packs = getPacks();
-    this.activePackId = packs[0]?.id || null;
+    this.activePackId = null;
     this.packCarousel.innerHTML = "";
 
     packs.forEach((pack) => {
       const chip = document.createElement("button");
       chip.type = "button";
-      chip.className = "pack-chip" + (pack.id === this.activePackId ? " is-active" : "");
+      chip.className = "pack-card";
 
       if (pack.thumbnailUrl) {
+        const thumb = document.createElement("span");
+        thumb.className = "pack-card__thumb";
         const img = document.createElement("img");
         img.src = pack.thumbnailUrl;
         img.alt = "";
-        chip.appendChild(img);
+        thumb.appendChild(img);
+        chip.appendChild(thumb);
       }
 
       const label = document.createElement("span");
+      label.className = "pack-card__name";
       label.textContent = pack.name;
       chip.appendChild(label);
 
@@ -917,18 +922,26 @@ class Editor {
       this.packCarousel.appendChild(chip);
     });
 
-    this.renderStickerStrip();
-    this.bindCarouselSlider(this.packCarousel, this.packScroll);
-    this.bindCarouselSlider(this.stickerCarousel, this.stickerScroll);
-    requestAnimationFrame(() => this.syncAllCarouselSliders());
+    const showPacks = () => this.showStickerPacks();
+    this.stickerPackBack.addEventListener("click", showPacks);
+    this.cleanup.push(() => this.stickerPackBack.removeEventListener("click", showPacks));
+    this.showStickerPacks();
   }
 
   activatePack(id) {
     this.activePackId = id;
-    [...this.packCarousel.children].forEach((el) => {
-      el.classList.toggle("is-active", el.textContent.trim() === (getPacks().find((p) => p.id === id)?.name || ""));
-    });
+    const pack = getPacks().find((item) => item.id === id);
+    this.packCarousel.hidden = true;
+    this.stickerPackDetail.hidden = false;
+    this.stickerPackTitle.textContent = pack?.name || "";
     this.renderStickerStrip();
+  }
+
+  showStickerPacks() {
+    this.activePackId = null;
+    this.packCarousel.hidden = false;
+    this.stickerPackDetail.hidden = true;
+    this.stickerCarousel.innerHTML = "";
   }
 
   renderStickerStrip() {
@@ -950,7 +963,6 @@ class Editor {
 
       this.stickerCarousel.appendChild(chip);
     });
-    requestAnimationFrame(() => this.syncCarouselSlider(this.stickerCarousel, this.stickerScroll));
   }
 
   syncCarouselSlider(carousel, slider) {
@@ -983,8 +995,6 @@ class Editor {
 
   syncAllCarouselSliders() {
     [
-      [this.packCarousel, this.packScroll],
-      [this.stickerCarousel, this.stickerScroll],
       [this.bgCarousel, this.bgScroll],
       [this.textCarousel, this.textScroll],
     ].forEach(([carousel, slider]) => this.syncCarouselSlider(carousel, slider));

@@ -68,10 +68,14 @@
       </div>
 
       <div id="panel-stickers" class="tray-panel">
-        <div id="pack-carousel" class="carousel carousel--packs"></div>
-        <input id="pack-scroll" class="carousel-scroll" type="range" min="0" value="0" aria-label="스티커팩 목록 이동" />
-        <div id="sticker-carousel" class="carousel carousel--stickers"></div>
-        <input id="sticker-scroll" class="carousel-scroll" type="range" min="0" value="0" aria-label="스티커 목록 이동" />
+        <div id="pack-carousel" class="sticker-pack-list"></div>
+        <div id="sticker-pack-detail" class="sticker-pack-detail" hidden>
+          <div class="sticker-pack-detail__header">
+            <button id="sticker-pack-back" class="sticker-pack-back" type="button">‹ 스티커팩</button>
+            <strong id="sticker-pack-title"></strong>
+          </div>
+          <div id="sticker-carousel" class="sticker-list"></div>
+        </div>
       </div>
 
       <div id="panel-bg" class="tray-panel" hidden>
