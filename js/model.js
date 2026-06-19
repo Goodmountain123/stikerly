@@ -26,6 +26,9 @@ export function newProject(title, canvasType) {
     updatedAt: now,
     background: null,        // null | {type:"asset", id, url} | {type:"photo", dataUrl}
     stickerItems: [],
+    textItems: [],
+    lastTextColor: "hsl(340 82% 62%)",
+    textPalette: ["hsl(340 82% 62%)"],
   };
 }
 
@@ -41,5 +44,19 @@ export function newStickerItem(packId, assetId, x, y, zIndex) {
     flipY: false,
     zIndex,
     effects: defaultEffects(),
+  };
+}
+
+export function newTextItem(fontFamily, x, y, zIndex, color) {
+  return {
+    id: uid("txt"),
+    type: "text",
+    text: "텍스트",
+    fontFamily,
+    color: color || "hsl(340 82% 62%)",
+    x, y,
+    scale: 1,
+    rotation: 0,
+    zIndex,
   };
 }

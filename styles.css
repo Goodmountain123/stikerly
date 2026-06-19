@@ -143,6 +143,10 @@ body{
 .menu-btn:hover{ background:var(--surface-2); }
 .menu-btn.is-on{ background:var(--blue); color:#fff; }
 .menu-btn.is-danger:hover{ background:#FCE7EB; color:var(--danger); }
+.menu-btn img{
+  width:36px; height:36px; object-fit:contain; border-radius:9px;
+  pointer-events:none; user-select:none;
+}
 .menu-btn svg{ width:21px; height:21px; }
 .menu-btn[data-tip]::after{
   content:attr(data-tip); position:absolute; bottom:-30px; left:50%; transform:translateX(-50%);
@@ -156,6 +160,33 @@ body{
 }
 .menu-slider span{ font-size:12px; font-weight:600; color:var(--ink-soft); width:30px; text-align:right; }
 .menu-slider input[type=range]{ flex:1; accent-color:var(--pink); }
+.text-editor{
+  width:244px; padding:12px; border-radius:16px; background:var(--surface);
+  box-shadow:var(--shadow-2); display:flex; flex-direction:column; gap:10px;
+}
+.text-editor__input{
+  width:100%; border:1.5px solid var(--line); border-radius:10px; padding:9px 10px;
+  font:600 15px var(--font-ui); color:var(--ink);
+}
+.text-editor__input:focus{ outline:none; border-color:var(--blue); }
+.hsl-box{
+  position:relative; height:112px; border-radius:12px; cursor:crosshair; overflow:hidden;
+  background:
+    linear-gradient(to top, #000, transparent),
+    linear-gradient(to right, #fff, transparent),
+    hsl(var(--hue) 100% 50%);
+}
+.hsl-box__cursor{
+  position:absolute; width:14px; height:14px; border:2px solid #fff; border-radius:50%;
+  box-shadow:0 0 0 1px rgba(0,0,0,.45); transform:translate(-50%,-50%); pointer-events:none;
+}
+.hsl-hue{ width:100%; accent-color:var(--blue); }
+.color-palette{ display:flex; flex-wrap:wrap; gap:7px; }
+.color-swatch{
+  width:28px; height:28px; padding:0; border:2px solid #fff; border-radius:8px; cursor:pointer;
+  box-shadow:0 0 0 1.5px var(--line);
+}
+.color-swatch.is-active{ box-shadow:0 0 0 2px var(--blue); }
 
 /* ---------- sticker tray ---------- */
 .tray{
@@ -245,6 +276,14 @@ body{
 }
 .carousel--stickers .sticker-chip:active{ transform:scale(.94); cursor:grabbing; }
 .carousel--stickers .sticker-chip img{ max-width:80%; max-height:80%; pointer-events:none; }
+.carousel--text{ min-height:82px; }
+.text-chip{
+  flex:0 0 auto; width:112px; height:64px; border-radius:16px; background:var(--surface-2);
+  display:grid; place-items:center; cursor:grab; touch-action:none;
+  box-shadow:inset 0 0 0 1.5px var(--line); font-size:30px; color:var(--ink);
+  transition:transform .1s;
+}
+.text-chip:active{ transform:scale(.96); cursor:grabbing; }
 
 /* ---------- background panel ---------- */
 .bg-actions{ display:flex; gap:8px; padding:0 14px 2px; }
@@ -271,6 +310,11 @@ body{
   position:fixed; z-index:999; width:96px; height:96px; object-fit:contain;
   pointer-events:none; transform:translate(-50%,-50%); filter:drop-shadow(0 8px 14px rgba(0,0,0,.25));
   opacity:.95;
+}
+.text-drag-ghost{
+  position:fixed; z-index:999; padding:10px 18px; border-radius:14px;
+  background:rgba(255,255,255,.94); color:var(--ink); font-size:42px; line-height:1;
+  pointer-events:none; transform:translate(-50%,-50%); box-shadow:var(--shadow-2);
 }
 
 /* ---------- modal ---------- */

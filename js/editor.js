@@ -2,9 +2,10 @@
 // Drop-in replacement for the broken main/js/editor.js.
 
 import { putProject } from "./storage.js";
-import { CANVAS, ZOOM, newStickerItem } from "./model.js";
+import { CANVAS, ZOOM, newStickerItem, newTextItem } from "./model.js";
 import { getPacks, findSticker, loadImage } from "./packs.js";
 import { buildItemGroup } from "./sticker.js";
+import { buildTextGroup } from "./text.js";
 import { exportPNG } from "./export.js";
 import {
   getBackgrounds,
@@ -18,14 +19,15 @@ const PAN_MARGIN = 80;
 
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 const clone = (v) => JSON.parse(JSON.stringify(v));
+const DEFAULT_TEXT_COLOR = "hsl(340 82% 62%)";
 
 const MENU_ACTIONS = [
-  { key: "flipH", label: "↔", tip: "좌우 반전" },
-  { key: "flipV", label: "↕", tip: "상하 반전" },
-  { key: "forward", label: "↑", tip: "앞으로" },
-  { key: "backward", label: "↓", tip: "뒤로" },
-  { key: "effects", label: "✦", tip: "효과" },
-  { key: "delete", label: "×", tip: "삭제", danger: true },
+  { key: "flipH", icon: "horizontal.png", tip: "좌우 반전" },
+  { key: "flipV", icon: "vertical.png", tip: "상하 반전" },
+  { key: "forward", icon: "up.png", tip: "앞으로" },
+  { key: "backward", icon: "down.png", tip: "뒤로" },
+  { key: "effects", icon: "effect.png", tip: "효과" },
+  { key: "delete", icon: "delete.png", tip: "삭제", danger: true },
 ];
 
 const EFFECTS = [
@@ -34,6 +36,21 @@ const EFFECTS = [
   { key: "blur", label: "◌", tip: "블러" },
   { key: "colorCorrection", label: "☼", tip: "색상 보정" },
 ];
+
+const TEXT_MENU_ACTIONS = MENU_ACTIONS.filter((item) =>
+  ["forward", "backward", "delete"].includes(item.key)
+);
+
+function hslString(h, s, l) {
+  return `hsl(${Math.round(h)} ${Math.round(s)}% ${Math.round(l)}%)`;
+}
+
+function parseHsl(value) {
+  const match = String(value || "").match(/hsl\(\s*([\d.]+)[,\s]+([\d.]+)%[,\s]+([\d.]+)%\s*\)/i);
+  return match
+    ? { h: Number(match[1]), s: Number(match[2]), l: Number(match[3]) }
+    : { h: 340, s: 82, l: 62 };
+}
 
 let app = null;
 
@@ -506,19 +523,36 @@ class Editor {
 
   // ---------- stickers ----------
 
+  allItems() {
+    return [
+      ...(this.project.stickerItems || []),
+      ...(this.project.textItems || []),
+    ];
+  }
+
   async renderAllItems() {
     this.refs.forEach((ref) => ref.group.destroy());
     this.refs.clear();
     this.selectedId = null;
     this.transformer.nodes([]);
+    this.transformHandle.visible(false);
 
-    const items = [...(this.project.stickerItems || [])].sort((a, b) => a.zIndex - b.zIndex);
+    const items = this.allItems().sort((a, b) => a.zIndex - b.zIndex);
     await Promise.all(items.map((item) => this.spawnNode(item)));
     this.reorderLayer();
     this.layer.batchDraw();
   }
 
   async spawnNode(item) {
+    if (item.type === "text") {
+      await document.fonts?.load(`120px "${item.fontFamily}"`);
+      const ref = buildTextGroup(item, { interactive: true });
+      this.wireItem(ref);
+      this.layer.add(ref.group);
+      this.refs.set(item.id, ref);
+      return ref;
+    }
+
     const sticker = findSticker(item.packId, item.assetId);
     if (!sticker) return null;
     const img = await loadImage(sticker.url);
@@ -558,7 +592,8 @@ class Editor {
     art.on("dblclick dbltap", (e) => {
       e.cancelBubble = true;
       this.select(ref.item.id);
-      this.openMenu(ref.item.id);
+      if (ref.isText) this.openTextEditor(ref.item.id);
+      else this.openMenu(ref.item.id);
     });
 
     art.on("transform", () => {
@@ -579,7 +614,7 @@ class Editor {
       this.bgNode.moveToTop();
     }
 
-    const sorted = [...(this.project.stickerItems || [])].sort((a, b) => a.zIndex - b.zIndex);
+    const sorted = this.allItems().sort((a, b) => a.zIndex - b.zIndex);
     sorted.forEach((item) => {
       const ref = this.refs.get(item.id);
       if (ref) ref.group.moveToTop();
@@ -612,10 +647,23 @@ class Editor {
   }
 
   async addSticker(packId, assetId, x, y) {
-    const maxZ = (this.project.stickerItems || []).reduce((m, it) => Math.max(m, it.zIndex || 0), -1);
+    const maxZ = this.allItems().reduce((m, it) => Math.max(m, it.zIndex || 0), -1);
     const item = newStickerItem(packId, assetId, x, y, maxZ + 1);
     this.project.stickerItems = this.project.stickerItems || [];
     this.project.stickerItems.push(item);
+    await this.spawnNode(item);
+    this.reorderLayer();
+    this.select(item.id);
+    this.commit();
+  }
+
+  async addText(fontFamily, x, y) {
+    const maxZ = this.allItems().reduce((m, it) => Math.max(m, it.zIndex || 0), -1);
+    const color = this.project.lastTextColor || DEFAULT_TEXT_COLOR;
+    const item = newTextItem(fontFamily, x, y, maxZ + 1, color);
+    this.project.textItems = this.project.textItems || [];
+    this.project.textItems.push(item);
+    await document.fonts?.load(`120px "${fontFamily}"`);
     await this.spawnNode(item);
     this.reorderLayer();
     this.select(item.id);
@@ -688,6 +736,7 @@ class Editor {
 
   bindTrayDrag() {
     const ghost = document.getElementById("drag-ghost");
+    const textGhost = document.getElementById("text-drag-ghost");
     let dragging = null;
 
     const moveGhost = (x, y) => {
@@ -742,7 +791,58 @@ class Editor {
     };
 
     this.stickerCarousel.addEventListener("pointerdown", onDown);
-    this.cleanup.push(() => this.stickerCarousel.removeEventListener("pointerdown", onDown));
+    const onTextDown = (e) => {
+      const chip = e.target.closest(".text-chip");
+      if (!chip) return;
+      e.preventDefault();
+      dragging = { font: chip.dataset.font, type: "text" };
+      textGhost.style.fontFamily = chip.dataset.font;
+      textGhost.style.color = this.project.lastTextColor || DEFAULT_TEXT_COLOR;
+      textGhost.hidden = false;
+      moveTextGhost(e.clientX, e.clientY);
+      window.addEventListener("pointermove", onTextMove);
+      window.addEventListener("pointerup", onTextUp);
+    };
+
+    const moveTextGhost = (x, y) => {
+      textGhost.style.left = x + "px";
+      textGhost.style.top = y + "px";
+    };
+
+    const onTextMove = (e) => {
+      if (!dragging || dragging.type !== "text") return;
+      moveTextGhost(e.clientX, e.clientY);
+    };
+
+    const onTextUp = (e) => {
+      window.removeEventListener("pointermove", onTextMove);
+      window.removeEventListener("pointerup", onTextUp);
+      textGhost.hidden = true;
+      if (!dragging || dragging.type !== "text") return;
+
+      const rect = this.host.getBoundingClientRect();
+      const inside =
+        e.clientX >= rect.left &&
+        e.clientX <= rect.right &&
+        e.clientY >= rect.top &&
+        e.clientY <= rect.bottom;
+      if (inside) {
+        const sx = e.clientX - rect.left;
+        const sy = e.clientY - rect.top;
+        this.addText(
+          dragging.font,
+          (sx - this.stage.x()) / this.stage.scaleX(),
+          (sy - this.stage.y()) / this.stage.scaleX()
+        );
+      }
+      dragging = null;
+    };
+
+    this.textCarousel.addEventListener("pointerdown", onTextDown);
+    this.cleanup.push(() => {
+      this.stickerCarousel.removeEventListener("pointerdown", onDown);
+      this.textCarousel.removeEventListener("pointerdown", onTextDown);
+    });
   }
 
   // ---------- background ----------
@@ -750,25 +850,35 @@ class Editor {
   bindTrayTabs() {
     this.tabStickers = document.getElementById("tab-stickers");
     this.tabBg = document.getElementById("tab-bg");
+    this.tabText = document.getElementById("tab-text");
     this.panelStickers = document.getElementById("panel-stickers");
     this.panelBg = document.getElementById("panel-bg");
+    this.panelText = document.getElementById("panel-text");
+    this.textCarousel = document.getElementById("text-carousel");
 
     const showStickers = () => this.switchTab("stickers");
     const showBg = () => this.switchTab("background");
+    const showText = () => this.switchTab("text");
     this.tabStickers.addEventListener("click", showStickers);
     this.tabBg.addEventListener("click", showBg);
+    this.tabText.addEventListener("click", showText);
     this.cleanup.push(() => {
       this.tabStickers.removeEventListener("click", showStickers);
       this.tabBg.removeEventListener("click", showBg);
+      this.tabText.removeEventListener("click", showText);
     });
   }
 
   switchTab(name) {
     const stickers = name === "stickers";
+    const background = name === "background";
+    const text = name === "text";
     this.tabStickers.classList.toggle("is-on", stickers);
-    this.tabBg.classList.toggle("is-on", !stickers);
+    this.tabBg.classList.toggle("is-on", background);
+    this.tabText.classList.toggle("is-on", text);
     this.panelStickers.hidden = !stickers;
-    this.panelBg.hidden = stickers;
+    this.panelBg.hidden = !background;
+    this.panelText.hidden = !text;
   }
 
   buildBackgroundPanel() {
@@ -932,11 +1042,158 @@ class Editor {
     this.repositionMenu();
   }
 
+  openTextEditor(id) {
+    this.select(id);
+    const ref = this.refs.get(id);
+    if (!ref || !ref.isText) return;
+
+    this.menuEl.hidden = false;
+    this.menuEl.innerHTML = "";
+
+    const actions = document.createElement("div");
+    actions.className = "menu-row";
+    TEXT_MENU_ACTIONS.forEach((def) => {
+      actions.appendChild(this.menuButton(def, () => this.onMenuAction(def.key, id)));
+    });
+    this.menuEl.appendChild(actions);
+
+    const editor = document.createElement("div");
+    editor.className = "text-editor";
+
+    const textInput = document.createElement("input");
+    textInput.className = "text-editor__input";
+    textInput.type = "text";
+    textInput.maxLength = 40;
+    textInput.value = ref.item.text || "텍스트";
+    textInput.setAttribute("aria-label", "텍스트 내용");
+
+    const color = parseHsl(ref.item.color);
+    const box = document.createElement("div");
+    box.className = "hsl-box";
+    box.style.setProperty("--hue", color.h);
+    const cursor = document.createElement("span");
+    cursor.className = "hsl-box__cursor";
+    box.appendChild(cursor);
+
+    const hue = document.createElement("input");
+    hue.className = "hsl-hue";
+    hue.type = "range";
+    hue.min = "0";
+    hue.max = "360";
+    hue.value = String(color.h);
+    hue.setAttribute("aria-label", "색상");
+
+    const palette = document.createElement("div");
+    palette.className = "color-palette";
+
+    const positionCursor = () => {
+      cursor.style.left = color.s + "%";
+      cursor.style.top = (100 - color.l) + "%";
+    };
+
+    const applyColor = () => {
+      ref.item.color = hslString(color.h, color.s, color.l);
+      ref.refresh();
+      this.transformer.forceUpdate();
+      this.positionTransformHandle();
+      this.layer.batchDraw();
+    };
+
+    const saveColor = () => {
+      const next = hslString(color.h, color.s, color.l);
+      this.project.lastTextColor = next;
+      const paletteValues = [
+        next,
+        ...(this.project.textPalette || []).filter((value) => value !== next),
+      ].slice(0, 8);
+      this.project.textPalette = paletteValues;
+      renderPalette();
+      this.commit();
+    };
+
+    const updateFromPointer = (event) => {
+      const rect = box.getBoundingClientRect();
+      color.s = clamp(((event.clientX - rect.left) / rect.width) * 100, 0, 100);
+      color.l = clamp(100 - ((event.clientY - rect.top) / rect.height) * 100, 0, 100);
+      positionCursor();
+      applyColor();
+    };
+
+    const beginColorDrag = (event) => {
+      event.preventDefault();
+      updateFromPointer(event);
+      const move = (e) => updateFromPointer(e);
+      const end = () => {
+        window.removeEventListener("pointermove", move);
+        window.removeEventListener("pointerup", end);
+        saveColor();
+      };
+      window.addEventListener("pointermove", move);
+      window.addEventListener("pointerup", end);
+    };
+
+    const renderPalette = () => {
+      palette.innerHTML = "";
+      (this.project.textPalette || [DEFAULT_TEXT_COLOR]).forEach((value) => {
+        const swatch = document.createElement("button");
+        swatch.type = "button";
+        swatch.className = "color-swatch" + (value === ref.item.color ? " is-active" : "");
+        swatch.style.background = value;
+        swatch.setAttribute("aria-label", `최근 색상 ${value}`);
+        swatch.addEventListener("click", () => {
+          const selected = parseHsl(value);
+          Object.assign(color, selected);
+          hue.value = String(color.h);
+          box.style.setProperty("--hue", color.h);
+          positionCursor();
+          applyColor();
+          saveColor();
+        });
+        palette.appendChild(swatch);
+      });
+    };
+
+    textInput.addEventListener("input", () => {
+      ref.item.text = textInput.value || "텍스트";
+      ref.refresh();
+      this.transformer.forceUpdate();
+      this.positionTransformHandle();
+      this.layer.batchDraw();
+      this.repositionMenu();
+    });
+    textInput.addEventListener("change", () => this.commit());
+    box.addEventListener("pointerdown", beginColorDrag);
+    hue.addEventListener("input", () => {
+      color.h = Number(hue.value);
+      box.style.setProperty("--hue", color.h);
+      applyColor();
+    });
+    hue.addEventListener("change", saveColor);
+
+    positionCursor();
+    renderPalette();
+    editor.appendChild(textInput);
+    editor.appendChild(box);
+    editor.appendChild(hue);
+    editor.appendChild(palette);
+    this.menuEl.appendChild(editor);
+    this.repositionMenu();
+  }
+
   menuButton(def, onClick, isOn = false) {
     const btn = document.createElement("button");
     btn.type = "button";
     btn.className = "menu-btn" + (def.danger ? " is-danger" : "") + (isOn ? " is-on" : "");
-    btn.textContent = def.label;
+    btn.setAttribute("aria-label", def.tip);
+    if (def.icon) {
+      const img = document.createElement("img");
+      img.src = `./assets/menu-icons/${def.icon}`;
+      img.alt = "";
+      img.draggable = false;
+      btn.appendChild(img);
+    } else {
+      btn.textContent = def.label;
+    }
     btn.dataset.tip = def.tip;
     btn.addEventListener("click", (e) => {
       e.stopPropagation();
@@ -991,7 +1248,7 @@ class Editor {
   }
 
   restack(id, dir) {
-    const sorted = [...(this.project.stickerItems || [])].sort((a, b) => a.zIndex - b.zIndex);
+    const sorted = this.allItems().sort((a, b) => a.zIndex - b.zIndex);
     const idx = sorted.findIndex((item) => item.id === id);
     const swap = idx + dir;
     if (idx < 0 || swap < 0 || swap >= sorted.length) return;
@@ -1010,6 +1267,7 @@ class Editor {
     if (ref) ref.group.destroy();
     this.refs.delete(id);
     this.project.stickerItems = (this.project.stickerItems || []).filter((item) => item.id !== id);
+    this.project.textItems = (this.project.textItems || []).filter((item) => item.id !== id);
     this.deselect();
     this.commit();
   }
@@ -1036,6 +1294,9 @@ class Editor {
       title: this.project.title,
       background: this.project.background || null,
       stickerItems: clone(this.project.stickerItems || []),
+      textItems: clone(this.project.textItems || []),
+      lastTextColor: this.project.lastTextColor || DEFAULT_TEXT_COLOR,
+      textPalette: clone(this.project.textPalette || [DEFAULT_TEXT_COLOR]),
     });
   }
 
@@ -1044,6 +1305,9 @@ class Editor {
     this.project.title = snap.title || this.project.title || "제목 없는 프로젝트";
     this.project.background = snap.background || null;
     this.project.stickerItems = snap.stickerItems || [];
+    this.project.textItems = snap.textItems || [];
+    this.project.lastTextColor = snap.lastTextColor || DEFAULT_TEXT_COLOR;
+    this.project.textPalette = snap.textPalette || [this.project.lastTextColor];
     this.titleInput.value = this.project.title;
     await this.renderAllItems();
     await this.renderBackground();

@@ -3,6 +3,7 @@ import { CANVAS } from "./model.js";
 import { findSticker, loadImage } from "./packs.js";
 import { backgroundSrc, coverCrop, loadBgImage } from "./backgrounds.js";
 import { buildItemGroup } from "./sticker.js";
+import { buildTextGroup } from "./text.js";
 
 function safeName(name) {
   return (name || "sticker").replace(/[\\/:*?"<>|]+/g, "_").slice(0, 60) || "sticker";
@@ -30,8 +31,17 @@ export async function exportPNG(project) {
     }
   }
 
-  const items = [...project.stickerItems].sort((a, b) => a.zIndex - b.zIndex);
+  const items = [
+    ...(project.stickerItems || []),
+    ...(project.textItems || []),
+  ].sort((a, b) => a.zIndex - b.zIndex);
   for (const item of items) {
+    if (item.type === "text") {
+      await document.fonts?.load(`120px "${item.fontFamily}"`);
+      const { group } = buildTextGroup(item, { interactive: false });
+      layer.add(group);
+      continue;
+    }
     const s = findSticker(item.packId, item.assetId);
     if (!s) continue;
     const img = await loadImage(s.url);

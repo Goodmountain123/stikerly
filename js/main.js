@@ -46,13 +46,14 @@ async function renderList() {
       ? ` style="background-image:url(&quot;${backgroundSrc(p.background)}&quot;);background-size:cover;background-position:center"`
       : "";
     const badge = p.canvasType === "tablet" ? "태블릿" : "스마트폰";
-    const count = (p.stickerItems || []).length;
+    const stickerCount = (p.stickerItems || []).length;
+    const textCount = (p.textItems || []).length;
 
     card.innerHTML = `
       <div class="card__thumb"${bgStyle}><span class="card__badge">${badge}</span>${thumbInner}</div>
       <div class="card__body">
         <p class="card__name">${escapeHtml(p.title)}</p>
-        <p class="card__meta">스티커 ${count}개 · ${fmtDate(p.updatedAt)}</p>
+        <p class="card__meta">스티커 ${stickerCount}개 · 텍스트 ${textCount}개 · ${fmtDate(p.updatedAt)}</p>
         <div class="card__row">
           <button class="iconbtn" data-act="rename" title="이름 변경">✎</button>
           <button class="iconbtn" data-act="delete" title="삭제">🗑</button>
