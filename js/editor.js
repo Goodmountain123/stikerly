@@ -2,7 +2,13 @@
 // Drop-in replacement for the broken main/js/editor.js.
 
 import { putProject } from "./storage.js";
-import { CANVAS, ZOOM, newStickerItem, newTextItem } from "./model.js";
+import {
+  CANVAS,
+  ZOOM,
+  newStickerItem,
+  newTextItem,
+  normalizeCanvasType,
+} from "./model.js";
 import { getPacks, findSticker, loadImage } from "./packs.js";
 import { buildItemGroup } from "./sticker.js";
 import { buildTextGroup } from "./text.js";
@@ -63,6 +69,7 @@ export function openEditor(project, callbacks = {}) {
 class Editor {
   constructor(project, callbacks) {
     this.project = project;
+    this.project.canvasType = normalizeCanvasType(this.project.canvasType);
     this.cb = callbacks;
     this.refs = new Map();
     this.selectedId = null;
@@ -114,7 +121,7 @@ class Editor {
   // ---------- stage / viewport ----------
 
   buildStage() {
-    const spec = CANVAS[this.project.canvasType] || CANVAS.phone;
+    const spec = CANVAS[this.project.canvasType] || CANVAS.square;
     this.canvasW = spec.w;
     this.canvasH = spec.h;
 
@@ -220,6 +227,37 @@ class Editor {
     this.transformHandle.radius(9 / s);
     this.transformHandle.strokeWidth(2 / s);
     this.positionTransformHandle();
+  }
+
+  async changeCanvasType(type, { repositionItems = true, commit = true } = {}) {
+    const nextType = normalizeCanvasType(type);
+    const spec = CANVAS[nextType];
+    if (!spec) return;
+
+    const oldW = this.canvasW || spec.w;
+    const oldH = this.canvasH || spec.h;
+    if (repositionItems && (oldW !== spec.w || oldH !== spec.h)) {
+      const scaleX = spec.w / oldW;
+      const scaleY = spec.h / oldH;
+      this.allItems().forEach((item) => {
+        item.x *= scaleX;
+        item.y *= scaleY;
+        const ref = this.refs.get(item.id);
+        if (ref) ref.group.position({ x: item.x, y: item.y });
+      });
+    }
+
+    this.project.canvasType = nextType;
+    this.canvasW = spec.w;
+    this.canvasH = spec.h;
+    this.page.size({ width: spec.w, height: spec.h });
+    this.ratioSelect.value = nextType;
+    await this.renderBackground();
+    this.fitView();
+    this.transformer.forceUpdate();
+    this.positionTransformHandle();
+    this.layer.batchDraw();
+    if (commit) this.commit();
   }
 
   pointerInCanvas() {
@@ -370,12 +408,20 @@ class Editor {
       this.zoomAround(pointer, this.stage.scaleX() * (1 + direction * 0.12));
     });
 
-    // Mouse pan only starts from empty canvas/page. Sticker drag remains untouched.
+    // Left drag pans empty canvas; middle-button drag pans from anywhere.
     let panning = false;
     let last = null;
+    let middlePan = false;
 
     this.stage.on("mousedown", (e) => {
-      if (!this.isCanvasTarget(e.target)) return;
+      const middleButton = e.evt.button === 1;
+      if (!middleButton && !this.isCanvasTarget(e.target)) return;
+      if (middleButton) {
+        e.evt.preventDefault();
+        middlePan = true;
+        this.freezeItemDragging();
+        this.host.style.cursor = "grabbing";
+      }
       panning = true;
       last = this.stage.getPointerPosition();
       this.hideMenu();
@@ -398,8 +444,18 @@ class Editor {
     const stopMousePan = () => {
       panning = false;
       last = null;
+      if (middlePan) {
+        middlePan = false;
+        this.restoreItemDragging();
+        this.host.style.cursor = "";
+      }
     };
     this.stage.on("mouseup mouseleave", stopMousePan);
+    const preventMiddleClick = (e) => {
+      if (e.button === 1) e.preventDefault();
+    };
+    this.host.addEventListener("auxclick", preventMiddleClick);
+    this.cleanup.push(() => this.host.removeEventListener("auxclick", preventMiddleClick));
 
     // Touch navigation: two fingers only. Start on touchstart so the gesture
     // has a stable reference point and does not jump on the first touchmove.
@@ -1085,6 +1141,11 @@ class Editor {
 
     const palette = document.createElement("div");
     palette.className = "color-palette";
+    const addColorButton = document.createElement("button");
+    addColorButton.type = "button";
+    addColorButton.className = "color-palette__add";
+    addColorButton.textContent = "+";
+    addColorButton.setAttribute("aria-label", "현재 색상을 팔레트에 추가");
 
     const positionCursor = () => {
       cursor.style.left = color.s + "%";
@@ -1099,7 +1160,13 @@ class Editor {
       this.layer.batchDraw();
     };
 
-    const saveColor = () => {
+    const rememberLastColor = () => {
+      const next = hslString(color.h, color.s, color.l);
+      this.project.lastTextColor = next;
+      this.commit();
+    };
+
+    const addColorToPalette = () => {
       const next = hslString(color.h, color.s, color.l);
       this.project.lastTextColor = next;
       const paletteValues = [
@@ -1126,7 +1193,7 @@ class Editor {
       const end = () => {
         window.removeEventListener("pointermove", move);
         window.removeEventListener("pointerup", end);
-        saveColor();
+        rememberLastColor();
       };
       window.addEventListener("pointermove", move);
       window.addEventListener("pointerup", end);
@@ -1134,7 +1201,7 @@ class Editor {
 
     const renderPalette = () => {
       palette.innerHTML = "";
-      (this.project.textPalette || [DEFAULT_TEXT_COLOR]).forEach((value) => {
+      (this.project.textPalette || []).forEach((value) => {
         const swatch = document.createElement("button");
         swatch.type = "button";
         swatch.className = "color-swatch" + (value === ref.item.color ? " is-active" : "");
@@ -1147,10 +1214,12 @@ class Editor {
           box.style.setProperty("--hue", color.h);
           positionCursor();
           applyColor();
-          saveColor();
+          rememberLastColor();
+          renderPalette();
         });
         palette.appendChild(swatch);
       });
+      palette.appendChild(addColorButton);
     };
 
     textInput.addEventListener("input", () => {
@@ -1168,7 +1237,8 @@ class Editor {
       box.style.setProperty("--hue", color.h);
       applyColor();
     });
-    hue.addEventListener("change", saveColor);
+    hue.addEventListener("change", rememberLastColor);
+    addColorButton.addEventListener("click", addColorToPalette);
 
     positionCursor();
     renderPalette();
@@ -1292,25 +1362,30 @@ class Editor {
   snapshot() {
     return JSON.stringify({
       title: this.project.title,
+      canvasType: this.project.canvasType,
       background: this.project.background || null,
       stickerItems: clone(this.project.stickerItems || []),
       textItems: clone(this.project.textItems || []),
       lastTextColor: this.project.lastTextColor || DEFAULT_TEXT_COLOR,
-      textPalette: clone(this.project.textPalette || [DEFAULT_TEXT_COLOR]),
+      textPalette: clone(this.project.textPalette || []),
     });
   }
 
   async restoreSnapshot() {
     const snap = JSON.parse(this.history[this.hIndex]);
     this.project.title = snap.title || this.project.title || "제목 없는 프로젝트";
+    this.project.canvasType = normalizeCanvasType(snap.canvasType || this.project.canvasType);
     this.project.background = snap.background || null;
     this.project.stickerItems = snap.stickerItems || [];
     this.project.textItems = snap.textItems || [];
     this.project.lastTextColor = snap.lastTextColor || DEFAULT_TEXT_COLOR;
-    this.project.textPalette = snap.textPalette || [this.project.lastTextColor];
+    this.project.textPalette = snap.textPalette || [];
     this.titleInput.value = this.project.title;
+    await this.changeCanvasType(this.project.canvasType, {
+      repositionItems: false,
+      commit: false,
+    });
     await this.renderAllItems();
-    await this.renderBackground();
     this.hideMenu();
     this.updateHistoryButtons();
   }
@@ -1342,6 +1417,25 @@ class Editor {
   }
 
   bindChrome() {
+    this.ratioSelect = document.getElementById("canvas-ratio-select");
+    this.ratioSelect.value = this.project.canvasType;
+    this.ratioSelect.onchange = () => this.changeCanvasType(this.ratioSelect.value);
+
+    const screen = document.getElementById("screen-editor");
+    const toggleUi = document.getElementById("btn-toggle-ui");
+    screen.classList.remove("ui-hidden");
+    toggleUi.textContent = "⌄";
+    toggleUi.setAttribute("aria-label", "UI 숨기기");
+    toggleUi.title = "UI 숨기기";
+    toggleUi.onclick = () => {
+      const hidden = screen.classList.toggle("ui-hidden");
+      if (hidden) this.hideMenu();
+      toggleUi.textContent = hidden ? "⌃" : "⌄";
+      toggleUi.setAttribute("aria-label", hidden ? "UI 펼치기" : "UI 숨기기");
+      toggleUi.title = hidden ? "UI 펼치기" : "UI 숨기기";
+      requestAnimationFrame(() => this.resize());
+    };
+
     document.getElementById("btn-undo").onclick = () => this.undo();
     document.getElementById("btn-redo").onclick = () => this.redo();
     document.getElementById("btn-save").onclick = () => this.save();

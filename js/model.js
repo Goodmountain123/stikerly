@@ -3,9 +3,31 @@ import { defaultEffects } from "./effects.js";
 
 // Native export resolutions per canvas type (zoom never changes these).
 export const CANVAS = {
-  phone: { w: 1080, h: 1920, ratio: "9 : 16" },
-  tablet: { w: 1620, h: 2160, ratio: "3 : 4" },
+  square: { w: 1080, h: 1080, ratio: "1 : 1", label: "정사각형" },
+  portrait45: { w: 1080, h: 1350, ratio: "4 : 5", label: "세로형" },
+  portrait34: { w: 1080, h: 1440, ratio: "3 : 4", label: "세로형" },
+  story: { w: 1080, h: 1920, ratio: "9 : 16", label: "스토리" },
+  landscape169: { w: 1920, h: 1080, ratio: "16 : 9", label: "와이드" },
+  landscape43: { w: 1440, h: 1080, ratio: "4 : 3", label: "가로형" },
+  // Backward-compatible aliases for existing saved projects.
+  phone: { w: 1080, h: 1920, ratio: "9 : 16", label: "스토리" },
+  tablet: { w: 1080, h: 1440, ratio: "3 : 4", label: "세로형" },
 };
+
+export const CANVAS_CHOICES = [
+  "square",
+  "portrait45",
+  "portrait34",
+  "story",
+  "landscape169",
+  "landscape43",
+];
+
+export function normalizeCanvasType(type) {
+  if (type === "phone") return "story";
+  if (type === "tablet") return "portrait34";
+  return CANVAS_CHOICES.includes(type) ? type : "square";
+}
 
 // Longest side of a freshly dropped sticker, in canvas units, at scale 1.
 export const STICKER_BASE = 260;
@@ -21,14 +43,14 @@ export function newProject(title, canvasType) {
   return {
     id: uid("prj"),
     title: title || "제목 없는 프로젝트",
-    canvasType: canvasType === "tablet" ? "tablet" : "phone",
+    canvasType: normalizeCanvasType(canvasType),
     createdAt: now,
     updatedAt: now,
     background: null,        // null | {type:"asset", id, url} | {type:"photo", dataUrl}
     stickerItems: [],
     textItems: [],
     lastTextColor: "hsl(340 82% 62%)",
-    textPalette: ["hsl(340 82% 62%)"],
+    textPalette: [],
   };
 }
 

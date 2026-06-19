@@ -1,5 +1,5 @@
 // export.js — render the project to a PNG at native canvas size (ignores zoom).
-import { CANVAS } from "./model.js";
+import { CANVAS, normalizeCanvasType } from "./model.js";
 import { findSticker, loadImage } from "./packs.js";
 import { backgroundSrc, coverCrop, loadBgImage } from "./backgrounds.js";
 import { buildItemGroup } from "./sticker.js";
@@ -10,7 +10,7 @@ function safeName(name) {
 }
 
 export async function exportPNG(project) {
-  const { w, h } = CANVAS[project.canvasType];
+  const { w, h } = CANVAS[normalizeCanvasType(project.canvasType)];
 
   const host = document.createElement("div");
   host.style.cssText = "position:fixed;left:-99999px;top:0;";

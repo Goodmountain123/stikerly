@@ -2,7 +2,7 @@
 import { listProjects, getProject, putProject, deleteProject } from "./storage.js";
 import { loadPacks, findSticker } from "./packs.js";
 import { loadBackgrounds, backgroundSrc } from "./backgrounds.js";
-import { newProject } from "./model.js";
+import { CANVAS, newProject, normalizeCanvasType } from "./model.js";
 import { openEditor } from "./editor.js";
 
 const screenProjects = document.getElementById("screen-projects");
@@ -12,7 +12,7 @@ const emptyState = document.getElementById("empty-state");
 
 const modal = document.getElementById("modal-new");
 const newTitle = document.getElementById("new-title");
-let newCanvas = "phone";
+let newCanvas = "square";
 
 function showScreen(which) {
   screenProjects.classList.toggle("is-active", which === "projects");
@@ -45,7 +45,7 @@ async function renderList() {
     const bgStyle = p.background
       ? ` style="background-image:url(&quot;${backgroundSrc(p.background)}&quot;);background-size:cover;background-position:center"`
       : "";
-    const badge = p.canvasType === "tablet" ? "태블릿" : "스마트폰";
+    const badge = CANVAS[normalizeCanvasType(p.canvasType)]?.ratio || "1 : 1";
     const stickerCount = (p.stickerItems || []).length;
     const textCount = (p.textItems || []).length;
 
@@ -100,9 +100,9 @@ async function remove(p) {
 // ---------- new project modal ----------
 function openModal() {
   newTitle.value = "";
-  newCanvas = "phone";
+  newCanvas = "square";
   modal.querySelectorAll(".choice__opt").forEach((b) =>
-    b.classList.toggle("is-on", b.dataset.canvas === "phone"));
+    b.classList.toggle("is-on", b.dataset.canvas === "square"));
   modal.hidden = false;
   newTitle.focus();
 }
