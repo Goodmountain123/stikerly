@@ -43,10 +43,6 @@ const EFFECTS = [
   { key: "outglow", icon: "outglow.png", tip: "아웃글로우" },
 ];
 
-const TEXT_MENU_ACTIONS = MENU_ACTIONS.filter((item) =>
-  ["forward", "backward", "delete"].includes(item.key)
-);
-
 function hslString(h, s, l) {
   return `hsl(${Math.round(h)} ${Math.round(s)}% ${Math.round(l)}%)`;
 }
@@ -88,6 +84,7 @@ class Editor {
     this.pinchDragStates = null;
     this.handleGesture = null;
     this.menuManuallyPositioned = false;
+    this.inlineTextInput = null;
   }
 
   mount() {
@@ -116,6 +113,8 @@ class Editor {
   destroy() {
     this.cleanup.forEach((fn) => fn());
     this.cleanup = [];
+    this.inlineTextInput?.remove();
+    this.inlineTextInput = null;
     this.hideMenu();
     this.refs.forEach((ref) => ref.group.destroy());
     this.refs.clear();
@@ -272,6 +271,11 @@ class Editor {
     };
     this.flipHorizontalControl = makeButton("↔", () => this.flipSelected("flipH"), "좌우 반전");
     this.flipVerticalControl = makeButton("↕", () => this.flipSelected("flipV"), "상하 반전");
+    this.textColorControl = makeButton("●", () => {
+      const ref = this.selectedRef();
+      if (ref?.isText) this.openTextColorPicker(ref.item.id);
+    }, "글자 색상");
+    this.textColorDot = this.textColorControl.findOne("Text");
   }
 
   flipSelected(key) {
@@ -290,16 +294,28 @@ class Editor {
   positionFlipControls() {
     const ref = this.selectedRef();
     const visible = ref && !ref.isText && this.selectedPart === "art";
+    const textVisible = ref?.isText && this.selectedPart === "art";
     [this.flipHorizontalControl, this.flipVerticalControl].forEach((control) => {
       if (control) control.visible(!!visible);
     });
-    if (!visible) return;
+    this.textColorControl?.visible(!!textVisible);
+    if (!visible && !textVisible) return;
 
     const scale = Math.max(this.stage.scaleX(), 0.0001);
     const buttonScale = 1 / scale;
     const rect = ref.art.getClientRect({ relativeTo: this.layer });
     const gap = 11 / scale;
     const radius = 16 / scale;
+    if (textVisible) {
+      this.textColorControl.scale({ x: buttonScale, y: buttonScale });
+      this.textColorControl.position({
+        x: rect.x - gap - radius,
+        y: rect.y + rect.height / 2,
+      });
+      this.textColorDot.fill(ref.item.color || DEFAULT_TEXT_COLOR);
+      this.textColorControl.moveToTop();
+      return;
+    }
     this.flipHorizontalControl.scale({ x: buttonScale, y: buttonScale });
     this.flipVerticalControl.scale({ x: buttonScale, y: buttonScale });
     this.flipHorizontalControl.position({
@@ -785,7 +801,7 @@ class Editor {
     art.on("dblclick dbltap", (e) => {
       e.cancelBubble = true;
       this.select(ref.item.id);
-      if (ref.isText) this.openTextEditor(ref.item.id);
+      if (ref.isText) this.beginInlineTextEdit(ref);
     });
 
     art.on("transform", () => {
@@ -844,6 +860,7 @@ class Editor {
     this.transformHandle.moveToTop();
     this.flipHorizontalControl?.moveToTop();
     this.flipVerticalControl?.moveToTop();
+    this.textColorControl?.moveToTop();
   }
 
   promoteSticker(id) {
@@ -1662,7 +1679,69 @@ class Editor {
     return editor;
   }
 
-  openTextEditor(id) {
+  beginInlineTextEdit(ref) {
+    if (!ref?.isText) return;
+    this.hideMenu();
+    this.inlineTextInput?.blur();
+
+    const item = ref.item;
+    const original = item.text || "텍스트";
+    const stageScale = this.stage.scaleX();
+    const visualScale = item.scale * stageScale;
+    const input = document.createElement("input");
+    input.type = "text";
+    input.maxLength = 40;
+    input.value = original;
+    input.className = "canvas-text-input";
+    input.style.left = `${this.stage.x() + ref.group.x() * stageScale}px`;
+    input.style.top = `${this.stage.y() + ref.group.y() * stageScale}px`;
+    input.style.width = `${Math.max(90, ref.size.w * visualScale + 24)}px`;
+    input.style.height = `${Math.max(42, ref.size.h * visualScale + 8)}px`;
+    input.style.fontFamily = item.fontFamily;
+    input.style.fontSize = `${Math.max(18, 120 * visualScale)}px`;
+    input.style.color = item.color;
+    input.style.transform = `translate(-50%, -50%) rotate(${item.rotation}deg)`;
+
+    ref.art.visible(false);
+    this.transformer.nodes([]);
+    this.textColorControl?.visible(false);
+    this.wrap.appendChild(input);
+    this.inlineTextInput = input;
+
+    const update = () => {
+      item.text = input.value || "텍스트";
+      ref.refresh();
+      input.style.width = `${Math.max(90, ref.size.w * visualScale + 24)}px`;
+    };
+    const finish = (cancel = false) => {
+      if (!input.isConnected) return;
+      if (cancel) item.text = original;
+      else update();
+      input.remove();
+      this.inlineTextInput = null;
+      ref.art.visible(true);
+      ref.refresh();
+      this.select(item.id);
+      this.commit();
+    };
+
+    input.addEventListener("input", update);
+    input.addEventListener("blur", () => finish(false), { once: true });
+    input.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        input.blur();
+      } else if (event.key === "Escape") {
+        event.preventDefault();
+        finish(true);
+      }
+    });
+    input.addEventListener("pointerdown", (event) => event.stopPropagation());
+    input.focus();
+    input.setSelectionRange(input.value.length, input.value.length);
+  }
+
+  openTextColorPicker(id) {
     this.select(id);
     const ref = this.refs.get(id);
     if (!ref || !ref.isText) return;
@@ -1671,22 +1750,8 @@ class Editor {
     this.menuEl.innerHTML = "";
     this.menuManuallyPositioned = false;
 
-    const actions = document.createElement("div");
-    actions.className = "menu-row";
-    TEXT_MENU_ACTIONS.forEach((def) => {
-      actions.appendChild(this.menuButton(def, () => this.onMenuAction(def.key, id)));
-    });
-    this.menuEl.appendChild(actions);
-
     const editor = document.createElement("div");
     editor.className = "text-editor";
-
-    const textInput = document.createElement("input");
-    textInput.className = "text-editor__input";
-    textInput.type = "text";
-    textInput.maxLength = 40;
-    textInput.value = ref.item.text || "텍스트";
-    textInput.setAttribute("aria-label", "텍스트 내용");
 
     const color = parseHsl(ref.item.color);
     const box = document.createElement("div");
@@ -1722,6 +1787,7 @@ class Editor {
       ref.refresh();
       this.transformer.forceUpdate();
       this.positionTransformHandle();
+      this.positionFlipControls();
       this.layer.batchDraw();
     };
 
@@ -1787,15 +1853,6 @@ class Editor {
       palette.appendChild(addColorButton);
     };
 
-    textInput.addEventListener("input", () => {
-      ref.item.text = textInput.value || "텍스트";
-      ref.refresh();
-      this.transformer.forceUpdate();
-      this.positionTransformHandle();
-      this.layer.batchDraw();
-      this.repositionMenu();
-    });
-    textInput.addEventListener("change", () => this.commit());
     box.addEventListener("pointerdown", beginColorDrag);
     hue.addEventListener("input", () => {
       color.h = Number(hue.value);
@@ -1807,7 +1864,6 @@ class Editor {
 
     positionCursor();
     renderPalette();
-    editor.appendChild(textInput);
     editor.appendChild(box);
     editor.appendChild(hue);
     editor.appendChild(palette);
