@@ -185,9 +185,26 @@ class Editor {
 
     this.bindCanvasNavigation();
 
-    const onResize = () => this.resize();
+    let portrait = window.innerHeight > window.innerWidth;
+    let orientationTimer;
+    const onResize = () => {
+      const nextPortrait = window.innerHeight > window.innerWidth;
+      if (nextPortrait !== portrait) {
+        portrait = nextPortrait;
+        clearTimeout(orientationTimer);
+        orientationTimer = setTimeout(() => {
+          this.zoom = ZOOM.base;
+          this.resize();
+        }, 180);
+        return;
+      }
+      this.resize();
+    };
     window.addEventListener("resize", onResize);
-    this.cleanup.push(() => window.removeEventListener("resize", onResize));
+    this.cleanup.push(() => {
+      clearTimeout(orientationTimer);
+      window.removeEventListener("resize", onResize);
+    });
 
     this.fitView();
   }
