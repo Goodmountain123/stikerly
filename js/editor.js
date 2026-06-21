@@ -1089,15 +1089,36 @@ class Editor {
   }
 
   bindTrayResize() {
-    const minimumWidth = 105;
+    const cardWidth = 89;
+    const cardGap = 8;
+    const trayPadding = 27;
+    const minimumWidth = cardWidth + trayPadding;
+    const snapWidths = [1, 2, 3].map((columns) =>
+      columns * cardWidth + (columns - 1) * cardGap + trayPadding
+    );
+    const snapRange = 34;
+    const collapsedRange = Math.round(minimumWidth * 0.48);
     const savedValue = localStorage.getItem("stickerly-tray-width");
     const savedWidth = Number(savedValue);
+    const nearestSnapWidth = (width) => {
+      if (width <= collapsedRange) return 0;
+      let closest = width;
+      let distance = Infinity;
+      snapWidths.forEach((snapWidth) => {
+        const nextDistance = Math.abs(width - snapWidth);
+        if (nextDistance < distance) {
+          distance = nextDistance;
+          closest = snapWidth;
+        }
+      });
+      return distance <= snapRange ? closest : width;
+    };
     const applyWidth = (width) => {
       this.editorScreen.style.setProperty("--tray-width", `${width}px`);
       this.editorScreen.classList.toggle("tray-collapsed", width === 0);
     };
     if (savedValue !== null && Number.isFinite(savedWidth) && savedWidth >= 0) {
-      applyWidth(savedWidth);
+      applyWidth(savedWidth === 0 ? 0 : nearestSnapWidth(savedWidth));
     }
     let dragging = false;
     let moved = false;
@@ -1130,8 +1151,10 @@ class Editor {
           : currentWidth <= minimumWidth
             ? 0
             : currentWidth;
-      } else if (currentWidth < minimumWidth) {
+      } else if (currentWidth < collapsedRange) {
         finalWidth = 0;
+      } else {
+        finalWidth = nearestSnapWidth(currentWidth);
       }
       this.editorScreen.classList.add("tray-snapping");
       void this.editorScreen.offsetWidth;
@@ -1417,7 +1440,7 @@ class Editor {
 
   switchTab(name) {
     if (this.editorScreen?.classList.contains("tray-collapsed")) {
-      const width = 105;
+      const width = 116;
       this.editorScreen.style.setProperty("--tray-width", `${width}px`);
       this.editorScreen.classList.remove("tray-collapsed");
       localStorage.setItem("stickerly-tray-width", String(width));

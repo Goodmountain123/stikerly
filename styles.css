@@ -577,7 +577,7 @@ body{
 /* ---------- landscape-first editor layout ---------- */
 .screen--editor.is-active{
   display:grid;
-  --tray-width:105px;
+  --tray-width:116px;
   grid-template-columns:minmax(0, 1fr) var(--tray-width);
   grid-template-rows:auto minmax(0, 1fr);
   height:100dvh;
