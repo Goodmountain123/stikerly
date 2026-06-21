@@ -19,14 +19,14 @@
     <header class="topbar topbar--home">
       <div class="wordmark">Stickerly<span class="wordmark__dot">.</span></div>
       <div class="topbar__spacer"></div>
-      <button id="btn-delete-mode" class="iconbtn" aria-label="프로젝트 삭제" title="프로젝트 삭제">🗑️</button>
+      <button id="btn-delete-mode" class="iconbtn" aria-label="프로젝트 삭제" title="프로젝트 삭제"><img class="ui-icon" src="./assets/ui/trash.png" alt=""></button>
       <button id="btn-new" class="btn btn--primary">새 프로젝트</button>
     </header>
 
     <main class="home">
       <div id="project-grid" class="project-grid"></div>
       <aside id="project-delete-zone" class="project-delete-zone" hidden>
-        <span>🗑️</span>
+        <img class="delete-icon-img" src="./assets/ui/trash.png" alt="">
         <strong>여기에 놓기</strong>
       </aside>
       <div id="empty-state" class="empty" hidden>
@@ -40,15 +40,15 @@
   <!-- ============ EDITOR ============ -->
   <section id="screen-editor" class="screen screen--editor">
     <div id="delete-drop-zone" class="delete-drop-zone" hidden aria-label="위로 올리면 삭제">
-      <span class="delete-drop-zone__icon">🗑️</span>
+      <img class="delete-drop-zone__icon" src="./assets/ui/trash.png" alt="">
       <span>위로 올려서 삭제</span>
     </div>
     <header class="topbar topbar--editor">
-      <button id="btn-back" class="iconbtn" aria-label="목록으로">‹</button>
+      <button id="btn-back" class="iconbtn" aria-label="목록으로"><img class="ui-icon" src="./assets/ui/back.png" alt=""></button>
       <input id="title-input" class="title-input" maxlength="40" />
       <div class="topbar__spacer"></div>
-      <button id="btn-undo" class="iconbtn" aria-label="실행 취소" title="실행 취소">↶</button>
-      <button id="btn-redo" class="iconbtn" aria-label="다시 실행" title="다시 실행">↷</button>
+      <button id="btn-undo" class="iconbtn" aria-label="실행 취소" title="실행 취소"><img class="ui-icon" src="./assets/ui/undo.png" alt=""></button>
+      <button id="btn-redo" class="iconbtn" aria-label="다시 실행" title="다시 실행"><img class="ui-icon" src="./assets/ui/redo.png" alt=""></button>
       <button id="btn-save" class="btn btn--ghost">저장</button>
       <button id="btn-export" class="btn btn--primary">완성!</button>
     </header>
@@ -78,7 +78,7 @@
         <div id="pack-carousel" class="sticker-pack-list"></div>
         <div id="sticker-pack-detail" class="sticker-pack-detail" hidden>
           <div class="sticker-pack-detail__header">
-            <button id="sticker-pack-back" class="sticker-pack-back" type="button">‹ 스티커팩</button>
+            <button id="sticker-pack-back" class="sticker-pack-back" type="button"><img class="ui-icon ui-icon--inline" src="./assets/ui/back.png" alt=""> 스티커팩</button>
             <strong id="sticker-pack-title"></strong>
           </div>
           <div id="sticker-carousel" class="sticker-list"></div>
@@ -123,7 +123,7 @@
 
   <div id="modal-delete-project" class="modal confirm-modal" hidden>
     <div class="modal__card confirm-modal__card">
-      <div class="confirm-modal__icon">🗑️</div>
+      <img class="confirm-modal__icon" src="./assets/ui/trash.png" alt="">
       <h2 class="modal__title">프로젝트를 삭제할까요?</h2>
       <p id="delete-project-message"></p>
       <div class="modal__actions">

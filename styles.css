@@ -58,6 +58,8 @@ body{
   font-size:22px; line-height:1; color:var(--ink); cursor:pointer;
   display:grid; place-items:center; transition:background .15s, transform .08s;
 }
+.ui-icon{ width:24px; height:24px; object-fit:contain; display:block; pointer-events:none; }
+.ui-icon--inline{ width:16px; height:16px; display:inline-block; vertical-align:-3px; margin-right:3px; }
 .iconbtn:active{ transform:translateY(1px); }
 .iconbtn:disabled{ opacity:.38; cursor:default; }
 .iconbtn.is-on{ background:#ff7b9e; color:#fff; box-shadow:inset 0 0 0 2px #fff; }
@@ -121,6 +123,14 @@ body{
 .card__info-toggle{ flex:0 0 25px; width:25px; height:25px; padding:0; border:0;
   border-radius:8px; background:var(--surface-2); color:var(--ink-soft);
   font-size:15px; cursor:pointer; }
+.card__info-toggle{
+  font-size:0;
+  background-image:url("./assets/ui/down.png");
+  background-size:15px 15px;
+  background-position:center;
+  background-repeat:no-repeat;
+}
+.card__info-toggle.is-open{ background-image:url("./assets/ui/up.png"); }
 .card__meta{ font-size:10px; color:var(--ink-soft); margin-top:5px; }
 .screen--projects.delete-mode .card{ cursor:grab; }
 .screen--projects.delete-mode .card:active{ cursor:grabbing; }
@@ -130,7 +140,7 @@ body{
   border:4px dashed #ff7b9e; border-radius:24px; background:rgba(255,240,245,.96);
   color:#b82d56; box-shadow:var(--shadow-2); pointer-events:none;
 }
-.project-delete-zone span{ font-size:52px; }
+.project-delete-zone .delete-icon-img{ width:52px; height:52px; object-fit:contain; }
 .project-delete-zone.is-over{ background:#ff7b9e; color:#fff; border-color:#fff; transform:scale(1.03); }
 .screen--projects.delete-mode .home{ padding-right:184px; }
 .project-drag-ghost{
@@ -139,7 +149,7 @@ body{
 }
 .btn--danger{ background:#ff557d; color:#fff; box-shadow:0 4px 0 #d93661; }
 .confirm-modal__card{ max-width:380px; text-align:center; }
-.confirm-modal__icon{ font-size:52px; }
+.confirm-modal__icon{ width:52px; height:52px; object-fit:contain; margin:0 auto; display:block; }
 .confirm-modal__card p{ color:var(--ink-soft); }
 
 .empty{ text-align:center; padding-top:18vh; color:var(--ink-soft); }
@@ -638,7 +648,7 @@ body{
   to{ transform:translate(-50%,0); }
 }
 .delete-drop-zone > *{ transform:translateY(70px); }
-.delete-drop-zone__icon{font-size:28px}
+.delete-drop-zone__icon{ width:28px; height:28px; object-fit:contain; }
 .delete-drop-zone.is-over{
   top:-54px;
   transform:translateX(-50%) scale(1.08);

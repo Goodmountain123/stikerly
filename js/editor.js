@@ -22,10 +22,24 @@ import {
 
 const PAD = 56;
 const PAN_MARGIN = 80;
+const UI_ICON_ROOT = "./assets/ui";
 
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 const clone = (v) => JSON.parse(JSON.stringify(v));
 const DEFAULT_TEXT_COLOR = "hsl(340 82% 62%)";
+const uiIconCache = new Map();
+
+function uiIcon(name, onload) {
+  if (!name) return null;
+  if (uiIconCache.has(name)) return uiIconCache.get(name);
+  const img = new Image();
+  img.onload = () => {
+    if (onload) onload();
+  };
+  img.src = `${UI_ICON_ROOT}/${name}`;
+  uiIconCache.set(name, img);
+  return img;
+}
 
 const MENU_ACTIONS = [
   { key: "flipH", icon: "horizontal.png", tip: "좌우 반전" },
@@ -258,7 +272,7 @@ class Editor {
   }
 
   buildFlipControls() {
-    const makeButton = (label, action, ariaLabel) => {
+    const makeButton = (label, action, ariaLabel, iconName = null) => {
       const group = new Konva.Group({ visible: false, name: "flip-control" });
       const circle = new Konva.Circle({
         radius: 16,
@@ -274,14 +288,26 @@ class Editor {
         fontSize: 21,
         fontStyle: "bold",
         fill: "#3D7DFF",
-        width: 32,
-        height: 32,
-        offsetX: 16,
-        offsetY: 16,
-        align: "center",
-        verticalAlign: "middle",
+          width: 32,
+          height: 32,
+          offsetX: 16,
+          offsetY: 16,
+          align: "center",
+          verticalAlign: "middle",
       });
-      group.add(circle, text);
+      group.add(circle);
+      if (iconName) {
+        const image = new Konva.Image({
+          image: uiIcon(iconName, () => this.layer?.batchDraw()),
+          width: 24,
+          height: 24,
+          offsetX: 12,
+          offsetY: 12,
+        });
+        group.add(image);
+      } else {
+        group.add(text);
+      }
       group.on("click tap", (event) => {
         event.cancelBubble = true;
         action();
@@ -290,8 +316,8 @@ class Editor {
       this.layer.add(group);
       return group;
     };
-    this.flipHorizontalControl = makeButton("↔", () => this.flipSelected("flipH"), "좌우 반전");
-    this.flipVerticalControl = makeButton("↕", () => this.flipSelected("flipV"), "상하 반전");
+    this.flipHorizontalControl = makeButton("↔", () => this.flipSelected("flipH"), "좌우 반전", "horizontal.png");
+    this.flipVerticalControl = makeButton("↕", () => this.flipSelected("flipV"), "상하 반전", "vertical.png");
     this.textColorControl = makeButton("●", () => {
       const ref = this.selectedRef();
       if (!ref?.isText) return;
@@ -310,13 +336,15 @@ class Editor {
     this.textEditControl = makeButton("✎", () => {
       const ref = this.selectedRef();
       if (ref?.isText) this.beginInlineTextEdit(ref);
-    }, "글자 수정");
+    }, "글자 수정", "edit.png");
     this.textEditControl.findOne("Circle").radius(12);
     const editIcon = this.textEditControl.findOne("Text");
-    editIcon.fontSize(17);
-    editIcon.width(24);
-    editIcon.height(24);
-    editIcon.offset({ x: 12, y: 12 });
+    if (editIcon) {
+      editIcon.fontSize(17);
+      editIcon.width(24);
+      editIcon.height(24);
+      editIcon.offset({ x: 12, y: 12 });
+    }
   }
 
   flipSelected(key) {
