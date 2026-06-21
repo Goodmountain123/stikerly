@@ -139,16 +139,6 @@ body{
   background:var(--surface); color:var(--ink-soft); font-size:12px; font-weight:600;
   padding:5px 10px; border-radius:999px; box-shadow:var(--shadow-1); pointer-events:none;
 }
-.canvas-bg-adjust{
-  position:absolute; right:14px; top:14px; z-index:18; width:44px; height:44px;
-  border:0; border-radius:13px; background:rgba(255,255,255,.94); color:var(--ink);
-  box-shadow:var(--shadow-1), inset 0 0 0 1.5px var(--line);
-  display:grid; place-items:center; font-size:23px; cursor:pointer;
-}
-.canvas-bg-adjust:hover{ background:#fff; }
-.canvas-bg-adjust.is-active{ background:var(--blue); color:#fff; box-shadow:var(--shadow-1); }
-.canvas-bg-adjust:disabled{ opacity:.38; cursor:not-allowed; }
-.screen--editor.ui-hidden .canvas-bg-adjust{ display:none; }
 
 /* ---------- sticker double-tap menu ---------- */
 .sticker-menu{
@@ -393,13 +383,6 @@ body{
   position:fixed; z-index:999; width:96px; height:96px; object-fit:contain;
   pointer-events:none; transform:translate(-50%,-50%); filter:drop-shadow(0 8px 14px rgba(0,0,0,.25));
   opacity:.95;
-}
-#stage-host.is-bg-adjusting{ cursor:grab; }
-#stage-host.is-bg-adjusting::after{
-  content:"배경 이동 · 핀치/휠 확대"; position:absolute; left:50%; top:14px;
-  transform:translateX(-50%); z-index:8; pointer-events:none;
-  padding:7px 12px; border-radius:999px; background:rgba(36,31,46,.82);
-  color:#fff; font-size:12px; font-weight:700;
 }
 .text-drag-ghost{
   position:fixed; z-index:999; padding:10px 18px; border-radius:14px;
@@ -892,14 +875,6 @@ body.is-resizing-tray *{ cursor:ew-resize!important; user-select:none!important;
   width:230px;
   padding:7px 10px;
 }
-.canvas-bg-adjust{
-  width:36px;
-  height:36px;
-  right:10px;
-  top:10px;
-  border-radius:10px;
-  font-size:19px;
-}
 .ui-toggle{
   width:38px;
   height:38px;
@@ -973,7 +948,6 @@ body{
 .text-chip:nth-child(1){ background:#FFF0F6; }
 .text-chip:nth-child(2){ background:#EDF8FF; }
 .text-chip:nth-child(3){ background:#ECFFF7; }
-.canvas-bg-adjust{ background:linear-gradient(135deg,#FFF3C9,#FFE9F4); }
 .sticker-pack-back{ background:linear-gradient(135deg,#EAF6FF,#F1ECFF); }
 .ui-toggle{ background:linear-gradient(135deg,#59466F,#7A62A0); }
 .new-background-card:nth-child(3n+1){ background-color:#FFF0F6; }

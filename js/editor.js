@@ -77,9 +77,6 @@ class Editor {
     this.worldBase = 1;
     this.bgNode = null;
     this.bgImage = null;
-    this.bgAdjustMode = false;
-    this.bgGesture = null;
-    this.bgWheelTimer = null;
     this.bgDirty = false;
     this.effectsOpen = false;
     this.openEffectKey = null;
@@ -119,7 +116,6 @@ class Editor {
   destroy() {
     this.cleanup.forEach((fn) => fn());
     this.cleanup = [];
-    clearTimeout(this.bgWheelTimer);
     this.hideMenu();
     this.refs.forEach((ref) => ref.group.destroy());
     this.refs.clear();
@@ -529,12 +525,6 @@ class Editor {
     // Wheel zoom: desktop trackpad / mouse.
     this.stage.on("wheel", (e) => {
       e.evt.preventDefault();
-      if (this.bgAdjustMode) {
-        this.adjustBackgroundZoom(e.evt.deltaY > 0 ? 0.92 : 1.08);
-        clearTimeout(this.bgWheelTimer);
-        this.bgWheelTimer = setTimeout(() => this.commit(), 180);
-        return;
-      }
       const pointer = this.stage.getPointerPosition();
       if (!pointer) return;
       const direction = e.evt.deltaY > 0 ? -1 : 1;
@@ -545,16 +535,8 @@ class Editor {
     let panning = false;
     let last = null;
     let middlePan = false;
-    let backgroundPanning = false;
 
     this.stage.on("mousedown", (e) => {
-      if (this.bgAdjustMode && e.evt.button === 0) {
-        backgroundPanning = true;
-        last = this.stage.getPointerPosition();
-        this.host.style.cursor = "grabbing";
-        e.evt.preventDefault();
-        return;
-      }
       const middleButton = e.evt.button === 1;
       if (!middleButton && !this.isCanvasTarget(e.target)) return;
       if (middleButton) {
@@ -569,13 +551,6 @@ class Editor {
     });
 
     this.stage.on("mousemove", () => {
-      if (backgroundPanning && last) {
-        const p = this.stage.getPointerPosition();
-        if (!p) return;
-        this.adjustBackgroundPan(p.x - last.x, p.y - last.y);
-        last = p;
-        return;
-      }
       if (!panning || !last) return;
       const p = this.stage.getPointerPosition();
       if (!p) return;
@@ -590,11 +565,6 @@ class Editor {
     });
 
     const stopMousePan = () => {
-      if (backgroundPanning) {
-        backgroundPanning = false;
-        this.host.style.cursor = "";
-        this.commit();
-      }
       panning = false;
       last = null;
       if (middlePan) {
@@ -665,19 +635,6 @@ class Editor {
   }
 
   onTouchStart(e) {
-    if (this.bgAdjustMode) {
-      if (e.touches.length === 1) {
-        const point = this.touchPoints(e)[0];
-        this.bgGesture = { mode: "pan", last: point };
-        e.preventDefault();
-      } else if (e.touches.length === 2) {
-        const g = this.gestureInfo(e);
-        if (!g) return;
-        this.bgGesture = { mode: "zoom", startDist: g.dist };
-        e.preventDefault();
-      }
-      return;
-    }
     if (e.touches.length !== 2) return;
     const g = this.gestureInfo(e);
     if (!g) return;
@@ -706,29 +663,6 @@ class Editor {
   }
 
   onTouchMove(e) {
-    if (this.bgAdjustMode) {
-      if (e.touches.length === 1 && this.bgGesture?.mode === "pan") {
-        const point = this.touchPoints(e)[0];
-        this.adjustBackgroundPan(
-          point.x - this.bgGesture.last.x,
-          point.y - this.bgGesture.last.y
-        );
-        this.bgGesture.last = point;
-        e.preventDefault();
-      } else if (e.touches.length === 2) {
-        const g = this.gestureInfo(e);
-        if (!g) return;
-        if (this.bgGesture?.mode !== "zoom") {
-          this.bgGesture = { mode: "zoom", startDist: g.dist };
-        } else {
-          const factor = g.dist / this.bgGesture.startDist;
-          this.adjustBackgroundZoom(factor);
-          this.bgGesture.startDist = g.dist;
-        }
-        e.preventDefault();
-      }
-      return;
-    }
     if (e.touches.length !== 2) return;
     const g = this.gestureInfo(e);
     if (!g) return;
@@ -756,15 +690,6 @@ class Editor {
   }
 
   onTouchEnd(e) {
-    if (this.bgAdjustMode) {
-      if (!e.touches || e.touches.length === 0) {
-        this.bgGesture = null;
-        this.commit();
-      } else if (e.touches.length === 1) {
-        this.bgGesture = { mode: "pan", last: this.touchPoints(e)[0] };
-      }
-      return;
-    }
     if (e && e.touches && e.touches.length >= 2) {
       const g = this.gestureInfo(e);
       if (g) this.beginPinch(g);
@@ -823,7 +748,6 @@ class Editor {
 
     art.on("click tap", (e) => {
       e.cancelBubble = true;
-      if (this.bgAdjustMode) return;
       const promoted = !ref.isText && this.promoteSticker(ref.item.id);
       if (!ref.isText) this.hideMenu();
       this.select(ref.item.id);
@@ -860,7 +784,6 @@ class Editor {
 
     art.on("dblclick dbltap", (e) => {
       e.cancelBubble = true;
-      if (this.bgAdjustMode) return;
       this.select(ref.item.id);
       if (ref.isText) this.openTextEditor(ref.item.id);
     });
@@ -1369,15 +1292,10 @@ class Editor {
     this.panelStickers.hidden = !stickers;
     this.panelBg.hidden = !background;
     this.panelText.hidden = !text;
-    if (!background && this.bgAdjustMode) {
-      this.setBackgroundAdjustMode(false);
-      this.commit();
-    }
   }
 
   buildBackgroundPanel() {
     this.bgCarousel = document.getElementById("bg-carousel");
-    this.bgAdjustBtn = document.getElementById("bg-adjust-btn");
     this.bgFileInput = document.getElementById("bg-file");
 
     this.bgCarousel.innerHTML = "";
@@ -1423,17 +1341,14 @@ class Editor {
       this.bgCarousel.appendChild(chip);
     });
 
-    const toggleAdjust = () => this.toggleBackgroundAdjust();
     const onFile = (e) => {
       const file = e.target.files && e.target.files[0];
       if (file) this.onPhotoPick(file);
       this.bgFileInput.value = "";
     };
 
-    this.bgAdjustBtn.addEventListener("click", toggleAdjust);
     this.bgFileInput.addEventListener("change", onFile);
     this.cleanup.push(() => {
-      this.bgAdjustBtn.removeEventListener("click", toggleAdjust);
       this.bgFileInput.removeEventListener("change", onFile);
     });
 
@@ -1442,7 +1357,6 @@ class Editor {
   }
 
   async setBackground(bg) {
-    this.setBackgroundAdjustMode(false);
     this.project.background = bg
       ? { ...bg, transform: { zoom: 1, x: 0, y: 0 } }
       : null;
@@ -1528,74 +1442,6 @@ class Editor {
       });
     }
     if (this.bgUploadBtn) this.bgUploadBtn.classList.toggle("is-active", !!bg && bg.type === "photo");
-    if (this.bgAdjustBtn) {
-      this.bgAdjustBtn.disabled = !bg;
-      this.bgAdjustBtn.classList.toggle("is-active", this.bgAdjustMode && !!bg);
-      this.bgAdjustBtn.textContent = this.bgAdjustMode ? "✓" : "▧";
-      const label = this.bgAdjustMode ? "배경 조정 완료" : "배경 조정";
-      this.bgAdjustBtn.setAttribute("aria-label", label);
-      this.bgAdjustBtn.title = label;
-    }
-  }
-
-  refreshBackgroundCrop() {
-    const bg = this.project.background;
-    if (!bg || !this.bgNode || !this.bgImage) return;
-    this.bgNode.crop(adjustableCoverCrop(
-      this.bgImage.width,
-      this.bgImage.height,
-      this.canvasW,
-      this.canvasH,
-      bg.transform
-    ));
-    this.layer.batchDraw();
-  }
-
-  setBackgroundAdjustMode(enabled) {
-    this.bgAdjustMode = !!enabled && !!this.project.background;
-    this.bgGesture = null;
-    if (this.project.background) {
-      this.project.background.transform = {
-        zoom: 1,
-        x: 0,
-        y: 0,
-        ...(this.project.background.transform || {}),
-      };
-    }
-    this.host.classList.toggle("is-bg-adjusting", this.bgAdjustMode);
-    if (this.bgAdjustMode) {
-      this.deselect();
-      this.hideMenu();
-      this.freezeItemDragging();
-    } else {
-      this.restoreItemDragging();
-    }
-    this.markBgActive();
-  }
-
-  toggleBackgroundAdjust() {
-    if (!this.project.background) return;
-    const wasAdjusting = this.bgAdjustMode;
-    this.setBackgroundAdjustMode(!wasAdjusting);
-    if (wasAdjusting) this.commit();
-  }
-
-  adjustBackgroundPan(dxScreen, dyScreen) {
-    const bg = this.project.background;
-    if (!bg) return;
-    const stageScale = Math.max(0.0001, this.stage.scaleX());
-    const dx = dxScreen / stageScale;
-    const dy = dyScreen / stageScale;
-    bg.transform.x = clamp((bg.transform.x || 0) - dx / this.canvasW * 2, -1, 1);
-    bg.transform.y = clamp((bg.transform.y || 0) - dy / this.canvasH * 2, -1, 1);
-    this.refreshBackgroundCrop();
-  }
-
-  adjustBackgroundZoom(factor) {
-    const bg = this.project.background;
-    if (!bg) return;
-    bg.transform.zoom = clamp((bg.transform.zoom || 1) * factor, 1, 5);
-    this.refreshBackgroundCrop();
   }
 
   // ---------- menu / effects ----------
