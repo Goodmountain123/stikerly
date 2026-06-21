@@ -615,7 +615,7 @@ body{
   position:absolute;
   z-index:80;
   left:50%;
-  bottom:18px;
+  top:14px;
   transform:translateX(-50%) scale(.94);
   min-width:118px;
   height:66px;
