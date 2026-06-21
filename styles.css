@@ -908,6 +908,9 @@ body.is-resizing-tray *{ cursor:ew-resize!important; user-select:none!important;
   gap:8px;
   padding:8px;
 }
+#panel-bg .background-list{
+  height:calc(100% - 48px);
+}
 .background-list .bg-chip{
   flex:0 0 auto;
   width:89px;
@@ -1031,6 +1034,7 @@ body.is-resizing-tray *{ cursor:ew-resize!important; user-select:none!important;
     gap:10px;
     padding:10px;
   }
+  #panel-bg .background-list{ height:calc(100% - 56px); }
   .pack-card__name{ font-size:12px; }
   .sticker-pack-detail__header{
     min-height:48px;
@@ -1086,8 +1090,8 @@ body{
   border-left-color:#E4D5F0;
 }
 .tray-tab:nth-child(1){ color:#D94C85; background:#FFF0F6; }
-.tray-tab:nth-child(2){ color:#3C85D6; background:#EDF7FF; }
-.tray-tab:nth-child(3){ color:#6E54C9; background:#F3EFFF; }
+.tray-tab:nth-child(2){ color:#6E54C9; background:#F3EFFF; }
+.tray-tab:nth-child(3){ color:#3C85D6; background:#EDF7FF; }
 .tray-tab.is-on{
   color:#fff;
   background:linear-gradient(135deg,var(--pink),var(--purple));

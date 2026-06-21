@@ -1527,6 +1527,7 @@ class Editor {
 
   buildBackgroundPanel() {
     this.bgCarousel = document.getElementById("bg-carousel");
+    this.bgSearch = document.getElementById("bg-search");
     this.bgFileInput = document.getElementById("bg-file");
 
     this.bgCarousel.innerHTML = "";
@@ -1556,6 +1557,7 @@ class Editor {
       chip.type = "button";
       chip.className = "bg-chip";
       chip.dataset.bgId = bg.id;
+      chip.dataset.searchName = (bg.name || "").toLocaleLowerCase("ko");
       chip.style.backgroundImage = `url("${bg.url}")`;
       chip.style.backgroundSize = "contain";
       chip.style.backgroundPosition = "center";
@@ -1577,10 +1579,18 @@ class Editor {
       if (file) this.onPhotoPick(file);
       this.bgFileInput.value = "";
     };
+    const filterBackgrounds = () => {
+      const query = this.bgSearch.value.trim().toLocaleLowerCase("ko");
+      this.bgCarousel.querySelectorAll(".bg-chip:not(.bg-chip--action)").forEach((card) => {
+        card.hidden = !!query && !card.dataset.searchName.includes(query);
+      });
+    };
 
     this.bgFileInput.addEventListener("change", onFile);
+    this.bgSearch.addEventListener("input", filterBackgrounds);
     this.cleanup.push(() => {
       this.bgFileInput.removeEventListener("change", onFile);
+      this.bgSearch.removeEventListener("input", filterBackgrounds);
     });
 
     this.bindPointerScroller(this.bgCarousel, "y");
