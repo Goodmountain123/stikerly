@@ -276,9 +276,19 @@ class Editor {
     this.flipVerticalControl = makeButton("↕", () => this.flipSelected("flipV"), "상하 반전");
     this.textColorControl = makeButton("●", () => {
       const ref = this.selectedRef();
-      if (ref?.isText) this.openTextColorPicker(ref.item.id);
+      if (!ref?.isText) return;
+      if (!this.menuEl.hidden && this.menuEl.dataset.menuType === "text-color") {
+        this.hideMenu();
+      } else {
+        this.openTextColorPicker(ref.item.id);
+      }
     }, "글자 색상");
     this.textColorDot = this.textColorControl.findOne("Text");
+    this.textColorControl.findOne("Circle").radius(12);
+    this.textColorDot.fontSize(24);
+    this.textColorDot.width(24);
+    this.textColorDot.height(24);
+    this.textColorDot.offset({ x: 12, y: 12 });
   }
 
   flipSelected(key) {
@@ -312,7 +322,7 @@ class Editor {
     if (textVisible) {
       this.textColorControl.scale({ x: buttonScale, y: buttonScale });
       this.textColorControl.position({
-        x: rect.x - gap - radius,
+        x: rect.x - gap - 12 / scale,
         y: rect.y + rect.height / 2,
       });
       this.textColorDot.fill(ref.item.color || DEFAULT_TEXT_COLOR);
@@ -1762,6 +1772,7 @@ class Editor {
     if (!ref || !ref.isText) return;
 
     this.menuEl.hidden = false;
+    this.menuEl.dataset.menuType = "text-color";
     this.menuEl.innerHTML = "";
     this.menuManuallyPositioned = false;
 
@@ -2096,6 +2107,7 @@ class Editor {
 
   hideMenu() {
     if (this.menuEl) this.menuEl.hidden = true;
+    if (this.menuEl) delete this.menuEl.dataset.menuType;
     this.menuManuallyPositioned = false;
     this.effectsOpen = false;
     this.openEffectKey = null;
