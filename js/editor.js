@@ -1620,10 +1620,13 @@ class Editor {
       chip.className = "bg-chip";
       chip.dataset.bgId = bg.id;
       chip.dataset.searchName = (bg.name || "").toLocaleLowerCase("ko");
-      chip.style.backgroundImage = `url("${bg.url}")`;
-      chip.style.backgroundSize = "contain";
-      chip.style.backgroundPosition = "center";
-      chip.style.backgroundRepeat = "no-repeat";
+      const thumb = document.createElement("span");
+      thumb.className = "bg-chip__thumb";
+      const image = document.createElement("img");
+      image.src = bg.url;
+      image.alt = "";
+      thumb.appendChild(image);
+      chip.appendChild(thumb);
       const label = document.createElement("span");
       label.className = "bg-chip__label";
       label.textContent = bg.name || "배경";
