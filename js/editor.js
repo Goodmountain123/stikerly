@@ -98,6 +98,7 @@ class Editor {
     this.wrap = document.getElementById("stage-wrap");
     this.menuEl = document.getElementById("sticker-menu");
     this.zoomReadout = document.getElementById("zoom-readout");
+    this.deleteDropZone = document.getElementById("delete-drop-zone");
     this.titleInput = document.getElementById("title-input");
 
     this.host.style.touchAction = "none";
@@ -833,6 +834,7 @@ class Editor {
       this.hideMenu();
       if (!ref.isText) this.promoteSticker(ref.item.id);
       this.select(ref.item.id);
+      this.deleteDropZone.hidden = false;
     });
 
     group.on("dragmove", () => {
@@ -840,9 +842,17 @@ class Editor {
       this.positionTransformHandle();
       this.positionFlipControls();
       this.repositionMenu();
+      this.updateDeleteDropZone(group);
     });
 
     group.on("dragend", () => {
+      const shouldDelete = this.isGroupOverDeleteZone(group);
+      this.deleteDropZone.hidden = true;
+      this.deleteDropZone.classList.remove("is-over");
+      if (shouldDelete) {
+        this.removeItem(ref.item.id);
+        return;
+      }
       ref.item.x = group.x();
       ref.item.y = group.y();
       this.commit();
@@ -922,6 +932,20 @@ class Editor {
     item.zIndex = maxZ + 1;
     this.reorderLayer();
     return true;
+  }
+
+  isGroupOverDeleteZone(group) {
+    if (!this.deleteDropZone || this.deleteDropZone.hidden) return false;
+    const zone = this.deleteDropZone.getBoundingClientRect();
+    const scale = this.stage.scaleX();
+    const wrap = this.wrap.getBoundingClientRect();
+    const x = wrap.left + this.stage.x() + group.x() * scale;
+    const y = wrap.top + this.stage.y() + group.y() * scale;
+    return x >= zone.left && x <= zone.right && y >= zone.top && y <= zone.bottom;
+  }
+
+  updateDeleteDropZone(group) {
+    this.deleteDropZone?.classList.toggle("is-over", this.isGroupOverDeleteZone(group));
   }
 
   select(id, part = "art") {

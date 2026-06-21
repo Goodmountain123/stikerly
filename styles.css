@@ -573,6 +573,35 @@ body{
   position:relative;
   overflow:visible;
 }
+.delete-drop-zone{
+  position:absolute;
+  z-index:80;
+  left:50%;
+  bottom:18px;
+  transform:translateX(-50%) scale(.94);
+  min-width:118px;
+  height:66px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:7px;
+  padding:9px 18px;
+  border:3px dashed #ff7b9e;
+  border-radius:22px;
+  background:rgba(255,240,245,.94);
+  color:#b82d56;
+  font:800 13px var(--font-ui);
+  box-shadow:0 8px 24px rgba(184,45,86,.18);
+  pointer-events:none;
+  transition:.14s ease;
+}
+.delete-drop-zone__icon{font-size:28px}
+.delete-drop-zone.is-over{
+  transform:translateX(-50%) scale(1.12);
+  background:#ff7b9e;
+  color:#fff;
+  border-color:#fff;
+}
 .tray [hidden]{ display:none!important; }
 .tray-resizer{
   position:absolute;
