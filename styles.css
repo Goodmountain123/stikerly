@@ -840,16 +840,26 @@ body.is-resizing-tray *{ cursor:ew-resize!important; user-select:none!important;
   min-height:82px;
   position:relative;
   overflow:hidden;
-  border:0;
+  border:2px solid var(--line);
   border-radius:15px;
   padding:0;
   display:block;
   background:var(--surface-2);
   color:var(--ink);
   cursor:pointer;
-  box-shadow:inset 0 0 0 1.5px var(--line);
+  box-shadow:0 3px 9px rgba(64,53,82,.08);
 }
-.pack-card:hover{ box-shadow:inset 0 0 0 2px var(--pink); background:#fff; }
+.pack-card:hover{ border-color:var(--pink); box-shadow:0 5px 13px rgba(255,114,166,.22); background:#fff; }
+.pack-card::after{
+  content:"";
+  position:absolute;
+  z-index:1;
+  left:0;
+  right:0;
+  bottom:0;
+  height:42px;
+  background:#5f536d;
+}
 .pack-card__thumb{
   width:100%;
   height:100%;
@@ -862,19 +872,19 @@ body.is-resizing-tray *{ cursor:ew-resize!important; user-select:none!important;
 .pack-card__thumb img{ width:82%; height:82%; object-fit:contain; }
 .pack-card__name{
   position:absolute;
-  z-index:1;
+  z-index:2;
   left:0;
   right:0;
-  bottom:0;
+  bottom:10px;
   width:auto;
   min-width:0;
-  max-height:32px;
-  padding:14px 5px 5px;
+  max-height:34px;
+  padding:0 5px;
   overflow:hidden;
   display:-webkit-box;
   -webkit-box-orient:vertical;
   -webkit-line-clamp:2;
-  background:linear-gradient(transparent, rgba(0,0,0,.58));
+  background:transparent;
   color:#fff;
   font:700 11px/1.05 var(--font-ui);
   text-align:center;
