@@ -14,6 +14,11 @@ const screenProjects = document.getElementById("screen-projects");
 const screenEditor = document.getElementById("screen-editor");
 const grid = document.getElementById("project-grid");
 const emptyState = document.getElementById("empty-state");
+const deleteModeButton = document.getElementById("btn-delete-mode");
+const deleteZone = document.getElementById("project-delete-zone");
+const deleteModal = document.getElementById("modal-delete-project");
+let deleteMode = false;
+let pendingDeleteProject = null;
 
 const modal = document.getElementById("modal-new");
 const newTitle = document.getElementById("new-title");
@@ -58,22 +63,25 @@ async function renderList() {
     card.innerHTML = `
       <div class="card__thumb"${bgStyle}><span class="card__badge">${badge}</span>${thumbInner}</div>
       <div class="card__body">
-        <p class="card__name">${escapeHtml(p.title)}</p>
+        <input class="card__name" value="${escapeHtml(p.title)}" maxlength="40" aria-label="프로젝트 이름">
         <p class="card__meta">스티커 ${stickerCount}개 · 텍스트 ${textCount}개 · ${fmtDate(p.updatedAt)}</p>
-        <div class="card__row">
-          <button class="iconbtn" data-act="rename" title="이름 변경">✎</button>
-          <button class="iconbtn" data-act="delete" title="삭제">🗑</button>
-        </div>
       </div>`;
 
-    card.querySelector(".card__thumb").addEventListener("click", () => open(p.id));
-    card.querySelector(".card__name").addEventListener("click", () => open(p.id));
-    card.querySelector('[data-act="rename"]').addEventListener("click", (e) => {
-      e.stopPropagation(); rename(p);
+    const nameInput = card.querySelector(".card__name");
+    let nameTimer;
+    nameInput.addEventListener("input", () => {
+      clearTimeout(nameTimer);
+      nameTimer = setTimeout(async () => {
+        p.title = nameInput.value.trim() || "제목 없는 프로젝트";
+        p.updatedAt = Date.now();
+        await putProject(p);
+      }, 400);
     });
-    card.querySelector('[data-act="delete"]').addEventListener("click", (e) => {
-      e.stopPropagation(); remove(p);
+    nameInput.addEventListener("click", (event) => event.stopPropagation());
+    card.querySelector(".card__thumb").addEventListener("click", () => {
+      if (!deleteMode) open(p.id);
     });
+    bindProjectDeleteDrag(card, p);
     grid.appendChild(card);
   }
 }
@@ -88,19 +96,49 @@ async function open(id) {
   });
 }
 
-async function rename(p) {
-  const name = prompt("새 이름", p.title);
-  if (name == null) return;
-  p.title = name.trim() || p.title;
-  p.updatedAt = Date.now();
-  await putProject(p);
-  renderList();
+function setDeleteMode(enabled) {
+  deleteMode = enabled;
+  screenProjects.classList.toggle("delete-mode", enabled);
+  deleteZone.hidden = !enabled;
+  deleteModeButton.classList.toggle("is-on", enabled);
 }
 
-async function remove(p) {
-  if (!confirm(`"${p.title}"을(를) 삭제할까요?`)) return;
-  await deleteProject(p.id);
-  renderList();
+function bindProjectDeleteDrag(card, project) {
+  card.addEventListener("pointerdown", (event) => {
+    if (!deleteMode || event.button !== 0 || event.target.closest("input")) return;
+    event.preventDefault();
+    const ghost = card.cloneNode(true);
+    ghost.className = "card project-drag-ghost";
+    document.body.appendChild(ghost);
+    const move = (e) => {
+      ghost.style.left = `${e.clientX}px`;
+      ghost.style.top = `${e.clientY}px`;
+      const zone = deleteZone.getBoundingClientRect();
+      deleteZone.classList.toggle("is-over",
+        e.clientX >= zone.left && e.clientX <= zone.right &&
+        e.clientY >= zone.top && e.clientY <= zone.bottom);
+    };
+    const end = (e) => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", end);
+      window.removeEventListener("pointercancel", end);
+      ghost.remove();
+      const dropped = deleteZone.classList.contains("is-over");
+      deleteZone.classList.remove("is-over");
+      if (dropped) showDeleteConfirmation(project);
+    };
+    move(event);
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", end);
+    window.addEventListener("pointercancel", end);
+  });
+}
+
+function showDeleteConfirmation(project) {
+  pendingDeleteProject = project;
+  document.getElementById("delete-project-message").textContent =
+    `“${project.title}”은(는) 삭제하면 되돌릴 수 없어요.`;
+  deleteModal.hidden = false;
 }
 
 // ---------- new project modal ----------
@@ -135,6 +173,25 @@ function openModal() {
 function closeModal() { modal.hidden = true; }
 
 document.getElementById("btn-new").addEventListener("click", openModal);
+deleteModeButton.addEventListener("click", () => setDeleteMode(!deleteMode));
+document.getElementById("delete-project-cancel").addEventListener("click", () => {
+  pendingDeleteProject = null;
+  deleteModal.hidden = true;
+});
+document.getElementById("delete-project-confirm").addEventListener("click", async () => {
+  if (!pendingDeleteProject) return;
+  await deleteProject(pendingDeleteProject.id);
+  pendingDeleteProject = null;
+  deleteModal.hidden = true;
+  setDeleteMode(false);
+  renderList();
+});
+deleteModal.addEventListener("click", (event) => {
+  if (event.target === deleteModal) {
+    pendingDeleteProject = null;
+    deleteModal.hidden = true;
+  }
+});
 document.getElementById("new-cancel").addEventListener("click", closeModal);
 modal.addEventListener("click", (e) => { if (e.target === modal) closeModal(); });
 document.getElementById("new-create").addEventListener("click", async () => {

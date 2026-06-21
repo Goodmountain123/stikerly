@@ -15,14 +15,20 @@
 </head>
 <body>
   <!-- ============ PROJECT LIST ============ -->
-  <section id="screen-projects" class="screen is-active">
+  <section id="screen-projects" class="screen screen--projects is-active">
     <header class="topbar topbar--home">
       <div class="wordmark">Stickerly<span class="wordmark__dot">.</span></div>
+      <div class="topbar__spacer"></div>
+      <button id="btn-delete-mode" class="iconbtn" aria-label="프로젝트 삭제" title="프로젝트 삭제">🗑️</button>
       <button id="btn-new" class="btn btn--primary">새 프로젝트</button>
     </header>
 
     <main class="home">
       <div id="project-grid" class="project-grid"></div>
+      <aside id="project-delete-zone" class="project-delete-zone" hidden>
+        <span>🗑️</span>
+        <strong>여기에 놓기</strong>
+      </aside>
       <div id="empty-state" class="empty" hidden>
         <div class="empty__art">✦</div>
         <p class="empty__title">아직 프로젝트가 없어요</p>
@@ -111,6 +117,18 @@
       <div class="modal__actions">
         <button id="new-cancel" class="btn btn--ghost">취소</button>
         <button id="new-create" class="btn btn--primary">만들기</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="modal-delete-project" class="modal confirm-modal" hidden>
+    <div class="modal__card confirm-modal__card">
+      <div class="confirm-modal__icon">🗑️</div>
+      <h2 class="modal__title">프로젝트를 삭제할까요?</h2>
+      <p id="delete-project-message"></p>
+      <div class="modal__actions">
+        <button id="delete-project-cancel" class="btn btn--ghost">취소</button>
+        <button id="delete-project-confirm" class="btn btn--danger">삭제</button>
       </div>
     </div>
   </div>
