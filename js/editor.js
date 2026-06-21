@@ -882,7 +882,12 @@ class Editor {
   // ---------- tray ----------
 
   buildTray() {
+    this.editorScreen = document.getElementById("screen-editor");
+    this.tray = document.querySelector(".tray");
+    this.trayResizer = document.getElementById("tray-resizer");
     this.packCarousel = document.getElementById("pack-carousel");
+    this.packSearchWrap = document.getElementById("pack-search-wrap");
+    this.packSearch = document.getElementById("pack-search");
     this.stickerCarousel = document.getElementById("sticker-carousel");
     this.stickerPackDetail = document.getElementById("sticker-pack-detail");
     this.stickerPackBack = document.getElementById("sticker-pack-back");
@@ -896,6 +901,7 @@ class Editor {
       const chip = document.createElement("button");
       chip.type = "button";
       chip.className = "pack-card";
+      chip.dataset.searchName = (pack.name || "").toLocaleLowerCase("ko");
 
       if (pack.thumbnailUrl) {
         const thumb = document.createElement("span");
@@ -917,16 +923,69 @@ class Editor {
     });
 
     const showPacks = () => this.showStickerPacks();
+    const filterPacks = () => {
+      const query = this.packSearch.value.trim().toLocaleLowerCase("ko");
+      this.packCarousel.querySelectorAll(".pack-card").forEach((card) => {
+        card.hidden = !!query && !card.dataset.searchName.includes(query);
+      });
+    };
     this.stickerPackBack.addEventListener("click", showPacks);
-    this.cleanup.push(() => this.stickerPackBack.removeEventListener("click", showPacks));
+    this.packSearch.addEventListener("input", filterPacks);
+    this.cleanup.push(() => {
+      this.stickerPackBack.removeEventListener("click", showPacks);
+      this.packSearch.removeEventListener("input", filterPacks);
+    });
+    this.bindTrayResize();
     this.bindPointerScroller(this.packCarousel, "y");
     this.showStickerPacks();
+  }
+
+  bindTrayResize() {
+    const savedWidth = Number(localStorage.getItem("stickerly-tray-width"));
+    if (Number.isFinite(savedWidth) && savedWidth > 0) {
+      this.editorScreen.style.setProperty("--tray-width", `${savedWidth}px`);
+    }
+    let dragging = false;
+    let frame = 0;
+    const move = (event) => {
+      if (!dragging) return;
+      event.preventDefault();
+      const rect = this.editorScreen.getBoundingClientRect();
+      const maxWidth = Math.min(520, rect.width * 0.55);
+      const width = Math.round(clamp(rect.right - event.clientX, 105, maxWidth));
+      this.editorScreen.style.setProperty("--tray-width", `${width}px`);
+      localStorage.setItem("stickerly-tray-width", String(width));
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => this.resize());
+    };
+    const up = () => {
+      dragging = false;
+      document.body.classList.remove("is-resizing-tray");
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      window.removeEventListener("pointercancel", up);
+    };
+    const down = (event) => {
+      event.preventDefault();
+      dragging = true;
+      document.body.classList.add("is-resizing-tray");
+      window.addEventListener("pointermove", move, { passive: false });
+      window.addEventListener("pointerup", up);
+      window.addEventListener("pointercancel", up);
+    };
+    this.trayResizer.addEventListener("pointerdown", down);
+    this.cleanup.push(() => {
+      cancelAnimationFrame(frame);
+      up();
+      this.trayResizer.removeEventListener("pointerdown", down);
+    });
   }
 
   activatePack(id) {
     this.activePackId = id;
     const pack = getPacks().find((item) => item.id === id);
     this.packCarousel.hidden = true;
+    this.packSearchWrap.hidden = true;
     this.stickerPackDetail.hidden = false;
     this.stickerPackTitle.textContent = pack?.name || "";
     this.renderStickerStrip();
@@ -935,6 +994,7 @@ class Editor {
   showStickerPacks() {
     this.activePackId = null;
     this.packCarousel.hidden = false;
+    this.packSearchWrap.hidden = false;
     this.stickerPackDetail.hidden = true;
     this.stickerCarousel.innerHTML = "";
   }

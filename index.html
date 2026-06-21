@@ -53,6 +53,7 @@
 
     <!-- sticker tray: tabbed between stickers and background -->
     <div class="tray">
+      <button id="tray-resizer" class="tray-resizer" type="button" aria-label="트레이 너비 조절"></button>
       <div class="tray__tabs">
         <button id="tab-stickers" class="tray-tab is-on">스티커</button>
         <button id="tab-bg" class="tray-tab">배경</button>
@@ -60,6 +61,10 @@
       </div>
 
       <div id="panel-stickers" class="tray-panel">
+        <div id="pack-search-wrap" class="pack-search">
+          <span aria-hidden="true">⌕</span>
+          <input id="pack-search" type="search" placeholder="스티커팩 검색" autocomplete="off">
+        </div>
         <div id="pack-carousel" class="sticker-pack-list"></div>
         <div id="sticker-pack-detail" class="sticker-pack-detail" hidden>
           <div class="sticker-pack-detail__header">
