@@ -612,10 +612,10 @@ body{
 .tray-resizer{
   position:absolute;
   z-index:35;
-  left:-6px;
-  top:0;
-  width:12px;
-  height:100%;
+  left:-24px;
+  top:150px;
+  width:48px;
+  height:calc(100% - 170px);
   padding:0;
   border:0;
   cursor:ew-resize;
@@ -625,10 +625,10 @@ body{
 .tray-resizer::after{
   content:"";
   position:absolute;
-  left:4px;
+  left:16px;
   top:50%;
-  width:4px;
-  height:48px;
+  width:16px;
+  height:86px;
   border-radius:999px;
   transform:translateY(-50%);
   background:#CDB9D8;
