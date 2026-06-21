@@ -289,6 +289,16 @@ class Editor {
     this.textColorDot.width(24);
     this.textColorDot.height(24);
     this.textColorDot.offset({ x: 12, y: 12 });
+    this.textEditControl = makeButton("✎", () => {
+      const ref = this.selectedRef();
+      if (ref?.isText) this.beginInlineTextEdit(ref);
+    }, "글자 수정");
+    this.textEditControl.findOne("Circle").radius(12);
+    const editIcon = this.textEditControl.findOne("Text");
+    editIcon.fontSize(17);
+    editIcon.width(24);
+    editIcon.height(24);
+    editIcon.offset({ x: 12, y: 12 });
   }
 
   flipSelected(key) {
@@ -312,6 +322,7 @@ class Editor {
       if (control) control.visible(!!visible);
     });
     this.textColorControl?.visible(!!textVisible);
+    this.textEditControl?.visible(!!textVisible);
     if (!visible && !textVisible) return;
 
     const scale = Math.max(this.stage.scaleX(), 0.0001);
@@ -325,8 +336,14 @@ class Editor {
         x: rect.x - gap - 12 / scale,
         y: rect.y + rect.height / 2,
       });
+      this.textEditControl.scale({ x: buttonScale, y: buttonScale });
+      this.textEditControl.position({
+        x: rect.x + rect.width + gap + 12 / scale,
+        y: rect.y + rect.height / 2,
+      });
       this.textColorDot.fill(ref.item.color || DEFAULT_TEXT_COLOR);
       this.textColorControl.moveToTop();
+      this.textEditControl.moveToTop();
       return;
     }
     this.flipHorizontalControl.scale({ x: buttonScale, y: buttonScale });
@@ -826,7 +843,6 @@ class Editor {
     art.on("dblclick dbltap", (e) => {
       e.cancelBubble = true;
       this.select(ref.item.id);
-      if (ref.isText) this.beginInlineTextEdit(ref);
     });
 
     art.on("transform", () => {
@@ -886,6 +902,7 @@ class Editor {
     this.flipHorizontalControl?.moveToTop();
     this.flipVerticalControl?.moveToTop();
     this.textColorControl?.moveToTop();
+    this.textEditControl?.moveToTop();
   }
 
   promoteSticker(id) {
@@ -1730,6 +1747,7 @@ class Editor {
     ref.art.visible(false);
     this.transformer.nodes([]);
     this.textColorControl?.visible(false);
+    this.textEditControl?.visible(false);
     this.wrap.appendChild(input);
     this.inlineTextInput = input;
 
