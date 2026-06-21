@@ -107,6 +107,11 @@ async function renderList() {
   }
 }
 
+function projectDateTitle(date = new Date()) {
+  const pad = (value) => String(value).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}_${pad(date.getHours())}-${pad(date.getMinutes())}-${pad(date.getSeconds())}`;
+}
+
 async function open(id) {
   const project = await getProject(id);
   if (!project) return;
@@ -165,17 +170,12 @@ function showDeleteConfirmation(project) {
 // ---------- new project modal ----------
 function openModal() {
   newTitle.value = "";
-  newCreate.disabled = true;
   modal.hidden = false;
   newTitle.focus();
 }
 function closeModal() { modal.hidden = true; }
 
 document.getElementById("btn-new").addEventListener("click", openModal);
-newTitle.addEventListener("input", () => {
-  const hasName = Boolean(newTitle.value.trim());
-  newCreate.disabled = !hasName;
-});
 deleteModeButton.addEventListener("click", () => setDeleteMode(!deleteMode));
 document.getElementById("delete-project-cancel").addEventListener("click", () => {
   pendingDeleteProject = null;
@@ -198,8 +198,7 @@ deleteModal.addEventListener("click", (event) => {
 document.getElementById("new-cancel").addEventListener("click", closeModal);
 modal.addEventListener("click", (e) => { if (e.target === modal) closeModal(); });
 newCreate.addEventListener("click", async () => {
-  const title = newTitle.value.trim();
-  if (!title) return;
+  const title = newTitle.value.trim() || projectDateTitle();
   const project = newProject(title, null);
   await putProject(project);
   closeModal();
