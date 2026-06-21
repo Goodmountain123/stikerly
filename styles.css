@@ -926,15 +926,17 @@ body.is-resizing-tray *{ cursor:ew-resize!important; user-select:none!important;
 }
 .sticker-pack-detail__header{
   flex:0 0 auto;
-  display:flex;
+  display:grid;
+  grid-template-columns:minmax(0,auto) minmax(0,1fr);
   align-items:center;
-  gap:7px;
+  gap:6px;
   min-height:42px;
   padding:7px 8px;
   border-bottom:1px solid var(--line);
 }
 .sticker-pack-detail__header strong{
   min-width:0;
+  display:block;
   overflow:hidden;
   white-space:nowrap;
   text-overflow:ellipsis;
@@ -942,6 +944,10 @@ body.is-resizing-tray *{ cursor:ew-resize!important; user-select:none!important;
 }
 .sticker-pack-back{
   flex:0 0 auto;
+  max-width:100%;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
   border:0;
   border-radius:999px;
   padding:6px 9px;
@@ -949,6 +955,10 @@ body.is-resizing-tray *{ cursor:ew-resize!important; user-select:none!important;
   color:var(--ink);
   font:700 11px var(--font-ui);
   cursor:pointer;
+}
+.sticker-pack-back .ui-icon--inline{
+  flex:0 0 auto;
+  margin-right:3px;
 }
 .sticker-list{
   flex:1;
@@ -1169,10 +1179,17 @@ body.is-resizing-tray *{ cursor:ew-resize!important; user-select:none!important;
   #panel-bg .background-list{ height:calc(100% - 56px); }
   .pack-card__name{ font-size:12px; }
   .sticker-pack-detail__header{
-    min-height:48px;
+    grid-template-columns:1fr;
+    justify-items:start;
+    gap:5px;
+    min-height:82px;
     padding:8px 10px;
   }
-  .sticker-pack-detail__header strong{ font-size:15px; }
+  .sticker-pack-detail__header strong{
+    width:100%;
+    padding-inline:3px;
+    font-size:15px;
+  }
   .sticker-pack-back{
     padding:8px 11px;
     font-size:12px;
