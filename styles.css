@@ -131,7 +131,15 @@ body{
   background-repeat:no-repeat;
 }
 .card__info-toggle.is-open{ background-image:url("./assets/ui/up.png"); }
-.card__meta{ font-size:10px; color:var(--ink-soft); margin-top:5px; }
+.card__meta{
+  font-size:10px; color:var(--ink-soft); margin-top:7px;
+  display:flex; align-items:center; justify-content:space-between; gap:6px;
+}
+.card__duplicate{
+  flex:0 0 auto; border:0; border-radius:8px; padding:5px 8px;
+  background:#F3EFFF; color:#6E54C9; font:700 11px var(--font-ui); cursor:pointer;
+}
+.card__duplicate:active{ transform:scale(.96); }
 .screen--projects.delete-mode .card{ cursor:grab; }
 .screen--projects.delete-mode .card:active{ cursor:grabbing; }
 .project-delete-zone{

@@ -64,7 +64,10 @@ async function renderList() {
           <span class="card__name">${escapeHtml(p.title)}</span>
           <button class="card__info-toggle" type="button" aria-label="프로젝트 정보 펼치기">⌄</button>
         </div>
-        <p class="card__meta" hidden>스티커 ${stickerCount}개 · 텍스트 ${textCount}개 · ${fmtDate(p.updatedAt)}</p>
+        <div class="card__meta" hidden>
+          <span>스티커 ${stickerCount}개 · 텍스트 ${textCount}개 · ${fmtDate(p.updatedAt)}</span>
+          <button class="card__duplicate" type="button">복제</button>
+        </div>
       </div>`;
 
     card.querySelector(".card__name").addEventListener("click", () => {
@@ -80,6 +83,21 @@ async function renderList() {
       infoToggle.setAttribute("aria-label", meta.hidden
         ? "프로젝트 정보 펼치기"
         : "프로젝트 정보 접기");
+    });
+    card.querySelector(".card__duplicate").addEventListener("click", async (event) => {
+      event.stopPropagation();
+      const duplicate = {
+        ...structuredClone(p),
+        ...newProject(`${p.title} 복사본`, p.background, projectCanvasSize(p)),
+        stickerItems: structuredClone(p.stickerItems || []),
+        textItems: structuredClone(p.textItems || []),
+        lastTextColor: p.lastTextColor,
+        textPalette: structuredClone(p.textPalette || []),
+        lastGlowColor: p.lastGlowColor,
+        glowPalette: structuredClone(p.glowPalette || []),
+      };
+      await putProject(duplicate);
+      await renderList();
     });
     card.querySelector(".card__thumb").addEventListener("click", () => {
       if (!deleteMode) open(p.id);
@@ -108,7 +126,7 @@ function setDeleteMode(enabled) {
 
 function bindProjectDeleteDrag(card, project) {
   card.addEventListener("pointerdown", (event) => {
-    if (!deleteMode || event.button !== 0 || event.target.closest("input")) return;
+    if (!deleteMode || event.button !== 0 || event.target.closest("input, button")) return;
     event.preventDefault();
     const ghost = card.cloneNode(true);
     ghost.className = "card project-drag-ghost";
