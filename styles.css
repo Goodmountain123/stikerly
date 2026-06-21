@@ -88,7 +88,8 @@ body{
 .ui-toggle:hover{ background:#3a3348; }
 .screen--editor.ui-hidden .topbar--editor,
 .screen--editor.ui-hidden .tray,
-.screen--editor.ui-hidden .zoom-readout{ display:none; }
+.screen--editor.ui-hidden .zoom-readout,
+.screen--editor.ui-hidden .fit-canvas{ display:none; }
 .screen--editor.ui-hidden .ui-toggle{ transform:rotate(180deg); }
 
 /* ---------- project list ---------- */
@@ -135,10 +136,17 @@ body{
 }
 #stage-host{ position:absolute; inset:0; }
 .zoom-readout{
-  position:absolute; left:12px; bottom:12px; z-index:5;
+  position:absolute; left:58px; bottom:12px; z-index:5;
   background:var(--surface); color:var(--ink-soft); font-size:12px; font-weight:600;
   padding:5px 10px; border-radius:999px; box-shadow:var(--shadow-1); pointer-events:none;
 }
+.fit-canvas{
+  position:absolute; left:12px; bottom:12px; z-index:6;
+  width:38px; height:38px; padding:0; border:0; border-radius:12px;
+  background:var(--surface); color:var(--ink); box-shadow:var(--shadow-1);
+  font-size:21px; cursor:pointer;
+}
+.fit-canvas:hover{ color:var(--blue); transform:scale(1.04); }
 
 /* ---------- sticker double-tap menu ---------- */
 .sticker-menu{

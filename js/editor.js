@@ -85,6 +85,7 @@ class Editor {
     this.handleGesture = null;
     this.menuManuallyPositioned = false;
     this.inlineTextInput = null;
+    this.zoomReadoutTimer = null;
   }
 
   mount() {
@@ -92,6 +93,7 @@ class Editor {
     this.wrap = document.getElementById("stage-wrap");
     this.menuEl = document.getElementById("sticker-menu");
     this.zoomReadout = document.getElementById("zoom-readout");
+    this.fitCanvasButton = document.getElementById("fit-canvas");
     this.deleteDropZone = document.getElementById("delete-drop-zone");
     this.titleInput = document.getElementById("title-input");
 
@@ -115,6 +117,7 @@ class Editor {
     this.cleanup = [];
     this.inlineTextInput?.remove();
     this.inlineTextInput = null;
+    clearTimeout(this.zoomReadoutTimer);
     this.hideMenu();
     this.refs.forEach((ref) => ref.group.destroy());
     this.refs.clear();
@@ -221,7 +224,7 @@ class Editor {
       this.clampStagePosition();
     }
     this.syncTransformerScale(scale);
-    this.updateZoomReadout();
+    this.updateZoomReadout(false);
     this.stage.batchDraw();
   }
 
@@ -485,8 +488,20 @@ class Editor {
     });
   }
 
-  updateZoomReadout() {
+  updateZoomReadout(show = true) {
     this.zoomReadout.textContent = Math.round(this.zoom * 100) + "%";
+    if (!show) return;
+    this.zoomReadout.hidden = false;
+    clearTimeout(this.zoomReadoutTimer);
+    this.zoomReadoutTimer = setTimeout(() => {
+      this.zoomReadout.hidden = true;
+    }, 900);
+  }
+
+  fitCanvasToView() {
+    this.zoom = ZOOM.base;
+    this.fitView();
+    this.updateZoomReadout(true);
   }
 
   clampStagePosition() {
@@ -532,7 +547,7 @@ class Editor {
     this.zoom = newScale / this.worldBase;
     this.clampStagePosition();
     this.syncTransformerScale(newScale);
-    this.updateZoomReadout();
+    this.updateZoomReadout(true);
     this.stage.batchDraw();
     this.repositionMenu();
   }
@@ -700,7 +715,7 @@ class Editor {
     this.zoom = newScale / this.worldBase;
     this.clampStagePosition();
     this.syncTransformerScale(newScale);
-    this.updateZoomReadout();
+    this.updateZoomReadout(true);
     this.stage.batchDraw();
     this.repositionMenu();
   }
@@ -2172,6 +2187,7 @@ class Editor {
     document.getElementById("btn-save").onclick = () => this.save();
     document.getElementById("btn-export").onclick = () => this.doExport();
     document.getElementById("btn-back").onclick = () => this.exit();
+    this.fitCanvasButton.onclick = () => this.fitCanvasToView();
 
     this.titleInput.oninput = () => {
       this.project.title = this.titleInput.value.trim() || "제목 없는 프로젝트";
