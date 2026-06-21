@@ -373,18 +373,25 @@ class Editor {
 
     const scale = Math.max(this.stage.scaleX(), 0.0001);
     const buttonScale = 1 / scale;
-    const rect = ref.art.getClientRect({ relativeTo: this.layer });
+    const rotatedPoint = (localX, localY) => {
+      const rotation = (ref.item.rotation || 0) * Math.PI / 180;
+      const itemScale = ref.item.scale || 1;
+      const x = localX * itemScale;
+      const y = localY * itemScale;
+      return {
+        x: ref.group.x() + x * Math.cos(rotation) - y * Math.sin(rotation),
+        y: ref.group.y() + x * Math.sin(rotation) + y * Math.cos(rotation),
+      };
+    };
+    const left = -ref.size.w / 2;
+    const right = ref.size.w / 2;
+    const top = -ref.size.h / 2;
+    const bottom = ref.size.h / 2;
     if (textVisible) {
       this.textColorControl.scale({ x: buttonScale, y: buttonScale });
-      this.textColorControl.position({
-        x: rect.x,
-        y: rect.y + rect.height,
-      });
+      this.textColorControl.position(rotatedPoint(left, bottom));
       this.textEditControl.scale({ x: buttonScale, y: buttonScale });
-      this.textEditControl.position({
-        x: rect.x + rect.width,
-        y: rect.y + rect.height,
-      });
+      this.textEditControl.position(rotatedPoint(right, bottom));
       this.textColorDot.fill(ref.item.color || DEFAULT_TEXT_COLOR);
       this.textColorControl.moveToTop();
       this.textEditControl.moveToTop();
@@ -392,14 +399,8 @@ class Editor {
     }
     this.flipHorizontalControl.scale({ x: buttonScale, y: buttonScale });
     this.flipVerticalControl.scale({ x: buttonScale, y: buttonScale });
-    this.flipHorizontalControl.position({
-      x: rect.x + rect.width / 2,
-      y: rect.y + rect.height,
-    });
-    this.flipVerticalControl.position({
-      x: rect.x,
-      y: rect.y + rect.height / 2,
-    });
+    this.flipHorizontalControl.position(rotatedPoint(0, bottom));
+    this.flipVerticalControl.position(rotatedPoint(left, 0));
     this.flipHorizontalControl.moveToTop();
     this.flipVerticalControl.moveToTop();
   }
@@ -520,6 +521,7 @@ class Editor {
         ref.refresh();
         this.transformer.forceUpdate();
         this.positionTransformHandle();
+        this.positionFlipControls();
         this.layer.batchDraw();
         return;
       }
@@ -917,12 +919,15 @@ class Editor {
     art.on("transform", () => {
       ref.item.rotation = art.rotation();
       ref.transformOnly();
+      this.positionTransformHandle();
       this.positionFlipControls();
     });
 
     art.on("transformend", () => {
       ref.item.rotation = art.rotation();
       ref.refresh();
+      this.positionTransformHandle();
+      this.positionFlipControls();
       this.commit();
     });
 
@@ -944,6 +949,7 @@ class Editor {
         fs.y = shadow.y() - (ref.size.h / 2) * ref.item.scale - 12 * ref.item.scale;
         this.transformer.forceUpdate();
         this.positionTransformHandle();
+        this.positionFlipControls();
         this.layer.batchDraw();
       });
       shadow.on("dragend", (e) => {
@@ -2089,6 +2095,7 @@ class Editor {
     ref.refresh();
     this.transformer.forceUpdate();
     this.positionTransformHandle();
+    this.positionFlipControls();
     this.layer.batchDraw();
     this.commit();
     this.repositionMenu();
