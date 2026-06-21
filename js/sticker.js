@@ -55,6 +55,12 @@ export function buildItemGroup(item, image, opts = {}) {
   function refresh() {
     applyTransform();
     configureArt(art, item.effects);
+    if (opts.interactive) {
+      // Konva normally treats an image's full rectangle as clickable.
+      // Build the hit area from the PNG alpha channel instead.
+      if (!art.isCached()) art.cache();
+      art.drawHitFromCache(8);
+    }
     updateShadow(shadow, { w, h, scale: item.scale, effects: item.effects });
   }
   refresh();
