@@ -1063,6 +1063,7 @@ class Editor {
   }
 
   bindTrayResize() {
+    const minimumWidth = 105;
     const savedValue = localStorage.getItem("stickerly-tray-width");
     const savedWidth = Number(savedValue);
     const applyWidth = (width) => {
@@ -1073,29 +1074,50 @@ class Editor {
       applyWidth(savedWidth);
     }
     let dragging = false;
+    let moved = false;
+    let startX = 0;
+    let currentWidth = savedWidth || minimumWidth;
     let frame = 0;
     const move = (event) => {
       if (!dragging) return;
       event.preventDefault();
       const rect = this.editorScreen.getBoundingClientRect();
       const maxWidth = Math.min(520, rect.width * 0.55);
-      const rawWidth = clamp(rect.right - event.clientX, 0, maxWidth);
-      const width = Math.round(rawWidth <= 105 ? 0 : rawWidth);
+      const width = Math.round(clamp(rect.right - event.clientX, 0, maxWidth));
+      moved ||= Math.abs(event.clientX - startX) > 5;
+      currentWidth = width;
       applyWidth(width);
-      localStorage.setItem("stickerly-tray-width", String(width));
       cancelAnimationFrame(frame);
       frame = requestAnimationFrame(() => this.resize());
     };
     const up = () => {
+      if (!dragging) return;
       dragging = false;
       document.body.classList.remove("is-resizing-tray");
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", up);
       window.removeEventListener("pointercancel", up);
+      let finalWidth = currentWidth;
+      if (!moved && this.editorScreen.classList.contains("tray-collapsed")) {
+        finalWidth = minimumWidth;
+      } else if (currentWidth < minimumWidth) {
+        finalWidth = 0;
+      }
+      this.editorScreen.classList.add("tray-snapping");
+      void this.editorScreen.offsetWidth;
+      applyWidth(finalWidth);
+      localStorage.setItem("stickerly-tray-width", String(finalWidth));
+      setTimeout(() => this.editorScreen.classList.remove("tray-snapping"), 240);
+      requestAnimationFrame(() => this.resize());
     };
     const down = (event) => {
       event.preventDefault();
       dragging = true;
+      moved = false;
+      startX = event.clientX;
+      currentWidth = parseFloat(
+        getComputedStyle(this.editorScreen).getPropertyValue("--tray-width")
+      ) || 0;
       document.body.classList.add("is-resizing-tray");
       window.addEventListener("pointermove", move, { passive: false });
       window.addEventListener("pointerup", up);
