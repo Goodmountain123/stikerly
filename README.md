@@ -33,6 +33,18 @@ python3 -m http.server 8000
 
 (또는 `npx serve` 등 아무 정적 서버나 사용 가능)
 
+## 온라인 어셋 관리자
+
+`admin.html`에서 스티커팩, 스티커, 배경을 관리할 수 있습니다.
+
+1. Supabase SQL Editor에서 `supabase/schema.sql`을 실행합니다.
+2. Authentication에서 관리자 사용자를 만듭니다.
+3. SQL 파일 마지막 예시대로 관리자 UUID를 등록합니다.
+4. `js/supabase-config.js`에 Project URL과 anon key를 입력합니다.
+5. 배포 주소의 `/admin.html`에서 로그인합니다.
+
+업로드한 어셋은 앱에 자동 반영되며 기존 로컬 어셋도 함께 유지됩니다.
+
 ## Cloudflare Pages 배포
 
 1. 이 폴더를 Git 저장소에 푸시합니다.

@@ -1,0 +1,18 @@
+:root{font-family:Inter,"Noto Sans KR",sans-serif;color:#433752;background:#fff8fc}
+*{box-sizing:border-box}body{margin:0}.admin{max-width:1080px;margin:auto;padding:24px}
+.admin__header{display:flex;align-items:center;justify-content:space-between;margin-bottom:22px}
+h1,h2,p{margin:0}h1{color:#d94c85}.admin__header p{margin-top:6px;color:#826f8b}
+.panel,.notice,.pack{background:#fff;border:1px solid #eaddeb;border-radius:18px;padding:18px;box-shadow:0 6px 22px #744c7712}
+.notice{display:flex;gap:8px;flex-direction:column;background:#fff3c9;margin-bottom:16px}
+.form,.add-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:15px}
+input{min-width:180px;flex:1;border:1px solid #ddcfe1;border-radius:12px;padding:12px;font:inherit}
+.button{border:0;border-radius:12px;padding:11px 17px;background:linear-gradient(135deg,#ff72a6,#9b7cf3);color:#fff;font-weight:800;cursor:pointer}
+.button.secondary{background:#eee7f2;color:#59466f}.button.danger{background:#ffdde5;color:#b82d56}
+.tabs{display:flex;gap:8px;margin-bottom:16px}.tab{border:0;border-radius:14px;padding:12px 20px;background:#eee7f2;font-weight:800}
+.tab.is-on{background:#ff72a6;color:#fff}.list{display:grid;gap:14px}.pack__top{display:flex;gap:10px;align-items:center}
+.pack__top input{font-weight:800}.stickers,.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px;margin-top:15px}
+.asset{border:1px solid #eaddeb;border-radius:14px;padding:10px;background:#fff}.asset img{width:100%;height:110px;object-fit:contain;border-radius:9px;background:#f8f4fa}
+.asset input{width:100%;min-width:0;margin:8px 0}.asset__actions{display:flex;gap:6px}.asset__actions button{flex:1;padding:8px}
+.upload{border:2px dashed #d9c4e0;border-radius:14px;padding:15px;margin-top:14px}.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#433752;color:#fff;padding:12px 18px;border-radius:12px}
+@media(max-width:600px){.admin{padding:14px}.add-row>*{flex-basis:100%}.pack__top{align-items:stretch;flex-direction:column}}
+

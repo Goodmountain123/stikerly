@@ -1,4 +1,6 @@
-// packs.js — loads sticker packs bundled in /assets and caches loaded images.
+import { supabase, supabaseConfigured, publicAssetUrl } from "./supabase.js";
+
+// packs.js — loads sticker packs from Supabase, with bundled assets as fallback.
 const ROOT = "./assets/sticker_packs";
 
 let _packs = null;                 // [{id, name, thumbnail, thumbnailUrl, stickers:[{assetId,url}]}]
@@ -6,8 +8,29 @@ const _imageCache = new Map();     // url -> HTMLImageElement (loaded)
 
 export async function loadPacks() {
   if (_packs) return _packs;
+  let remotePacks = [];
+  if (supabaseConfigured) {
+    const { data, error } = await supabase
+      .from("sticker_packs")
+      .select("*, stickers(*)")
+      .order("position")
+      .order("position", { referencedTable: "stickers" });
+    if (!error && data?.length) {
+      remotePacks = data.map((pack) => ({
+        id: pack.id,
+        folder: pack.id,
+        name: pack.name,
+        thumbnailUrl: pack.stickers[0] ? publicAssetUrl(pack.stickers[0].storage_path) : "",
+        stickers: pack.stickers.map((sticker) => ({
+          assetId: sticker.id,
+          name: sticker.name,
+          url: publicAssetUrl(sticker.storage_path),
+        })),
+      }));
+    }
+  }
   const index = await fetch(`${ROOT}/index.json`).then((r) => r.json());
-  const packs = await Promise.all(
+  const localPacks = await Promise.all(
     index.map(async (folder) => {
       const meta = await fetch(`${ROOT}/${folder}/pack.json`).then((r) => r.json());
       const base = `${ROOT}/${folder}`;
@@ -23,8 +46,8 @@ export async function loadPacks() {
       };
     })
   );
-  _packs = packs;
-  return packs;
+  _packs = [...remotePacks, ...localPacks];
+  return _packs;
 }
 
 export function getPacks() { return _packs || []; }

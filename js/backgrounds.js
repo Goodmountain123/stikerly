@@ -1,12 +1,30 @@
-// backgrounds.js — bundled background assets + helpers.
+import { supabase, supabaseConfigured, publicAssetUrl } from "./supabase.js";
+
+// backgrounds.js — Supabase backgrounds + bundled fallback assets.
 const ROOT = "./assets/backgrounds";
 
 let _bgs = null; // [{id, name, url}]
 
 export async function loadBackgrounds() {
   if (_bgs) return _bgs;
+  let remoteBackgrounds = [];
+  if (supabaseConfigured) {
+    const { data, error } = await supabase.from("backgrounds").select("*").order("position");
+    if (!error && data?.length) {
+      remoteBackgrounds = data.map((item) => ({
+        id: item.id,
+        name: item.name,
+        url: publicAssetUrl(item.storage_path),
+      }));
+    }
+  }
   const idx = await fetch(`${ROOT}/index.json`).then((r) => r.json());
-  _bgs = idx.map((b) => ({ id: b.id, name: b.name, url: `${ROOT}/${b.file}` }));
+  const localBackgrounds = idx.map((b) => ({
+    id: b.id,
+    name: b.name,
+    url: `${ROOT}/${b.file}`,
+  }));
+  _bgs = [...remoteBackgrounds, ...localBackgrounds];
   return _bgs;
 }
 
