@@ -650,9 +650,9 @@ body{
 .tray-resizer{
   position:absolute;
   z-index:35;
-  left:-24px;
+  left:-14px;
   top:150px;
-  width:48px;
+  width:28px;
   height:calc(100% - 170px);
   padding:0;
   border:0;
@@ -664,49 +664,21 @@ body{
 .tray-resizer::after{
   content:"";
   position:absolute;
-  left:16px;
+  left:10px;
   top:50%;
-  width:20px;
+  width:8px;
   height:86px;
   border-radius:999px;
   transform:translateY(-50%);
   background:#CDB9D8;
   box-shadow:0 0 0 3px rgba(255,255,255,.75);
 }
-.tray-resizer::before{
-  content:"◀▶";
-  position:absolute;
-  left:26px;
-  top:50%;
-  width:48px;
-  transform:translate(-50%,-50%);
-  color:#fff;
-  font-size:8px;
-  font-weight:900;
-  letter-spacing:4px;
-  text-align:center;
-  text-shadow:0 1px 2px rgba(67,55,82,.45);
-  z-index:1;
-}
 .screen--editor.tray-collapsed .tray-panel{ visibility:hidden; pointer-events:none; }
 .screen--editor.tray-collapsed .tray{ border-left-color:transparent; }
-.screen--editor.tray-collapsed .tray-resizer{
-  left:-48px;
-  width:64px;
-}
-.screen--editor.tray-collapsed .tray-resizer::after{ left:22px; }
-.screen--editor.tray-collapsed .tray-resizer::before{ left:32px; }
+.screen--editor.tray-collapsed .tray-resizer{ display:none; }
 .screen--editor.tray-snapping{ transition:grid-template-columns .22s ease-out; }
 body.is-resizing-tray,
 body.is-resizing-tray *{ cursor:ew-resize!important; user-select:none!important; }
-@media (max-width:760px), (pointer:coarse){
-  .screen--editor.tray-collapsed .tray-resizer{
-    left:-92px;
-    width:92px;
-  }
-  .screen--editor.tray-collapsed .tray-resizer::after{ left:56px; }
-  .screen--editor.tray-collapsed .tray-resizer::before{ left:66px; }
-}
 .screen--editor.ui-hidden .stage-wrap{
   grid-column:1 / -1;
   grid-row:1 / -1;

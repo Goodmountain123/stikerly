@@ -81,6 +81,7 @@ class Editor {
     this.savedIndex = 0;
     this.cleanup = [];
     this.pinch = null;
+    this.touchCanvasPan = null;
     this.pinchDragStates = null;
     this.handleGesture = null;
     this.menuManuallyPositioned = false;
@@ -708,6 +709,17 @@ class Editor {
   }
 
   onTouchStart(e) {
+    if (e.touches.length === 1) {
+      const point = this.touchPoints(e)[0];
+      const target = this.stage.getIntersection(point);
+      if (!target || this.isCanvasTarget(target)) {
+        this.touchCanvasPan = point;
+        this.hideMenu();
+        e.preventDefault();
+      }
+      return;
+    }
+    this.touchCanvasPan = null;
     if (e.touches.length !== 2) return;
     const g = this.gestureInfo(e);
     if (!g) return;
@@ -736,6 +748,19 @@ class Editor {
   }
 
   onTouchMove(e) {
+    if (e.touches.length === 1 && this.touchCanvasPan) {
+      const point = this.touchPoints(e)[0];
+      this.stage.position({
+        x: this.stage.x() + point.x - this.touchCanvasPan.x,
+        y: this.stage.y() + point.y - this.touchCanvasPan.y,
+      });
+      this.touchCanvasPan = point;
+      this.clampStagePosition();
+      this.stage.batchDraw();
+      this.repositionMenu();
+      e.preventDefault();
+      return;
+    }
     if (e.touches.length !== 2) return;
     const g = this.gestureInfo(e);
     if (!g) return;
@@ -771,6 +796,7 @@ class Editor {
 
     this.restoreItemDragging();
     this.pinch = null;
+    this.touchCanvasPan = null;
   }
 
   // ---------- stickers ----------
