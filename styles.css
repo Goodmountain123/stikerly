@@ -140,7 +140,9 @@ body{
   width:100%;
   min-width:0;
   height:112px;
+  max-height:112px;
   flex:0 0 112px;
+  aspect-ratio:auto!important;
   overflow:hidden;
   background:
      radial-gradient(circle at 1px 1px, rgba(36,31,46,.10) 1.4px, transparent 1.6px) 0 0/16px 16px,
@@ -155,7 +157,14 @@ body{
   max-height:none;
   object-fit:contain;
 }
-.card__body{ padding:8px 10px 10px; }
+.card__body{
+  position:relative;
+  z-index:2;
+  flex:0 0 auto;
+  min-height:43px;
+  padding:8px 10px 10px;
+  background:var(--surface);
+}
 .card__title-row{ display:flex; align-items:center; gap:5px; }
 .card__name{ width:100%; min-width:0; padding:2px 3px; color:var(--ink);
   font-family:var(--font-display); font-weight:700; font-size:14px;
@@ -875,16 +884,6 @@ body.is-resizing-tray *{ cursor:ew-resize!important; user-select:none!important;
   box-shadow:0 3px 9px rgba(64,53,82,.08);
 }
 .pack-card:hover{ border-color:var(--pink); box-shadow:0 5px 13px rgba(255,114,166,.22); background:#fff; }
-.pack-card::after{
-  content:"";
-  position:absolute;
-  z-index:1;
-  left:0;
-  right:0;
-  bottom:0;
-  height:42px;
-  background:#5f536d;
-}
 .pack-card__thumb{
   width:100%;
   height:100%;
@@ -898,22 +897,25 @@ body.is-resizing-tray *{ cursor:ew-resize!important; user-select:none!important;
 .pack-card__name{
   position:absolute;
   z-index:2;
-  left:0;
-  right:0;
-  bottom:10px;
-  width:auto;
+  left:50%;
+  right:auto;
+  bottom:6px;
+  width:max-content;
   min-width:0;
-  max-height:34px;
-  padding:0 5px;
+  max-width:calc(100% - 10px);
+  max-height:38px;
+  padding:4px 7px;
   overflow:hidden;
   display:-webkit-box;
   -webkit-box-orient:vertical;
   -webkit-line-clamp:2;
-  background:transparent;
+  border-radius:7px;
+  background:#5f536d;
   color:#fff;
   font:700 11px/1.05 var(--font-ui);
   text-align:center;
   text-shadow:0 1px 2px rgba(0,0,0,.5);
+  transform:translateX(-50%);
   overflow-wrap:anywhere;
 }
 .sticker-pack-detail{
@@ -1242,7 +1244,7 @@ body{
     gap:20px;
   }
   .card{ border-radius:20px; }
-  .card__thumb{ height:154px; flex-basis:154px; }
+  .card__thumb{ height:154px; max-height:154px; flex-basis:154px; }
   .card__body{ padding:12px 14px 14px; }
   .card__name{ font-size:20px; }
   .card__info-toggle{ flex-basis:34px; width:34px; height:34px; background-size:20px 20px; }
