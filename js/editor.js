@@ -178,6 +178,7 @@ class Editor {
     });
     this.layer.add(this.transformHandle);
     this.bindTransformHandle();
+    this.buildFlipControls();
 
     this.stage.on("click tap", (e) => {
       if (this.isCanvasTarget(e.target)) this.deselect();
@@ -236,6 +237,84 @@ class Editor {
     this.transformHandle.radius(9 / s);
     this.transformHandle.strokeWidth(2 / s);
     this.positionTransformHandle();
+    this.positionFlipControls();
+  }
+
+  buildFlipControls() {
+    const makeButton = (label, action, ariaLabel) => {
+      const group = new Konva.Group({ visible: false, name: "flip-control" });
+      const circle = new Konva.Circle({
+        radius: 16,
+        fill: "#ffffff",
+        stroke: "#3D7DFF",
+        strokeWidth: 2,
+        shadowColor: "rgba(36,31,46,.25)",
+        shadowBlur: 6,
+        shadowOffsetY: 2,
+      });
+      const text = new Konva.Text({
+        text: label,
+        fontSize: 21,
+        fontStyle: "bold",
+        fill: "#3D7DFF",
+        width: 32,
+        height: 32,
+        offsetX: 16,
+        offsetY: 16,
+        align: "center",
+        verticalAlign: "middle",
+      });
+      group.add(circle, text);
+      group.on("click tap", (event) => {
+        event.cancelBubble = true;
+        action();
+      });
+      group.setAttr("ariaLabel", ariaLabel);
+      this.layer.add(group);
+      return group;
+    };
+    this.flipHorizontalControl = makeButton("↔", () => this.flipSelected("flipH"), "좌우 반전");
+    this.flipVerticalControl = makeButton("↕", () => this.flipSelected("flipV"), "상하 반전");
+  }
+
+  flipSelected(key) {
+    const ref = this.selectedRef();
+    if (!ref || ref.isText || this.selectedPart !== "art") return;
+    ref.item[key === "flipH" ? "flipX" : "flipY"] =
+      !ref.item[key === "flipH" ? "flipX" : "flipY"];
+    ref.refresh();
+    this.transformer.forceUpdate();
+    this.positionTransformHandle();
+    this.positionFlipControls();
+    this.layer.batchDraw();
+    this.commit();
+  }
+
+  positionFlipControls() {
+    const ref = this.selectedRef();
+    const visible = ref && !ref.isText && this.selectedPart === "art";
+    [this.flipHorizontalControl, this.flipVerticalControl].forEach((control) => {
+      if (control) control.visible(!!visible);
+    });
+    if (!visible) return;
+
+    const scale = Math.max(this.stage.scaleX(), 0.0001);
+    const buttonScale = 1 / scale;
+    const rect = ref.art.getClientRect({ relativeTo: this.layer });
+    const gap = 11 / scale;
+    const radius = 16 / scale;
+    this.flipHorizontalControl.scale({ x: buttonScale, y: buttonScale });
+    this.flipVerticalControl.scale({ x: buttonScale, y: buttonScale });
+    this.flipHorizontalControl.position({
+      x: rect.x + rect.width / 2,
+      y: rect.y + rect.height + gap + radius,
+    });
+    this.flipVerticalControl.position({
+      x: rect.x - gap - radius,
+      y: rect.y + rect.height / 2,
+    });
+    this.flipHorizontalControl.moveToTop();
+    this.flipVerticalControl.moveToTop();
   }
 
   changeCanvasSize(spec, { repositionItems = true } = {}) {
@@ -372,6 +451,7 @@ class Editor {
       ref.transformOnly();
       this.transformer.forceUpdate();
       this.positionTransformHandle();
+      this.positionFlipControls();
       this.layer.batchDraw();
       this.repositionMenu();
     });
@@ -387,6 +467,7 @@ class Editor {
       gesture.ref.refresh();
       this.handleGesture = null;
       this.positionTransformHandle();
+      this.positionFlipControls();
       this.commit();
     });
   }
@@ -742,17 +823,22 @@ class Editor {
     art.on("click tap", (e) => {
       e.cancelBubble = true;
       if (this.bgAdjustMode) return;
+      const promoted = !ref.isText && this.promoteSticker(ref.item.id);
+      if (!ref.isText) this.hideMenu();
       this.select(ref.item.id);
+      if (promoted) this.commit();
     });
 
     group.on("dragstart", () => {
       this.hideMenu();
+      if (!ref.isText) this.promoteSticker(ref.item.id);
       this.select(ref.item.id);
     });
 
     group.on("dragmove", () => {
       this.transformer.forceUpdate();
       this.positionTransformHandle();
+      this.positionFlipControls();
       this.repositionMenu();
     });
 
@@ -767,12 +853,12 @@ class Editor {
       if (this.bgAdjustMode) return;
       this.select(ref.item.id);
       if (ref.isText) this.openTextEditor(ref.item.id);
-      else this.openMenu(ref.item.id);
     });
 
     art.on("transform", () => {
       ref.item.rotation = art.rotation();
       ref.transformOnly();
+      this.positionFlipControls();
     });
 
     art.on("transformend", () => {
@@ -823,6 +909,19 @@ class Editor {
     });
     this.transformer.moveToTop();
     this.transformHandle.moveToTop();
+    this.flipHorizontalControl?.moveToTop();
+    this.flipVerticalControl?.moveToTop();
+  }
+
+  promoteSticker(id) {
+    const item = (this.project.stickerItems || []).find((candidate) => candidate.id === id);
+    if (!item) return false;
+    const maxZ = this.allItems().reduce((max, candidate) =>
+      Math.max(max, candidate.zIndex || 0), -1);
+    if ((item.zIndex || 0) >= maxZ) return false;
+    item.zIndex = maxZ + 1;
+    this.reorderLayer();
+    return true;
   }
 
   select(id, part = "art") {
@@ -836,6 +935,7 @@ class Editor {
     this.transformer.nodes([this.selectedPart === "shadow" ? ref.shadow : ref.art]);
     this.transformer.moveToTop();
     this.positionTransformHandle();
+    this.positionFlipControls();
     this.layer.batchDraw();
     this.repositionMenu();
   }
@@ -847,6 +947,7 @@ class Editor {
     this.selectedPart = "art";
     this.transformer.nodes([]);
     this.transformHandle.visible(false);
+    this.positionFlipControls();
     this.hideMenu();
     this.layer.batchDraw();
   }
