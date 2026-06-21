@@ -68,11 +68,17 @@ async function updateSession() {
     login.hidden = true;
     return;
   }
+  setup.hidden = true;
   const isAdmin = await ensureAdmin();
   login.hidden = isAdmin;
   dashboard.hidden = !isAdmin;
   logout.hidden = !isAdmin;
-  if (isAdmin) await renderAll();
+  if (isAdmin) {
+    const { data } = await supabase
+      .from("app_settings").select("value").eq("key", "assets_source").maybeSingle();
+    $("#import-box").hidden = data?.value === "supabase";
+    await renderAll();
+  }
 }
 
 $("#login-form").addEventListener("submit", async (event) => {
@@ -115,6 +121,7 @@ $("#import-local-assets").addEventListener("click", async () => {
       value: "supabase",
     });
     if (error) throw error;
+    $("#import-box").hidden = true;
     toast("모든 기존 어셋을 가져왔어요.");
     await renderAll();
   } catch (error) {
