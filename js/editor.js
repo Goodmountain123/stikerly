@@ -230,7 +230,9 @@ class Editor {
 
   syncTransformerScale(scale) {
     const s = Math.max(scale, 0.0001);
-    this.transformer.borderStrokeWidth(1.5 / s);
+    // Konva keeps the Transformer border in screen pixels already.
+    // Inversely scaling it made the box look thicker when zoomed out.
+    this.transformer.borderStrokeWidth(1.5);
     this.transformHandle.radius(9 / s);
     this.transformHandle.strokeWidth(2 / s);
     this.positionTransformHandle();
