@@ -1098,8 +1098,12 @@ class Editor {
       window.removeEventListener("pointerup", up);
       window.removeEventListener("pointercancel", up);
       let finalWidth = currentWidth;
-      if (!moved && this.editorScreen.classList.contains("tray-collapsed")) {
-        finalWidth = minimumWidth;
+      if (!moved) {
+        finalWidth = this.editorScreen.classList.contains("tray-collapsed")
+          ? minimumWidth
+          : currentWidth <= minimumWidth
+            ? 0
+            : currentWidth;
       } else if (currentWidth < minimumWidth) {
         finalWidth = 0;
       }
