@@ -8,14 +8,23 @@ let _bgs = null; // [{id, name, url}]
 export async function loadBackgrounds() {
   if (_bgs) return _bgs;
   let remoteBackgrounds = [];
+  let useRemoteOnly = false;
   if (supabaseConfigured) {
-    const { data, error } = await supabase.from("backgrounds").select("*").order("position");
+    const [{ data, error }, { data: sourceSetting }] = await Promise.all([
+      supabase.from("backgrounds").select("*").order("position"),
+      supabase.from("app_settings").select("value").eq("key", "assets_source").maybeSingle(),
+    ]);
+    useRemoteOnly = sourceSetting?.value === "supabase";
     if (!error && data?.length) {
       remoteBackgrounds = data.map((item) => ({
-        id: item.id,
+        id: item.legacy_id || item.id,
         name: item.name,
         url: publicAssetUrl(item.storage_path),
       }));
+    }
+    if (useRemoteOnly) {
+      _bgs = remoteBackgrounds;
+      return _bgs;
     }
   }
   const idx = await fetch(`${ROOT}/index.json`).then((r) => r.json());
@@ -75,6 +84,7 @@ export function adjustableCoverCrop(iw, ih, W, H, transform = {}) {
 export function loadBgImage(src) {
   return new Promise((resolve, reject) => {
     const img = new Image();
+    img.crossOrigin = "anonymous";
     img.onload = () => resolve(img);
     img.onerror = () => reject(new Error("배경 이미지를 불러오지 못했어요"));
     img.src = src;

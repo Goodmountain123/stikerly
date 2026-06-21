@@ -9,24 +9,30 @@ const _imageCache = new Map();     // url -> HTMLImageElement (loaded)
 export async function loadPacks() {
   if (_packs) return _packs;
   let remotePacks = [];
+  let useRemoteOnly = false;
   if (supabaseConfigured) {
-    const { data, error } = await supabase
-      .from("sticker_packs")
-      .select("*, stickers(*)")
-      .order("position")
-      .order("position", { referencedTable: "stickers" });
+    const [{ data, error }, { data: sourceSetting }] = await Promise.all([
+      supabase.from("sticker_packs").select("*, stickers(*)")
+        .order("position").order("position", { referencedTable: "stickers" }),
+      supabase.from("app_settings").select("value").eq("key", "assets_source").maybeSingle(),
+    ]);
+    useRemoteOnly = sourceSetting?.value === "supabase";
     if (!error && data?.length) {
       remotePacks = data.map((pack) => ({
-        id: pack.id,
+        id: pack.legacy_id || pack.id,
         folder: pack.id,
         name: pack.name,
         thumbnailUrl: pack.stickers[0] ? publicAssetUrl(pack.stickers[0].storage_path) : "",
         stickers: pack.stickers.map((sticker) => ({
-          assetId: sticker.id,
+          assetId: sticker.legacy_asset_id || sticker.id,
           name: sticker.name,
           url: publicAssetUrl(sticker.storage_path),
         })),
       }));
+    }
+    if (useRemoteOnly) {
+      _packs = remotePacks;
+      return _packs;
     }
   }
   const index = await fetch(`${ROOT}/index.json`).then((r) => r.json());

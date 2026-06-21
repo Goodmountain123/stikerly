@@ -4,6 +4,7 @@
 h1,h2,p{margin:0}h1{color:#d94c85}.admin__header p{margin-top:6px;color:#826f8b}
 .panel,.notice,.pack{background:#fff;border:1px solid #eaddeb;border-radius:18px;padding:18px;box-shadow:0 6px 22px #744c7712}
 .notice{display:flex;gap:8px;flex-direction:column;background:#fff3c9;margin-bottom:16px}
+.import-box{flex-direction:row;align-items:center;justify-content:space-between}.import-box div{display:flex;flex-direction:column;gap:5px}
 .form,.add-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:15px}
 input{min-width:180px;flex:1;border:1px solid #ddcfe1;border-radius:12px;padding:12px;font:inherit}
 .button{border:0;border-radius:12px;padding:11px 17px;background:linear-gradient(135deg,#ff72a6,#9b7cf3);color:#fff;font-weight:800;cursor:pointer}
@@ -14,5 +15,4 @@ input{min-width:180px;flex:1;border:1px solid #ddcfe1;border-radius:12px;padding
 .asset{border:1px solid #eaddeb;border-radius:14px;padding:10px;background:#fff}.asset img{width:100%;height:110px;object-fit:contain;border-radius:9px;background:#f8f4fa}
 .asset input{width:100%;min-width:0;margin:8px 0}.asset__actions{display:flex;gap:6px}.asset__actions button{flex:1;padding:8px}
 .upload{border:2px dashed #d9c4e0;border-radius:14px;padding:15px;margin-top:14px}.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#433752;color:#fff;padding:12px 18px;border-radius:12px}
-@media(max-width:600px){.admin{padding:14px}.add-row>*{flex-basis:100%}.pack__top{align-items:stretch;flex-direction:column}}
-
+@media(max-width:600px){.admin{padding:14px}.add-row>*{flex-basis:100%}.pack__top,.import-box{align-items:stretch;flex-direction:column}}

@@ -6,6 +6,7 @@ create table if not exists public.admin_users (
 
 create table if not exists public.sticker_packs (
   id uuid primary key default gen_random_uuid(),
+  legacy_id text,
   name text not null,
   position bigint not null default 0,
   created_at timestamptz not null default now()
@@ -14,6 +15,7 @@ create table if not exists public.sticker_packs (
 create table if not exists public.stickers (
   id uuid primary key default gen_random_uuid(),
   pack_id uuid not null references public.sticker_packs(id) on delete cascade,
+  legacy_asset_id text,
   name text not null,
   storage_path text not null unique,
   position bigint not null default 0,
@@ -22,16 +24,33 @@ create table if not exists public.stickers (
 
 create table if not exists public.backgrounds (
   id uuid primary key default gen_random_uuid(),
+  legacy_id text,
   name text not null,
   storage_path text not null unique,
   position bigint not null default 0,
   created_at timestamptz not null default now()
 );
 
+alter table public.sticker_packs add column if not exists legacy_id text;
+alter table public.backgrounds add column if not exists legacy_id text;
+alter table public.stickers add column if not exists legacy_asset_id text;
+create unique index if not exists sticker_packs_legacy_id_key
+  on public.sticker_packs (legacy_id);
+create unique index if not exists backgrounds_legacy_id_key
+  on public.backgrounds (legacy_id);
+create unique index if not exists stickers_pack_legacy_asset_key
+  on public.stickers (pack_id, legacy_asset_id);
+
+create table if not exists public.app_settings (
+  key text primary key,
+  value jsonb not null
+);
+
 alter table public.admin_users enable row level security;
 alter table public.sticker_packs enable row level security;
 alter table public.stickers enable row level security;
 alter table public.backgrounds enable row level security;
+alter table public.app_settings enable row level security;
 
 create or replace function public.is_admin()
 returns boolean
@@ -61,6 +80,12 @@ drop policy if exists "Public reads backgrounds" on public.backgrounds;
 create policy "Public reads backgrounds" on public.backgrounds for select using (true);
 drop policy if exists "Admins manage backgrounds" on public.backgrounds;
 create policy "Admins manage backgrounds" on public.backgrounds for all
+using (public.is_admin()) with check (public.is_admin());
+
+drop policy if exists "Public reads settings" on public.app_settings;
+create policy "Public reads settings" on public.app_settings for select using (true);
+drop policy if exists "Admins manage settings" on public.app_settings;
+create policy "Admins manage settings" on public.app_settings for all
 using (public.is_admin()) with check (public.is_admin());
 
 drop policy if exists "Admins see own membership" on public.admin_users;

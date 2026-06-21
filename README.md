@@ -42,8 +42,9 @@ python3 -m http.server 8000
 3. SQL 파일 마지막 예시대로 관리자 UUID를 등록합니다.
 4. `js/supabase-config.js`에 Project URL과 anon key를 입력합니다.
 5. 배포 주소의 `/admin.html`에서 로그인합니다.
+6. 관리자 페이지에서 **기존 어셋 가져오기**를 한 번 누릅니다.
 
-업로드한 어셋은 앱에 자동 반영되며 기존 로컬 어셋도 함께 유지됩니다.
+기존 어셋이 Supabase로 통합된 뒤에는 관리자 페이지에서 모두 관리됩니다.
 
 ## Cloudflare Pages 배포
 

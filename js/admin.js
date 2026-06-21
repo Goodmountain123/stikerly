@@ -20,6 +20,16 @@ function safeFileName(name) {
   return `${crypto.randomUUID()}${ext.replace(/[^a-z0-9.]/g, "")}`;
 }
 
+function storageSegment(value) {
+  return encodeURIComponent(value).replaceAll("%", "_");
+}
+
+async function fetchAsset(url) {
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`파일을 불러오지 못했어요: ${url}`);
+  return response.blob();
+}
+
 async function ensureAdmin() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return false;
@@ -67,6 +77,82 @@ document.querySelectorAll(".tab").forEach((tab) => {
     $("#backgrounds-panel").hidden = tab.dataset.tab !== "backgrounds";
   });
 });
+
+$("#import-local-assets").addEventListener("click", async () => {
+  const button = $("#import-local-assets");
+  if (!confirm("기존 스티커팩과 배경을 Supabase로 가져올까요?")) return;
+  button.disabled = true;
+  button.textContent = "가져오는 중…";
+  try {
+    await importLocalPacks();
+    await importLocalBackgrounds();
+    const { error } = await supabase.from("app_settings").upsert({
+      key: "assets_source",
+      value: "supabase",
+    });
+    if (error) throw error;
+    toast("모든 기존 어셋을 가져왔어요.");
+    await renderAll();
+  } catch (error) {
+    console.error(error);
+    toast("가져오지 못했어요. 최신 SQL을 다시 실행해 주세요.");
+  } finally {
+    button.disabled = false;
+    button.textContent = "기존 어셋 가져오기";
+  }
+});
+
+async function importLocalPacks() {
+  const folders = await fetch("./assets/sticker_packs/index.json").then((response) => response.json());
+  for (const [packIndex, folder] of folders.entries()) {
+    const base = `./assets/sticker_packs/${folder}`;
+    const meta = await fetch(`${base}/pack.json`).then((response) => response.json());
+    const { data: pack, error: packError } = await supabase
+      .from("sticker_packs")
+      .upsert({
+        legacy_id: meta.id,
+        name: meta.name,
+        position: packIndex,
+      }, { onConflict: "legacy_id" })
+      .select()
+      .single();
+    if (packError) throw packError;
+
+    for (const [stickerIndex, fileName] of meta.stickers.entries()) {
+      const path = `legacy/stickers/${storageSegment(meta.id)}/${storageSegment(fileName)}`;
+      const blob = await fetchAsset(`${base}/${fileName}`);
+      const { error: uploadError } = await supabase.storage
+        .from("assets").upload(path, blob, { contentType: blob.type, upsert: true });
+      if (uploadError) throw uploadError;
+      const { error: stickerError } = await supabase.from("stickers").upsert({
+        pack_id: pack.id,
+        legacy_asset_id: fileName,
+        name: fileName.replace(/\.[^.]+$/, ""),
+        storage_path: path,
+        position: stickerIndex,
+      }, { onConflict: "pack_id,legacy_asset_id" });
+      if (stickerError) throw stickerError;
+    }
+  }
+}
+
+async function importLocalBackgrounds() {
+  const backgrounds = await fetch("./assets/backgrounds/index.json").then((response) => response.json());
+  for (const [index, background] of backgrounds.entries()) {
+    const path = `legacy/backgrounds/${storageSegment(background.file)}`;
+    const blob = await fetchAsset(`./assets/backgrounds/${background.file}`);
+    const { error: uploadError } = await supabase.storage
+      .from("assets").upload(path, blob, { contentType: blob.type, upsert: true });
+    if (uploadError) throw uploadError;
+    const { error } = await supabase.from("backgrounds").upsert({
+      legacy_id: background.id,
+      name: background.name,
+      storage_path: path,
+      position: index,
+    }, { onConflict: "legacy_id" });
+    if (error) throw error;
+  }
+}
 
 $("#pack-form").addEventListener("submit", async (event) => {
   event.preventDefault();
