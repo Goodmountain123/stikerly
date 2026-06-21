@@ -84,16 +84,17 @@ body{
 .wordmark__dot{ color:var(--pink); }
 .topbar--home{ justify-content:flex-start; }
 .welcome-ticker{
-  flex:1;
+  flex:0 1 auto;
   min-width:0;
+  max-width:min(46vw,600px);
   height:1.5em;
-  margin:0 20px;
+  margin-left:10px;
   overflow:hidden;
   display:grid;
-  place-items:center;
+  place-items:center start;
   color:var(--ink);
-  font:400 22px/1.5 var(--font-display);
-  text-align:center;
+  font:400 19px/1.5 var(--font-display);
+  text-align:left;
 }
 .welcome-ticker span{ display:block; }
 .welcome-ticker.is-rolling span{ animation:welcome-roll-up .65s ease-in-out; }
@@ -1286,7 +1287,7 @@ body{
   body{ font-size:20px; }
   .topbar{ gap:14px; padding:16px 22px; }
   .wordmark{ font-size:38px; }
-  .welcome-ticker{ font-size:29px; }
+  .welcome-ticker{ font-size:24px; }
   .btn{ padding:14px 24px; font-size:20px; }
   .iconbtn{ width:54px; height:54px; border-radius:16px; }
   .ui-icon{ width:32px; height:32px; }
@@ -1349,7 +1350,7 @@ body{
 @media (max-width:760px){
   body{ font-size:17px; }
   .wordmark{ font-size:29px; }
-  .welcome-ticker{ margin-inline:8px; font-size:18px; }
+  .welcome-ticker{ margin-left:5px; font-size:16px; }
   .btn{ padding:11px 19px; font-size:17px; }
   .card__name{ font-size:16px; }
   .card__meta{ font-size:12px; }
