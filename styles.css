@@ -113,16 +113,16 @@ body{
   display:grid; place-items:center;
 }
 .card__thumb img{ max-width:78%; max-height:78%; }
-.card__badge{
-  position:absolute; margin:6px; padding:2px 7px; font-size:9px; font-weight:700;
-  border-radius:999px; background:rgba(255,255,255,.9); color:var(--ink-soft);
-}
 .card__body{ padding:8px 10px 10px; }
+.card__title-row{ display:flex; align-items:center; gap:5px; }
 .card__name{ width:100%; min-width:0; border:0; border-radius:7px; padding:2px 3px;
   background:transparent; color:var(--ink); font-family:var(--font-display);
   font-weight:700; font-size:14px; }
 .card__name:focus{ outline:none; background:var(--surface-2); box-shadow:0 0 0 2px var(--pink); }
-.card__meta{ font-size:10px; color:var(--ink-soft); }
+.card__info-toggle{ flex:0 0 25px; width:25px; height:25px; padding:0; border:0;
+  border-radius:8px; background:var(--surface-2); color:var(--ink-soft);
+  font-size:15px; cursor:pointer; }
+.card__meta{ font-size:10px; color:var(--ink-soft); margin-top:5px; }
 .screen--projects.delete-mode .card{ cursor:grab; }
 .screen--projects.delete-mode .card:active{ cursor:grabbing; }
 .project-delete-zone{

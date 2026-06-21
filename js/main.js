@@ -59,15 +59,17 @@ async function renderList() {
     const bgStyle = p.background
       ? ` style="aspect-ratio:${size.w}/${size.h};background-image:url(&quot;${backgroundSrc(p.background)}&quot;);background-size:cover;background-position:center"`
       : ` style="aspect-ratio:${size.w}/${size.h}"`;
-    const badge = `${size.w} × ${size.h}`;
     const stickerCount = (p.stickerItems || []).length;
     const textCount = (p.textItems || []).length;
 
     card.innerHTML = `
-      <div class="card__thumb"${bgStyle}><span class="card__badge">${badge}</span>${thumbInner}</div>
+      <div class="card__thumb"${bgStyle}>${thumbInner}</div>
       <div class="card__body">
-        <input class="card__name" value="${escapeHtml(p.title)}" maxlength="40" aria-label="프로젝트 이름">
-        <p class="card__meta">스티커 ${stickerCount}개 · 텍스트 ${textCount}개 · ${fmtDate(p.updatedAt)}</p>
+        <div class="card__title-row">
+          <input class="card__name" value="${escapeHtml(p.title)}" maxlength="40" aria-label="프로젝트 이름">
+          <button class="card__info-toggle" type="button" aria-label="프로젝트 정보 펼치기">⌄</button>
+        </div>
+        <p class="card__meta" hidden>스티커 ${stickerCount}개 · 텍스트 ${textCount}개 · ${fmtDate(p.updatedAt)}</p>
       </div>`;
 
     const nameInput = card.querySelector(".card__name");
@@ -81,6 +83,17 @@ async function renderList() {
       }, 400);
     });
     nameInput.addEventListener("click", (event) => event.stopPropagation());
+    const infoToggle = card.querySelector(".card__info-toggle");
+    const meta = card.querySelector(".card__meta");
+    infoToggle.addEventListener("click", (event) => {
+      event.stopPropagation();
+      meta.hidden = !meta.hidden;
+      infoToggle.classList.toggle("is-open", !meta.hidden);
+      infoToggle.textContent = meta.hidden ? "⌄" : "⌃";
+      infoToggle.setAttribute("aria-label", meta.hidden
+        ? "프로젝트 정보 펼치기"
+        : "프로젝트 정보 접기");
+    });
     card.querySelector(".card__thumb").addEventListener("click", () => {
       if (!deleteMode) open(p.id);
     });
