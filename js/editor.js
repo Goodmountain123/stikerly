@@ -884,6 +884,9 @@ class Editor {
 
     art.on("click tap", (e) => {
       e.cancelBubble = true;
+      if (this.highlightedTrayItemId !== ref.item.id) {
+        this.clearTrayItemHighlight();
+      }
       const promoted = this.promoteItem(ref.item.id);
       if (!ref.isText) this.hideMenu();
       this.select(ref.item.id);
@@ -891,6 +894,9 @@ class Editor {
     });
 
     group.on("dragstart", () => {
+      if (this.highlightedTrayItemId !== ref.item.id) {
+        this.clearTrayItemHighlight();
+      }
       this.hideMenu();
       this.promoteItem(ref.item.id);
       this.select(ref.item.id);
@@ -1501,9 +1507,7 @@ class Editor {
 
   revealItemInTray(item) {
     if (!item) return;
-    this.tray?.querySelectorAll(".is-item-highlighted").forEach((card) => {
-      card.classList.remove("is-item-highlighted");
-    });
+    this.clearTrayItemHighlight();
 
     let target = null;
     if (item.type === "text") {
@@ -1521,10 +1525,18 @@ class Editor {
     }
 
     if (!target) return;
+    this.highlightedTrayItemId = item.id;
     target.classList.add("is-item-highlighted");
     requestAnimationFrame(() => {
       target.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "nearest" });
     });
+  }
+
+  clearTrayItemHighlight() {
+    this.tray?.querySelectorAll(".is-item-highlighted").forEach((card) => {
+      card.classList.remove("is-item-highlighted");
+    });
+    this.highlightedTrayItemId = null;
   }
 
   buildBackgroundPanel() {
