@@ -373,8 +373,9 @@ class Editor {
 
     const scale = Math.max(this.stage.scaleX(), 0.0001);
     const buttonScale = 1 / scale;
+    const buttonRotation = ref.item.rotation || 0;
     const rotatedPoint = (localX, localY) => {
-      const rotation = (ref.item.rotation || 0) * Math.PI / 180;
+      const rotation = buttonRotation * Math.PI / 180;
       const itemScale = ref.item.scale || 1;
       const x = localX * itemScale;
       const y = localY * itemScale;
@@ -389,8 +390,10 @@ class Editor {
     const bottom = ref.size.h / 2;
     if (textVisible) {
       this.textColorControl.scale({ x: buttonScale, y: buttonScale });
+      this.textColorControl.rotation(buttonRotation);
       this.textColorControl.position(rotatedPoint(left, bottom));
       this.textEditControl.scale({ x: buttonScale, y: buttonScale });
+      this.textEditControl.rotation(buttonRotation);
       this.textEditControl.position(rotatedPoint(right, bottom));
       this.textColorDot.fill(ref.item.color || DEFAULT_TEXT_COLOR);
       this.textColorControl.moveToTop();
@@ -398,7 +401,9 @@ class Editor {
       return;
     }
     this.flipHorizontalControl.scale({ x: buttonScale, y: buttonScale });
+    this.flipHorizontalControl.rotation(buttonRotation);
     this.flipVerticalControl.scale({ x: buttonScale, y: buttonScale });
+    this.flipVerticalControl.rotation(buttonRotation);
     this.flipHorizontalControl.position(rotatedPoint(0, bottom));
     this.flipVerticalControl.position(rotatedPoint(left, 0));
     this.flipHorizontalControl.moveToTop();
