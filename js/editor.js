@@ -1329,6 +1329,7 @@ class Editor {
 
   bindTrayDrag() {
     const ghost = document.getElementById("drag-ghost");
+    const stickerPreview = document.getElementById("sticker-preview");
     const textGhost = document.getElementById("text-drag-ghost");
     const tray = document.querySelector(".tray");
     let gesture = null;
@@ -1336,6 +1337,17 @@ class Editor {
     const moveGhost = (x, y) => {
       ghost.style.left = x + "px";
       ghost.style.top = y + "px";
+    };
+    const showStickerPreview = (url, x, y, touch = false) => {
+      stickerPreview.src = url;
+      stickerPreview.style.left = x + "px";
+      stickerPreview.style.top = y + "px";
+      stickerPreview.classList.toggle("is-touch", touch);
+      stickerPreview.hidden = false;
+    };
+    const hideStickerPreview = () => {
+      stickerPreview.hidden = true;
+      stickerPreview.classList.remove("is-touch");
     };
     const isInsideTray = (e) => {
       const rect = tray.getBoundingClientRect();
@@ -1347,11 +1359,15 @@ class Editor {
       const chip = e.target.closest(".sticker-chip");
       if (!chip) return;
       e.preventDefault();
+      hideStickerPreview();
       gesture = {
         type: "sticker",
         pack: chip.dataset.pack,
         asset: chip.dataset.asset,
         url: chip.dataset.url,
+        startX: e.clientX,
+        startY: e.clientY,
+        pointerType: e.pointerType,
         lastY: e.clientY,
         extracting: false,
       };
@@ -1362,13 +1378,18 @@ class Editor {
 
     const onMove = (e) => {
       if (!gesture || gesture.type !== "sticker") return;
+      const moved = Math.hypot(e.clientX - gesture.startX, e.clientY - gesture.startY) > 5;
       if (!gesture.extracting && isInsideTray(e)) {
+        if (gesture.pointerType !== "mouse" && moved) {
+          showStickerPreview(gesture.url, e.clientX, e.clientY, true);
+        }
         this.stickerCarousel.scrollTop -= e.clientY - gesture.lastY;
         gesture.lastY = e.clientY;
         return;
       }
       if (!gesture.extracting) {
         gesture.extracting = true;
+        hideStickerPreview();
         ghost.src = gesture.url;
         ghost.hidden = false;
       }
@@ -1380,6 +1401,7 @@ class Editor {
       window.removeEventListener("pointerup", onUp);
       window.removeEventListener("pointercancel", onUp);
       ghost.hidden = true;
+      hideStickerPreview();
       if (!gesture || gesture.type !== "sticker") return;
 
       const rect = this.host.getBoundingClientRect();
@@ -1401,7 +1423,22 @@ class Editor {
       gesture = null;
     };
 
+    const onStickerHoverMove = (e) => {
+      if (e.pointerType !== "mouse" || gesture) return;
+      const chip = e.target.closest(".sticker-chip");
+      if (!chip) {
+        hideStickerPreview();
+        return;
+      }
+      showStickerPreview(chip.dataset.url, e.clientX, e.clientY);
+    };
+    const onStickerHoverLeave = () => {
+      if (!gesture) hideStickerPreview();
+    };
+
     this.stickerCarousel.addEventListener("pointerdown", onDown);
+    this.stickerCarousel.addEventListener("pointermove", onStickerHoverMove);
+    this.stickerCarousel.addEventListener("pointerleave", onStickerHoverLeave);
     const onTextDown = (e) => {
       const chip = e.target.closest(".text-chip");
       if (!chip) return;
@@ -1466,7 +1503,10 @@ class Editor {
     this.textCarousel.addEventListener("pointerdown", onTextDown);
     this.cleanup.push(() => {
       this.stickerCarousel.removeEventListener("pointerdown", onDown);
+      this.stickerCarousel.removeEventListener("pointermove", onStickerHoverMove);
+      this.stickerCarousel.removeEventListener("pointerleave", onStickerHoverLeave);
       this.textCarousel.removeEventListener("pointerdown", onTextDown);
+      hideStickerPreview();
     });
   }
 
