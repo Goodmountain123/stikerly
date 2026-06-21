@@ -679,9 +679,9 @@ body{
 .delete-drop-zone__icon{
   position:absolute;
   left:50%;
-  bottom:33.333%;
-  width:64px;
-  height:64px;
+  bottom:27%;
+  width:51px;
+  height:51px;
   object-fit:contain;
   transform:translate(-50%,50%);
 }
