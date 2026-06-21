@@ -633,7 +633,7 @@ body{
   justify-content:center;
   gap:21px;
   padding:27px 54px;
-  border:9px dashed #ff7b9e;
+  border:6px dashed #ff7b9e;
   border-radius:66px;
   background:rgba(255,240,245,.94);
   color:#b82d56;
@@ -648,6 +648,7 @@ body{
   to{ transform:translate(-50%,0); }
 }
 .delete-drop-zone > *{ transform:translateY(70px); }
+.delete-drop-zone > span{ transform:translateY(60px); }
 .delete-drop-zone__icon{ width:28px; height:28px; object-fit:contain; }
 .delete-drop-zone.is-over{
   top:-54px;
@@ -788,11 +789,11 @@ body.is-resizing-tray *{ cursor:ew-resize!important; user-select:none!important;
   min-height:82px;
   border:0;
   border-radius:15px;
-  padding:8px;
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-  gap:4px;
+  padding:7px 8px;
+  display:grid;
+  grid-template-rows:40px minmax(0,1fr);
+  place-items:center;
+  gap:3px;
   background:var(--surface-2);
   color:var(--ink);
   cursor:pointer;
@@ -811,8 +812,11 @@ body.is-resizing-tray *{ cursor:ew-resize!important; user-select:none!important;
 }
 .pack-card__thumb img{ width:88%; height:88%; object-fit:contain; }
 .pack-card__name{
+  width:100%;
   min-width:0;
   max-width:100%;
+  max-height:24px;
+  align-self:center;
   overflow:hidden;
   display:-webkit-box;
   -webkit-box-orient:vertical;
@@ -971,6 +975,77 @@ body.is-resizing-tray *{ cursor:ew-resize!important; user-select:none!important;
   right:auto;
   bottom:58px;
   font-size:20px;
+}
+
+@media (min-width:761px){
+  .screen--editor .topbar--editor{
+    gap:10px;
+    padding:max(10px, env(safe-area-inset-top)) 14px 10px;
+  }
+  .topbar--editor .iconbtn{
+    width:44px;
+    height:44px;
+    border-radius:13px;
+  }
+  .topbar--editor .iconbtn .ui-icon{
+    width:29px;
+    height:29px;
+  }
+  .topbar--editor .btn{
+    padding:10px 17px;
+    border-radius:13px;
+    font-size:15px;
+  }
+  .topbar--editor .title-input{
+    flex-basis:230px;
+    font-size:19px;
+    padding:7px 9px;
+  }
+  .tray__tabs{
+    top:20px;
+    gap:8px;
+  }
+  .tray-tab{
+    width:58px;
+    min-height:46px;
+    padding:9px 7px;
+    border-radius:14px 0 0 14px;
+    font-size:13px;
+  }
+  .pack-search{
+    height:48px;
+    margin:0 10px 8px;
+    padding:0 10px;
+  }
+  .pack-search input{ font-size:13px; }
+  .sticker-pack-list{
+    height:calc(100% - 56px);
+    gap:10px;
+    padding:10px;
+  }
+  .pack-card__name{ font-size:12px; }
+  .sticker-pack-detail__header{
+    min-height:48px;
+    padding:8px 10px;
+  }
+  .sticker-pack-detail__header strong{ font-size:15px; }
+  .sticker-pack-back{
+    padding:8px 11px;
+    font-size:12px;
+  }
+  .ui-toggle,
+  .fit-canvas{
+    width:46px;
+    height:46px;
+  }
+  .ui-toggle{
+    bottom:70px;
+    font-size:24px;
+  }
+  .zoom-readout{
+    padding:8px 12px;
+    font-size:14px;
+  }
 }
 
 @media (max-width:760px){
