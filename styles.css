@@ -665,9 +665,15 @@ body{
   from{ transform:translate(-50%,-100%); }
   to{ transform:translate(-50%,0); }
 }
-.delete-drop-zone > *{ transform:translateY(70px); }
-.delete-drop-zone > span{ transform:translateY(48px); }
-.delete-drop-zone__icon{ width:28px; height:28px; object-fit:contain; }
+.delete-drop-zone__icon{
+  position:absolute;
+  left:50%;
+  bottom:33.333%;
+  width:64px;
+  height:64px;
+  object-fit:contain;
+  transform:translate(-50%,50%);
+}
 .delete-drop-zone.is-over{
   top:-54px;
   transform:translateX(-50%) scale(1.08);
