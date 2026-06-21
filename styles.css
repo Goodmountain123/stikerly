@@ -1174,3 +1174,94 @@ body{
 .new-background-card:nth-child(3n+2){ background-color:#EDF8FF; }
 .new-background-card:nth-child(3n){ background-color:#ECFFF7; }
 
+/* ---------- responsive UI sizing ---------- */
+@media (min-width:761px){
+  body{ font-size:20px; }
+  .topbar{ gap:14px; padding:16px 22px; }
+  .wordmark{ font-size:38px; }
+  .btn{ padding:14px 24px; font-size:20px; }
+  .iconbtn{ width:54px; height:54px; border-radius:16px; }
+  .ui-icon{ width:32px; height:32px; }
+
+  .home{ padding:30px 24px 54px; }
+  .project-grid{
+    grid-template-columns:repeat(auto-fill,minmax(180px,220px));
+    max-width:1280px;
+    gap:20px;
+  }
+  .card{ border-radius:20px; }
+  .card__thumb{ height:154px; }
+  .card__body{ padding:12px 14px 14px; }
+  .card__name{ font-size:20px; }
+  .card__info-toggle{ flex-basis:34px; width:34px; height:34px; background-size:20px 20px; }
+  .card__meta{ font-size:14px; gap:10px; }
+  .card__duplicate{ padding:7px 11px; font-size:15px; }
+  .empty__art{ font-size:72px; }
+  .empty__title{ font-size:28px; }
+  .empty__hint{ font-size:18px; }
+  .modal__title{ font-size:32px; }
+  .field__label{ font-size:18px; }
+  .field__input{ padding:14px 16px; font-size:20px; }
+  .confirm-modal__card p{ font-size:18px; }
+  .project-delete-zone{ width:190px; font-size:20px; }
+  .screen--projects.delete-mode .home{ padding-right:224px; }
+
+  .screen--editor .topbar--editor{ gap:13px; padding:13px 18px; }
+  .topbar--editor .iconbtn{ width:54px; height:54px; border-radius:16px; }
+  .topbar--editor .iconbtn .ui-icon{ width:35px; height:35px; }
+  .topbar--editor .btn{ padding:13px 22px; font-size:20px; }
+  .topbar--editor .title-input{ flex-basis:280px; font-size:26px; padding:9px 12px; }
+  .tray__tabs{ gap:10px; }
+  .tray-tab{
+    width:72px;
+    min-height:58px;
+    padding:12px 9px;
+    border-radius:18px 0 0 18px;
+    font-size:18px;
+  }
+  .pack-search{ height:58px; border-radius:16px; }
+  .pack-search input{ font-size:17px; }
+  .pack-card__name{ font-size:16px; }
+  .bg-chip__label{ font-size:16px; }
+  .background-list .bg-chip__action-label{ font-size:16px; }
+  .text-list .text-chip{ font-size:31px; }
+  .sticker-pack-detail__header{ min-height:58px; }
+  .sticker-pack-detail__header strong{ font-size:20px; }
+  .sticker-pack-back{ font-size:16px; }
+  .menu-btn{ width:46px; height:46px; border-radius:13px; }
+  .menu-btn img{ width:39px; height:39px; }
+  .text-editor{ width:290px; font-size:18px; }
+  .effect-controls .menu-slider{ width:290px; }
+  .ui-toggle,
+  .fit-canvas{ width:56px; height:56px; border-radius:17px; }
+  .ui-toggle{ bottom:82px; font-size:29px; }
+  .zoom-readout{ padding:10px 15px; font-size:18px; }
+}
+
+@media (max-width:760px){
+  body{ font-size:17px; }
+  .wordmark{ font-size:29px; }
+  .btn{ padding:11px 19px; font-size:17px; }
+  .card__name{ font-size:16px; }
+  .card__meta{ font-size:12px; }
+  .card__duplicate{ font-size:13px; }
+  .empty__title{ font-size:22px; }
+  .modal__title{ font-size:26px; }
+  .field__input{ font-size:17px; }
+  .confirm-modal__card p{ font-size:16px; }
+
+  .topbar--editor .iconbtn{ width:38px; height:38px; }
+  .topbar--editor .iconbtn .ui-icon{ width:26px; height:26px; }
+  .topbar--editor .btn{ padding:8px 11px; font-size:15px; }
+  .topbar--editor .title-input{ font-size:18px; }
+  .tray-tab{ width:52px; min-height:42px; font-size:13px; }
+  .pack-search input{ font-size:13px; }
+  .pack-card__name{ font-size:13px; }
+  .bg-chip__label{ font-size:14px; }
+  .background-list .bg-chip__action-label{ font-size:13px; }
+  .sticker-pack-detail__header strong{ font-size:15px; }
+  .sticker-pack-back{ font-size:13px; }
+  .menu-btn{ width:37px; height:37px; }
+  .menu-btn img{ width:32px; height:32px; }
+}
+
