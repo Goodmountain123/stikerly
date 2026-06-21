@@ -1,4 +1,4 @@
-:root{font-family:Inter,"Noto Sans KR",sans-serif;color:#433752;background:#fff8fc}
+:root{font-family:Jua,"Noto Sans KR",sans-serif;color:#433752;background:#fff8fc}
 *{box-sizing:border-box}body{margin:0}.admin{max-width:1080px;margin:auto;padding:24px}
 [hidden]{display:none!important}
 .admin__header{display:flex;align-items:center;justify-content:space-between;margin-bottom:22px}
