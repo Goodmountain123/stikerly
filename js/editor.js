@@ -101,6 +101,7 @@ class Editor {
     this.menuManuallyPositioned = false;
     this.inlineTextInput = null;
     this.zoomReadoutTimer = null;
+    this.autoSaveTimer = null;
   }
 
   mount() {
@@ -133,6 +134,7 @@ class Editor {
     this.inlineTextInput?.remove();
     this.inlineTextInput = null;
     clearTimeout(this.zoomReadoutTimer);
+    clearTimeout(this.autoSaveTimer);
     this.hideMenu();
     this.refs.forEach((ref) => ref.group.destroy());
     this.refs.clear();
@@ -2352,6 +2354,7 @@ class Editor {
     await this.renderAllItems();
     this.hideMenu();
     this.updateHistoryButtons();
+    this.scheduleAutoSave();
   }
 
   commit() {
@@ -2361,6 +2364,14 @@ class Editor {
     this.history.push(next);
     this.hIndex = this.history.length - 1;
     this.updateHistoryButtons();
+    this.scheduleAutoSave();
+  }
+
+  scheduleAutoSave() {
+    clearTimeout(this.autoSaveTimer);
+    this.autoSaveTimer = setTimeout(() => {
+      this.save();
+    }, 250);
   }
 
   undo() {
@@ -2397,7 +2408,6 @@ class Editor {
 
     document.getElementById("btn-undo").onclick = () => this.undo();
     document.getElementById("btn-redo").onclick = () => this.redo();
-    document.getElementById("btn-save").onclick = () => this.save();
     document.getElementById("btn-export").onclick = () => this.doExport();
     document.getElementById("btn-back").onclick = () => this.exit();
     this.fitCanvasButton.onclick = () => this.fitCanvasToView();
@@ -2413,7 +2423,6 @@ class Editor {
     await putProject(this.project);
     this.savedIndex = this.hIndex;
     this.bgDirty = false;
-    toast("저장했어요");
     if (this.cb.onSaved) this.cb.onSaved(this.project);
   }
 
@@ -2429,10 +2438,9 @@ class Editor {
     }
   }
 
-  exit() {
-    if (this.hIndex !== this.savedIndex || this.bgDirty) {
-      if (!confirm("저장하지 않은 변경 사항이 있어요. 목록으로 나갈까요?")) return;
-    }
+  async exit() {
+    clearTimeout(this.autoSaveTimer);
+    await this.save();
     this.destroy();
     app = null;
     if (this.cb.onExit) this.cb.onExit();

@@ -99,7 +99,7 @@ body{
 .home{ flex:1; overflow:auto; padding:20px 16px 40px; }
 .project-grid{
   display:grid; grid-template-columns:repeat(auto-fill, minmax(120px,160px));
-  justify-content:center; gap:12px; max-width:960px; margin:0 auto;
+  justify-content:center; align-items:start; gap:12px; max-width:960px; margin:0 auto;
 }
 .card{
   background:var(--surface); border-radius:15px; box-shadow:var(--shadow-1);
