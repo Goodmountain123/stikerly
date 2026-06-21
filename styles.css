@@ -884,6 +884,14 @@ body.is-resizing-tray *{ cursor:ew-resize!important; user-select:none!important;
   box-shadow:inset 0 0 0 1.5px var(--line);
 }
 .sticker-list .sticker-chip:active{ cursor:grabbing; transform:scale(.96); }
+.sticker-list .sticker-chip.is-item-highlighted,
+.text-list .text-chip.is-item-highlighted{
+  box-shadow:
+    inset 0 0 0 4px var(--pink),
+    0 0 0 4px rgba(255,255,255,.95),
+    0 6px 18px rgba(255,114,166,.42);
+  transform:scale(1.04);
+}
 .sticker-list .sticker-chip img{
   max-width:68px;
   max-height:68px;

@@ -919,6 +919,7 @@ class Editor {
     art.on("dblclick dbltap", (e) => {
       e.cancelBubble = true;
       this.select(ref.item.id);
+      this.revealItemInTray(ref.item);
     });
 
     art.on("transform", () => {
@@ -1494,6 +1495,34 @@ class Editor {
     this.panelStickers.hidden = !stickers;
     this.panelBg.hidden = !background;
     this.panelText.hidden = !text;
+  }
+
+  revealItemInTray(item) {
+    if (!item) return;
+    this.tray?.querySelectorAll(".is-item-highlighted").forEach((card) => {
+      card.classList.remove("is-item-highlighted");
+    });
+
+    let target = null;
+    if (item.type === "text") {
+      this.switchTab("text");
+      target = [...this.textCarousel.querySelectorAll(".text-chip")]
+        .find((card) => card.dataset.font === item.fontFamily);
+    } else {
+      this.switchTab("stickers");
+      this.activatePack(item.packId);
+      target = [...this.stickerCarousel.querySelectorAll(".sticker-chip")]
+        .find((card) =>
+          card.dataset.pack === String(item.packId) &&
+          card.dataset.asset === String(item.assetId)
+        );
+    }
+
+    if (!target) return;
+    target.classList.add("is-item-highlighted");
+    requestAnimationFrame(() => {
+      target.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "nearest" });
+    });
   }
 
   buildBackgroundPanel() {
