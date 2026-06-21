@@ -88,6 +88,13 @@ drop policy if exists "Admins manage settings" on public.app_settings;
 create policy "Admins manage settings" on public.app_settings for all
 using (public.is_admin()) with check (public.is_admin());
 
+insert into public.app_settings (key, value)
+values (
+  'welcome_messages',
+  '["오늘은 뭘 하고 놀까요?", "어서오세요, 반가워요!", "예쁘게 꾸며봐요!"]'::jsonb
+)
+on conflict (key) do nothing;
+
 drop policy if exists "Admins see own membership" on public.admin_users;
 create policy "Admins see own membership" on public.admin_users for select
 using (user_id = auth.uid());

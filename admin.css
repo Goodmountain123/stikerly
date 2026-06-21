@@ -10,6 +10,8 @@ h1,h2,p{margin:0}h1{color:#d94c85}.admin__header p{margin-top:6px;color:#826f8b}
 .import-box{flex-direction:row;align-items:center;justify-content:space-between}.import-box div{display:flex;flex-direction:column;gap:5px}
 .form,.add-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:15px}
 input{min-width:180px;flex:1;border:1px solid #ddcfe1;border-radius:12px;padding:12px;font:inherit}
+textarea{width:100%;margin:14px 0;resize:vertical;border:1px solid #ddcfe1;border-radius:14px;padding:14px;font:inherit;line-height:1.5}
+.messages-panel{max-width:720px}.messages-panel p{margin-top:7px;color:#826f8b}
 .button{border:0;border-radius:12px;padding:11px 17px;background:linear-gradient(135deg,#ff72a6,#9b7cf3);color:#fff;font-weight:800;cursor:pointer}
 .button.secondary{background:#eee7f2;color:#59466f}.button.danger{background:#ffdde5;color:#b82d56}
 .add-button{margin-bottom:12px}

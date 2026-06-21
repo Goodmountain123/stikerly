@@ -40,6 +40,7 @@
       <nav class="tabs">
         <button class="tab is-on" data-tab="packs">스티커팩</button>
         <button class="tab" data-tab="backgrounds">배경</button>
+        <button class="tab" data-tab="messages">환영 문구</button>
       </nav>
 
       <section id="packs-panel">
@@ -58,6 +59,13 @@
           <button id="delete-selected-backgrounds" class="button danger" disabled>선택한 배경 제거</button>
         </div>
         <div id="background-list" class="grid"></div>
+      </section>
+
+      <section id="messages-panel" class="panel messages-panel" hidden>
+        <h2>프로젝트 화면 환영 문구</h2>
+        <p>한 줄에 문구 하나씩 입력해 주세요. 10초마다 랜덤으로 바뀝니다.</p>
+        <textarea id="welcome-messages" rows="8"></textarea>
+        <button id="save-welcome-messages" class="button">문구 저장</button>
       </section>
     </section>
   </main>

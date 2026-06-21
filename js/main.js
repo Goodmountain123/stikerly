@@ -7,6 +7,13 @@ import {
 } from "./backgrounds.js";
 import { newProject, projectCanvasSize } from "./model.js";
 import { openEditor } from "./editor.js";
+import { supabase, supabaseConfigured } from "./supabase.js";
+
+const DEFAULT_WELCOME_MESSAGES = [
+  "오늘은 뭘 하고 놀까요?",
+  "어서오세요, 반가워요!",
+  "예쁘게 꾸며봐요!",
+];
 
 const screenProjects = document.getElementById("screen-projects");
 const screenEditor = document.getElementById("screen-editor");
@@ -21,6 +28,39 @@ let deletedProjects = [];
 const modal = document.getElementById("modal-new");
 const newTitle = document.getElementById("new-title");
 const newCreate = document.getElementById("new-create");
+
+async function startWelcomeTicker() {
+  let messages = DEFAULT_WELCOME_MESSAGES;
+  if (supabaseConfigured) {
+    const { data } = await supabase
+      .from("app_settings")
+      .select("value")
+      .eq("key", "welcome_messages")
+      .maybeSingle();
+    if (Array.isArray(data?.value) && data.value.some((item) => String(item).trim())) {
+      messages = data.value.map((item) => String(item).trim()).filter(Boolean);
+    }
+  }
+
+  const ticker = document.getElementById("welcome-ticker");
+  const text = document.getElementById("welcome-ticker-text");
+  let currentIndex = Math.floor(Math.random() * messages.length);
+  text.textContent = messages[currentIndex];
+  if (messages.length < 2) return;
+
+  setInterval(() => {
+    let nextIndex = currentIndex;
+    while (nextIndex === currentIndex) {
+      nextIndex = Math.floor(Math.random() * messages.length);
+    }
+    ticker.classList.add("is-rolling");
+    setTimeout(() => {
+      currentIndex = nextIndex;
+      text.textContent = messages[currentIndex];
+    }, 300);
+    setTimeout(() => ticker.classList.remove("is-rolling"), 650);
+  }, 10000);
+}
 
 function showScreen(which) {
   screenProjects.classList.toggle("is-active", which === "projects");
@@ -229,5 +269,6 @@ function escapeHtml(s) {
     console.error("에셋을 불러오지 못했어요", err);
   }
   await renderList();
+  startWelcomeTicker();
   showScreen("projects");
 })();

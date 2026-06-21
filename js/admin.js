@@ -7,6 +7,11 @@ const dashboard = $("#dashboard");
 const logout = $("#logout");
 const selectedPacks = new Map();
 const selectedBackgrounds = new Map();
+const DEFAULT_WELCOME_MESSAGES = [
+  "오늘은 뭘 하고 놀까요?",
+  "어서오세요, 반가워요!",
+  "예쁘게 꾸며봐요!",
+];
 let modalMode = null;
 let modalPack = null;
 
@@ -130,7 +135,22 @@ document.querySelectorAll(".tab").forEach((tab) => {
     document.querySelectorAll(".tab").forEach((item) => item.classList.toggle("is-on", item === tab));
     $("#packs-panel").hidden = tab.dataset.tab !== "packs";
     $("#backgrounds-panel").hidden = tab.dataset.tab !== "backgrounds";
+    $("#messages-panel").hidden = tab.dataset.tab !== "messages";
   });
+});
+
+$("#save-welcome-messages").addEventListener("click", async () => {
+  const messages = $("#welcome-messages").value
+    .split("\n")
+    .map((message) => message.trim())
+    .filter(Boolean);
+  if (!messages.length) return toast("문구를 한 개 이상 입력해 주세요.");
+  const { error } = await supabase.from("app_settings").upsert({
+    key: "welcome_messages",
+    value: messages,
+  });
+  if (error) return toast("문구를 저장하지 못했어요.");
+  toast("환영 문구를 저장했어요.");
 });
 
 $("#import-local-assets").addEventListener("click", async () => {
@@ -282,7 +302,14 @@ $("#delete-selected-backgrounds").addEventListener("click", async () => {
 });
 
 async function renderAll() {
-  await Promise.all([renderPacks(), renderBackgrounds()]);
+  await Promise.all([renderPacks(), renderBackgrounds(), renderWelcomeMessages()]);
+}
+
+async function renderWelcomeMessages() {
+  const { data } = await supabase
+    .from("app_settings").select("value").eq("key", "welcome_messages").maybeSingle();
+  const messages = Array.isArray(data?.value) ? data.value : DEFAULT_WELCOME_MESSAGES;
+  $("#welcome-messages").value = messages.join("\n");
 }
 
 async function renderPacks() {
