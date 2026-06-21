@@ -142,19 +142,27 @@ function bindProjectDeleteDrag(card, project) {
   card.addEventListener("pointerdown", (event) => {
     if (!deleteMode || event.button !== 0 || event.target.closest("input, button")) return;
     event.preventDefault();
-    selectProjectForDelete(card, project);
-    const ghost = card.cloneNode(true);
-    ghost.className = "card project-drag-ghost";
-    const countBadge = document.createElement("strong");
-    countBadge.className = "project-drag-count";
-    ghost.appendChild(countBadge);
-    document.body.appendChild(ghost);
+    if (!selectedProjects.has(project.id)) {
+      selectProjectForDelete(card, project);
+      return;
+    }
+
+    const startX = event.clientX;
+    const startY = event.clientY;
+    let ghost = null;
     const move = (e) => {
-      const hoveredCard = document.elementFromPoint(e.clientX, e.clientY)?.closest(".project-grid > .card");
-      if (hoveredCard?.__project) {
-        selectProjectForDelete(hoveredCard, hoveredCard.__project);
+      if (!ghost && Math.hypot(e.clientX - startX, e.clientY - startY) < 6) {
+        return;
       }
-      countBadge.textContent = `${selectedProjects.size}개`;
+      if (!ghost) {
+        ghost = card.cloneNode(true);
+        ghost.className = "card project-drag-ghost";
+        const countBadge = document.createElement("strong");
+        countBadge.className = "project-drag-count";
+        countBadge.textContent = `${selectedProjects.size}개`;
+        ghost.appendChild(countBadge);
+        document.body.appendChild(ghost);
+      }
       ghost.style.left = `${e.clientX}px`;
       ghost.style.top = `${e.clientY}px`;
       const zone = deleteZone.getBoundingClientRect();
@@ -166,12 +174,12 @@ function bindProjectDeleteDrag(card, project) {
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", end);
       window.removeEventListener("pointercancel", end);
+      if (!ghost) return;
       ghost.remove();
       const dropped = deleteZone.classList.contains("is-over");
       deleteZone.classList.remove("is-over");
       if (dropped) showDeleteConfirmation([...selectedProjects.values()]);
     };
-    move(event);
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", end);
     window.addEventListener("pointercancel", end);
