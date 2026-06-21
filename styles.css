@@ -678,11 +678,12 @@ body{
 .screen--editor.tray-collapsed .tray-resizer{ display:none; }
 .screen--editor.tray-collapsed .stage-wrap{ grid-column:1 / -1; }
 .screen--editor.tray-collapsed .tray{
-  position:absolute;
-  right:0;
-  top:0;
-  bottom:0;
+  position:relative;
+  grid-column:2;
+  grid-row:2;
+  align-self:stretch;
   width:0;
+  height:100%;
   padding:0;
   overflow:visible;
 }
