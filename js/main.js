@@ -96,12 +96,11 @@ async function renderList() {
         if (s) thumbInner = `<img src="${s.url}" alt="">`;
       }
     }
-    const size = projectCanvasSize(p);
     const bgStyle = p.thumbnail
-      ? ` style="aspect-ratio:${size.w}/${size.h}"`
+      ? ""
       : p.background
-      ? ` style="aspect-ratio:${size.w}/${size.h};background-image:url(&quot;${backgroundSrc(p.background)}&quot;);background-size:cover;background-position:center"`
-      : ` style="aspect-ratio:${size.w}/${size.h}"`;
+      ? ` style="background-image:url(&quot;${backgroundSrc(p.background)}&quot;);background-size:cover;background-position:center"`
+      : "";
     const stickerCount = (p.stickerItems || []).length;
     const textCount = (p.textItems || []).length;
 

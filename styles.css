@@ -137,7 +137,12 @@ body{
 .card:active{ transform:scale(.985); }
 .card__thumb{
   position:relative;
-  height:112px; aspect-ratio:auto; background:
+  width:100%;
+  min-width:0;
+  height:112px;
+  flex:0 0 112px;
+  overflow:hidden;
+  background:
      radial-gradient(circle at 1px 1px, rgba(36,31,46,.10) 1.4px, transparent 1.6px) 0 0/16px 16px,
      var(--surface-2);
   display:grid; place-items:center;
@@ -1237,7 +1242,7 @@ body{
     gap:20px;
   }
   .card{ border-radius:20px; }
-  .card__thumb{ height:154px; }
+  .card__thumb{ height:154px; flex-basis:154px; }
   .card__body{ padding:12px 14px 14px; }
   .card__name{ font-size:20px; }
   .card__info-toggle{ flex-basis:34px; width:34px; height:34px; background-size:20px 20px; }
