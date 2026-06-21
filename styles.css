@@ -2,6 +2,14 @@
    Stickerly — "craft mat studio"
    Quiet tool chrome, playful accents, tactile canvas.
    ============================================================ */
+@font-face{
+  font-family:"Memoment Kkukkukk";
+  src:url("./assets/fonts/MemomentKkukkukk.ttf") format("truetype");
+  font-weight:400;
+  font-style:normal;
+  font-display:swap;
+}
+
 :root{
   --ink:#403552;
   --ink-soft:#756B88;
@@ -23,8 +31,8 @@
   --r-sm:10px;
   --shadow-1:0 1px 2px rgba(36,31,46,.06), 0 6px 18px rgba(36,31,46,.08);
   --shadow-2:0 10px 36px rgba(36,31,46,.18);
-  --font-display:"Gaegu", system-ui, sans-serif;
-  --font-ui:"Gaegu", system-ui, -apple-system, sans-serif;
+  --font-display:"Memoment Kkukkukk", system-ui, sans-serif;
+  --font-ui:"Memoment Kkukkukk", system-ui, -apple-system, sans-serif;
 }
 
 *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }

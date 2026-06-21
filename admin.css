@@ -1,4 +1,5 @@
-:root{font-family:Gaegu,"Noto Sans KR",sans-serif;color:#433752;background:#fff8fc}
+@font-face{font-family:"Memoment Kkukkukk";src:url("./assets/fonts/MemomentKkukkukk.ttf") format("truetype");font-weight:400;font-style:normal;font-display:swap}
+:root{font-family:"Memoment Kkukkukk","Noto Sans KR",sans-serif;color:#433752;background:#fff8fc}
 *{box-sizing:border-box}body{margin:0}.admin{max-width:1080px;margin:auto;padding:24px}
 [hidden]{display:none!important}
 .admin__header{display:flex;align-items:center;justify-content:space-between;margin-bottom:22px}
