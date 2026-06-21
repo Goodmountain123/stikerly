@@ -39,6 +39,10 @@
 
   <!-- ============ EDITOR ============ -->
   <section id="screen-editor" class="screen screen--editor">
+    <div id="delete-drop-zone" class="delete-drop-zone" hidden aria-label="위로 올리면 삭제">
+      <span class="delete-drop-zone__icon">🗑️</span>
+      <span>위로 올려서 삭제</span>
+    </div>
     <header class="topbar topbar--editor">
       <button id="btn-back" class="iconbtn" aria-label="목록으로">‹</button>
       <input id="title-input" class="title-input" maxlength="40" />
@@ -52,12 +56,9 @@
     <div id="stage-wrap" class="stage-wrap">
       <div id="stage-host"></div>
       <button id="fit-canvas" class="fit-canvas" type="button" aria-label="캔버스를 화면에 맞추기" title="화면에 맞추기">⛶</button>
+      <button id="btn-toggle-ui" class="ui-toggle" type="button" aria-label="UI 숨기기" title="UI 숨기기">⌄</button>
       <div id="zoom-readout" class="zoom-readout" hidden>100%</div>
       <div id="sticker-menu" class="sticker-menu" hidden></div>
-      <div id="delete-drop-zone" class="delete-drop-zone" hidden aria-label="여기에 놓으면 삭제">
-        <span class="delete-drop-zone__icon">🗑️</span>
-        <span>여기에 놓기</span>
-      </div>
     </div>
 
     <!-- sticker tray: tabbed between stickers and background -->
@@ -101,7 +102,6 @@
     <!-- ghost element that follows finger when dragging a sticker out of the tray -->
     <img id="drag-ghost" class="drag-ghost" alt="" hidden />
     <div id="text-drag-ghost" class="text-drag-ghost" hidden>텍스트</div>
-    <button id="btn-toggle-ui" class="ui-toggle" type="button" aria-label="UI 숨기기" title="UI 숨기기">⌄</button>
   </section>
 
   <!-- ============ NEW PROJECT MODAL ============ -->

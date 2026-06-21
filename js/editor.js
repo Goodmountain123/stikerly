@@ -328,18 +328,16 @@ class Editor {
     const scale = Math.max(this.stage.scaleX(), 0.0001);
     const buttonScale = 1 / scale;
     const rect = ref.art.getClientRect({ relativeTo: this.layer });
-    const gap = 11 / scale;
-    const radius = 16 / scale;
     if (textVisible) {
       this.textColorControl.scale({ x: buttonScale, y: buttonScale });
       this.textColorControl.position({
-        x: rect.x - gap - 12 / scale,
-        y: rect.y + rect.height / 2,
+        x: rect.x,
+        y: rect.y + rect.height,
       });
       this.textEditControl.scale({ x: buttonScale, y: buttonScale });
       this.textEditControl.position({
-        x: rect.x + rect.width + gap + 12 / scale,
-        y: rect.y + rect.height / 2,
+        x: rect.x + rect.width,
+        y: rect.y + rect.height,
       });
       this.textColorDot.fill(ref.item.color || DEFAULT_TEXT_COLOR);
       this.textColorControl.moveToTop();
@@ -350,10 +348,10 @@ class Editor {
     this.flipVerticalControl.scale({ x: buttonScale, y: buttonScale });
     this.flipHorizontalControl.position({
       x: rect.x + rect.width / 2,
-      y: rect.y + rect.height + gap + radius,
+      y: rect.y + rect.height,
     });
     this.flipVerticalControl.position({
-      x: rect.x - gap - radius,
+      x: rect.x,
       y: rect.y + rect.height / 2,
     });
     this.flipHorizontalControl.moveToTop();
@@ -1048,9 +1046,14 @@ class Editor {
   }
 
   bindTrayResize() {
-    const savedWidth = Number(localStorage.getItem("stickerly-tray-width"));
-    if (Number.isFinite(savedWidth) && savedWidth > 0) {
-      this.editorScreen.style.setProperty("--tray-width", `${savedWidth}px`);
+    const savedValue = localStorage.getItem("stickerly-tray-width");
+    const savedWidth = Number(savedValue);
+    const applyWidth = (width) => {
+      this.editorScreen.style.setProperty("--tray-width", `${width}px`);
+      this.editorScreen.classList.toggle("tray-collapsed", width === 0);
+    };
+    if (savedValue !== null && Number.isFinite(savedWidth) && savedWidth >= 0) {
+      applyWidth(savedWidth);
     }
     let dragging = false;
     let frame = 0;
@@ -1059,8 +1062,9 @@ class Editor {
       event.preventDefault();
       const rect = this.editorScreen.getBoundingClientRect();
       const maxWidth = Math.min(520, rect.width * 0.55);
-      const width = Math.round(clamp(rect.right - event.clientX, 105, maxWidth));
-      this.editorScreen.style.setProperty("--tray-width", `${width}px`);
+      const rawWidth = clamp(rect.right - event.clientX, 0, maxWidth);
+      const width = Math.round(rawWidth <= 105 ? 0 : rawWidth);
+      applyWidth(width);
       localStorage.setItem("stickerly-tray-width", String(width));
       cancelAnimationFrame(frame);
       frame = requestAnimationFrame(() => this.resize());

@@ -66,23 +66,15 @@ async function renderList() {
       <div class="card__thumb"${bgStyle}>${thumbInner}</div>
       <div class="card__body">
         <div class="card__title-row">
-          <input class="card__name" value="${escapeHtml(p.title)}" maxlength="40" aria-label="프로젝트 이름">
+          <span class="card__name">${escapeHtml(p.title)}</span>
           <button class="card__info-toggle" type="button" aria-label="프로젝트 정보 펼치기">⌄</button>
         </div>
         <p class="card__meta" hidden>스티커 ${stickerCount}개 · 텍스트 ${textCount}개 · ${fmtDate(p.updatedAt)}</p>
       </div>`;
 
-    const nameInput = card.querySelector(".card__name");
-    let nameTimer;
-    nameInput.addEventListener("input", () => {
-      clearTimeout(nameTimer);
-      nameTimer = setTimeout(async () => {
-        p.title = nameInput.value.trim() || "제목 없는 프로젝트";
-        p.updatedAt = Date.now();
-        await putProject(p);
-      }, 400);
+    card.querySelector(".card__name").addEventListener("click", () => {
+      if (!deleteMode) open(p.id);
     });
-    nameInput.addEventListener("click", (event) => event.stopPropagation());
     const infoToggle = card.querySelector(".card__info-toggle");
     const meta = card.querySelector(".card__meta");
     infoToggle.addEventListener("click", (event) => {
