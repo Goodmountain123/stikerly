@@ -12,7 +12,7 @@ import {
 import { getPacks, findSticker, loadImage } from "./packs.js";
 import { buildItemGroup } from "./sticker.js";
 import { buildTextGroup } from "./text.js";
-import { exportPNG } from "./export.js";
+import { exportPNG, renderProjectDataURL } from "./export.js";
 import {
   getBackgrounds,
   adjustableCoverCrop,
@@ -102,6 +102,7 @@ class Editor {
     this.inlineTextInput = null;
     this.zoomReadoutTimer = null;
     this.autoSaveTimer = null;
+    this.saveVersion = 0;
   }
 
   mount() {
@@ -2438,6 +2439,20 @@ class Editor {
   }
 
   async save() {
+    const saveVersion = ++this.saveVersion;
+    const projectSnapshot = clone(this.project);
+    try {
+      const thumbnail = await renderProjectDataURL(projectSnapshot, {
+        maxSize: 360,
+        mimeType: "image/jpeg",
+        quality: 0.82,
+      });
+      if (saveVersion !== this.saveVersion) return;
+      this.project.thumbnail = thumbnail;
+    } catch (err) {
+      console.warn("프로젝트 미리보기를 만들지 못했어요.", err);
+    }
+    if (saveVersion !== this.saveVersion) return;
     this.project.updatedAt = Date.now();
     await putProject(this.project);
     this.savedIndex = this.hIndex;

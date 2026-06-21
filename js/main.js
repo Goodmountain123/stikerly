@@ -46,15 +46,21 @@ async function renderList() {
     card.dataset.projectId = p.id;
     card.__project = p;
 
-    // thumbnail: background (if any) + topmost sticker, or empty mat
+    // Saved canvas preview, with a legacy fallback for older projects.
     let thumbInner = "";
-    const top = [...(p.stickerItems || [])].sort((a, b) => b.zIndex - a.zIndex)[0];
-    if (top) {
-      const s = findSticker(top.packId, top.assetId);
-      if (s) thumbInner = `<img src="${s.url}" alt="">`;
+    if (p.thumbnail) {
+      thumbInner = `<img class="card__preview" src="${p.thumbnail}" alt="">`;
+    } else {
+      const top = [...(p.stickerItems || [])].sort((a, b) => b.zIndex - a.zIndex)[0];
+      if (top) {
+        const s = findSticker(top.packId, top.assetId);
+        if (s) thumbInner = `<img src="${s.url}" alt="">`;
+      }
     }
     const size = projectCanvasSize(p);
-    const bgStyle = p.background
+    const bgStyle = p.thumbnail
+      ? ` style="aspect-ratio:${size.w}/${size.h}"`
+      : p.background
       ? ` style="aspect-ratio:${size.w}/${size.h};background-image:url(&quot;${backgroundSrc(p.background)}&quot;);background-size:cover;background-position:center"`
       : ` style="aspect-ratio:${size.w}/${size.h}"`;
     const stickerCount = (p.stickerItems || []).length;

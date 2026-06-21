@@ -25,7 +25,11 @@ function downloadFile(file) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-export async function exportPNG(project) {
+export async function renderProjectDataURL(project, {
+  maxSize = null,
+  mimeType = "image/png",
+  quality = 1,
+} = {}) {
   const { w, h } = projectCanvasSize(project);
 
   const host = document.createElement("div");
@@ -72,10 +76,15 @@ export async function exportPNG(project) {
   }
   layer.draw();
 
-  const dataURL = stage.toDataURL({ pixelRatio: 1, mimeType: "image/png" });
+  const pixelRatio = maxSize ? Math.min(1, maxSize / Math.max(w, h)) : 1;
+  const dataURL = stage.toDataURL({ pixelRatio, mimeType, quality });
   stage.destroy();
   host.remove();
+  return dataURL;
+}
 
+export async function exportPNG(project) {
+  const dataURL = await renderProjectDataURL(project);
   const blob = await (await fetch(dataURL)).blob();
   const file = new File([blob], safeName(project.title) + ".png", {
     type: "image/png",
