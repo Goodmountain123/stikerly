@@ -847,7 +847,7 @@ class Editor {
 
     art.on("click tap", (e) => {
       e.cancelBubble = true;
-      const promoted = !ref.isText && this.promoteSticker(ref.item.id);
+      const promoted = this.promoteItem(ref.item.id);
       if (!ref.isText) this.hideMenu();
       this.select(ref.item.id);
       if (promoted) this.commit();
@@ -855,7 +855,7 @@ class Editor {
 
     group.on("dragstart", () => {
       this.hideMenu();
-      if (!ref.isText) this.promoteSticker(ref.item.id);
+      this.promoteItem(ref.item.id);
       this.select(ref.item.id);
       this.deleteDropZone.hidden = false;
     });
@@ -946,8 +946,8 @@ class Editor {
     this.textEditControl?.moveToTop();
   }
 
-  promoteSticker(id) {
-    const item = (this.project.stickerItems || []).find((candidate) => candidate.id === id);
+  promoteItem(id) {
+    const item = this.allItems().find((candidate) => candidate.id === id);
     if (!item) return false;
     const maxZ = this.allItems().reduce((max, candidate) =>
       Math.max(max, candidate.zIndex || 0), -1);
