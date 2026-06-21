@@ -5,6 +5,8 @@ const setup = $("#setup");
 const login = $("#login");
 const dashboard = $("#dashboard");
 const logout = $("#logout");
+const selectedPacks = new Map();
+const selectedBackgrounds = new Map();
 
 function toast(message) {
   const el = $("#toast");
@@ -12,6 +14,28 @@ function toast(message) {
   el.hidden = false;
   clearTimeout(toast.timer);
   toast.timer = setTimeout(() => { el.hidden = true; }, 2200);
+}
+
+function autoSave(input, save) {
+  let timer;
+  input.addEventListener("input", () => {
+    clearTimeout(timer);
+    timer = setTimeout(async () => {
+      if (!input.value.trim()) return;
+      const error = await save(input.value.trim());
+      input.classList.toggle("has-error", Boolean(error));
+    }, 500);
+  });
+}
+
+function updatePackSelection() {
+  $("#pack-selection-count").textContent = `선택 ${selectedPacks.size}개`;
+  $("#delete-selected-packs").disabled = selectedPacks.size === 0;
+}
+
+function updateBackgroundSelection() {
+  $("#background-selection-count").textContent = `선택 ${selectedBackgrounds.size}개`;
+  $("#delete-selected-backgrounds").disabled = selectedBackgrounds.size === 0;
 }
 
 function safeFileName(name) {
@@ -184,6 +208,31 @@ $("#background-form").addEventListener("submit", async (event) => {
   await renderBackgrounds();
 });
 
+$("#delete-selected-packs").addEventListener("click", async () => {
+  if (!selectedPacks.size || !confirm(`선택한 스티커팩 ${selectedPacks.size}개를 제거할까요?`)) return;
+  for (const pack of selectedPacks.values()) {
+    const { error } = await supabase.from("sticker_packs").delete().eq("id", pack.id);
+    if (error) return toast("일부 팩을 제거하지 못했어요.");
+    const paths = pack.stickers.map((item) => item.storage_path);
+    if (paths.length) await supabase.storage.from("assets").remove(paths);
+  }
+  selectedPacks.clear();
+  updatePackSelection();
+  await renderPacks();
+});
+
+$("#delete-selected-backgrounds").addEventListener("click", async () => {
+  if (!selectedBackgrounds.size || !confirm(`선택한 배경 ${selectedBackgrounds.size}개를 제거할까요?`)) return;
+  for (const background of selectedBackgrounds.values()) {
+    const { error } = await supabase.from("backgrounds").delete().eq("id", background.id);
+    if (error) return toast("일부 배경을 제거하지 못했어요.");
+    await supabase.storage.from("assets").remove([background.storage_path]);
+  }
+  selectedBackgrounds.clear();
+  updateBackgroundSelection();
+  await renderBackgrounds();
+});
+
 async function renderAll() {
   await Promise.all([renderPacks(), renderBackgrounds()]);
 }
@@ -196,39 +245,66 @@ async function renderPacks() {
   const list = $("#pack-list");
   list.innerHTML = "";
   packs.forEach((pack) => list.appendChild(packCard(pack)));
+  updatePackSelection();
 }
 
 function packCard(pack) {
-  const card = document.createElement("article");
+  const card = document.createElement("details");
   card.className = "pack";
+  const thumbnail = pack.stickers[0]
+    ? publicAssetUrl(pack.stickers[0].storage_path)
+    : "";
   card.innerHTML = `
-    <div class="pack__top">
-      <input class="pack-name" value="${escapeHtml(pack.name)}" aria-label="팩 이름">
-      <button class="button save-pack">이름 저장</button>
-      <button class="button danger delete-pack">팩 제거</button>
-    </div>
-    <form class="upload">
-      <strong>스티커 추가</strong>
-      <div class="form">
-        <input class="sticker-files" type="file" accept="image/*" multiple required>
-        <button class="button">선택한 이미지 추가</button>
+    <summary class="pack__summary">
+      <input class="select-box pack-select" type="checkbox" aria-label="팩 선택">
+      ${thumbnail ? `<img src="${thumbnail}" alt="">` : `<span class="pack__empty">＋</span>`}
+      <span class="pack__summary-main">
+        <span class="pack__summary-name">${escapeHtml(pack.name)}</span>
+        <span class="pack__summary-count">스티커 ${pack.stickers.length}개</span>
+      </span>
+      <span class="pack__chevron">⌄</span>
+    </summary>
+    <div class="pack__body">
+      <div class="pack__top">
+        <input class="pack-name" value="${escapeHtml(pack.name)}" aria-label="팩 이름">
+        <span class="auto-save-note">자동 저장</span>
       </div>
-    </form>
-    <div class="stickers"></div>`;
+      <form class="upload">
+        <strong>스티커 추가</strong>
+        <div class="form">
+          <input class="sticker-files" type="file" accept="image/*" multiple required>
+          <button class="button">선택한 이미지 추가</button>
+        </div>
+      </form>
+      <div class="pack-tools">
+        <span class="sticker-selection-count">선택 0개</span>
+        <button class="button danger delete-selected-stickers" disabled>선택한 스티커 제거</button>
+      </div>
+      <div class="stickers"></div>
+    </div>`;
 
-  card.querySelector(".save-pack").onclick = async () => {
-    const { error } = await supabase.from("sticker_packs")
-      .update({ name: card.querySelector(".pack-name").value.trim() }).eq("id", pack.id);
-    toast(error ? "이름 변경에 실패했어요." : "팩 이름을 바꿨어요.");
-  };
-  card.querySelector(".delete-pack").onclick = async () => {
-    if (!confirm(`"${pack.name}" 팩과 스티커를 모두 제거할까요?`)) return;
-    const paths = pack.stickers.map((item) => item.storage_path);
-    const { error } = await supabase.from("sticker_packs").delete().eq("id", pack.id);
-    if (error) return toast("팩을 제거하지 못했어요.");
-    if (paths.length) await supabase.storage.from("assets").remove(paths);
-    renderPacks();
-  };
+  const packSelect = card.querySelector(".pack-select");
+  packSelect.checked = selectedPacks.has(pack.id);
+  packSelect.addEventListener("click", (event) => event.stopPropagation());
+  packSelect.addEventListener("change", () => {
+    if (packSelect.checked) selectedPacks.set(pack.id, pack);
+    else selectedPacks.delete(pack.id);
+    updatePackSelection();
+  });
+  card.addEventListener("toggle", () => {
+    if (!card.open) return;
+    card.parentElement.querySelectorAll(".pack[open]").forEach((other) => {
+      if (other !== card) other.open = false;
+    });
+  });
+
+  const packName = card.querySelector(".pack-name");
+  autoSave(packName, async (name) => {
+    const { error } = await supabase.from("sticker_packs").update({ name }).eq("id", pack.id);
+    if (!error) card.querySelector(".pack__summary-name").textContent = name;
+    return error;
+  });
+
   card.querySelector(".upload").onsubmit = async (event) => {
     event.preventDefault();
     const files = [...card.querySelector(".sticker-files").files];
@@ -246,33 +322,45 @@ function packCard(pack) {
     }
     await renderPacks();
   };
+  const selectedStickers = new Map();
+  const deleteSelected = card.querySelector(".delete-selected-stickers");
+  const selectionCount = card.querySelector(".sticker-selection-count");
+  const updateStickerSelection = () => {
+    selectionCount.textContent = `선택 ${selectedStickers.size}개`;
+    deleteSelected.disabled = selectedStickers.size === 0;
+  };
+  deleteSelected.onclick = async () => {
+    if (!selectedStickers.size || !confirm(`선택한 스티커 ${selectedStickers.size}개를 제거할까요?`)) return;
+    const stickers = [...selectedStickers.values()];
+    const { error } = await supabase.from("stickers").delete().in("id", stickers.map((item) => item.id));
+    if (error) return toast("스티커를 제거하지 못했어요.");
+    await supabase.storage.from("assets").remove(stickers.map((item) => item.storage_path));
+    renderPacks();
+  };
   const stickerList = card.querySelector(".stickers");
-  pack.stickers.forEach((sticker) => stickerList.appendChild(stickerCard(sticker)));
+  pack.stickers.forEach((sticker) =>
+    stickerList.appendChild(stickerCard(sticker, selectedStickers, updateStickerSelection)));
   return card;
 }
 
-function stickerCard(sticker) {
+function stickerCard(sticker, selection, updateSelection) {
   const item = document.createElement("div");
   item.className = "asset";
   item.innerHTML = `
+    <input class="select-box" type="checkbox" aria-label="스티커 선택">
     <img src="${publicAssetUrl(sticker.storage_path)}" alt="">
-    <input value="${escapeHtml(sticker.name)}" aria-label="스티커 이름">
-    <div class="asset__actions">
-      <button class="button save">저장</button>
-      <button class="button danger remove">제거</button>
-    </div>`;
-  item.querySelector(".save").onclick = async () => {
-    const { error } = await supabase.from("stickers")
-      .update({ name: item.querySelector("input").value.trim() }).eq("id", sticker.id);
-    toast(error ? "변경에 실패했어요." : "이름을 바꿨어요.");
+    <input class="asset-name" value="${escapeHtml(sticker.name)}" aria-label="스티커 이름">`;
+  const checkbox = item.querySelector(".select-box");
+  checkbox.onchange = () => {
+    if (checkbox.checked) selection.set(sticker.id, sticker);
+    else selection.delete(sticker.id);
+    item.classList.toggle("is-selected", checkbox.checked);
+    updateSelection();
   };
-  item.querySelector(".remove").onclick = async () => {
-    if (!confirm("이 스티커를 제거할까요?")) return;
-    const { error } = await supabase.from("stickers").delete().eq("id", sticker.id);
-    if (error) return toast("제거하지 못했어요.");
-    await supabase.storage.from("assets").remove([sticker.storage_path]);
-    renderPacks();
-  };
+  autoSave(item.querySelector(".asset-name"), async (name) => {
+    const { error } = await supabase.from("stickers").update({ name }).eq("id", sticker.id);
+    return error;
+  });
   return item;
 }
 
@@ -285,26 +373,26 @@ async function renderBackgrounds() {
     const item = document.createElement("div");
     item.className = "asset";
     item.innerHTML = `
+      <input class="select-box" type="checkbox" aria-label="배경 선택">
       <img src="${publicAssetUrl(background.storage_path)}" alt="">
-      <input value="${escapeHtml(background.name)}" aria-label="배경 이름">
-      <div class="asset__actions">
-        <button class="button save">저장</button>
-        <button class="button danger remove">제거</button>
-      </div>`;
-    item.querySelector(".save").onclick = async () => {
+      <input class="asset-name" value="${escapeHtml(background.name)}" aria-label="배경 이름">`;
+    const checkbox = item.querySelector(".select-box");
+    checkbox.checked = selectedBackgrounds.has(background.id);
+    item.classList.toggle("is-selected", checkbox.checked);
+    checkbox.onchange = () => {
+      if (checkbox.checked) selectedBackgrounds.set(background.id, background);
+      else selectedBackgrounds.delete(background.id);
+      item.classList.toggle("is-selected", checkbox.checked);
+      updateBackgroundSelection();
+    };
+    autoSave(item.querySelector(".asset-name"), async (name) => {
       const { error: saveError } = await supabase.from("backgrounds")
-        .update({ name: item.querySelector("input").value.trim() }).eq("id", background.id);
-      toast(saveError ? "변경에 실패했어요." : "이름을 바꿨어요.");
-    };
-    item.querySelector(".remove").onclick = async () => {
-      if (!confirm("이 배경을 제거할까요?")) return;
-      const { error: removeError } = await supabase.from("backgrounds").delete().eq("id", background.id);
-      if (removeError) return toast("제거하지 못했어요.");
-      await supabase.storage.from("assets").remove([background.storage_path]);
-      renderBackgrounds();
-    };
+        .update({ name }).eq("id", background.id);
+      return saveError;
+    });
     list.appendChild(item);
   });
+  updateBackgroundSelection();
 }
 
 function escapeHtml(value) {

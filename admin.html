@@ -47,6 +47,10 @@
           <input id="pack-name" placeholder="새 스티커팩 이름" required>
           <button class="button">팩 추가</button>
         </form>
+        <div class="selection-bar">
+          <span id="pack-selection-count">선택 0개</span>
+          <button id="delete-selected-packs" class="button danger" disabled>선택한 팩 제거</button>
+        </div>
         <div id="pack-list" class="list"></div>
       </section>
 
@@ -56,6 +60,10 @@
           <input id="background-file" type="file" accept="image/*" required>
           <button class="button">배경 추가</button>
         </form>
+        <div class="selection-bar">
+          <span id="background-selection-count">선택 0개</span>
+          <button id="delete-selected-backgrounds" class="button danger" disabled>선택한 배경 제거</button>
+        </div>
         <div id="background-list" class="grid"></div>
       </section>
     </section>
