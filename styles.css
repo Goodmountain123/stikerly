@@ -444,9 +444,12 @@ body{
   background:var(--pink); color:#fff; box-shadow:none;
 }
 .carousel--bg .bg-chip img{ width:100%; height:100%; object-fit:cover; display:block; }
-.carousel--bg .bg-chip__label{
-  position:absolute; left:0; right:0; bottom:0; font-size:10px; font-weight:600; color:#fff;
-  text-align:center; padding:2px; background:linear-gradient(transparent, rgba(0,0,0,.45));
+.bg-chip__label{
+  position:absolute; left:0; right:0; bottom:0;
+  padding:14px 4px 4px;
+  background:linear-gradient(transparent, rgba(0,0,0,.58));
+  color:#fff; font:700 12px/1.05 var(--font-ui);
+  text-align:center; text-shadow:0 1px 2px rgba(0,0,0,.45);
 }
 
 .drag-ghost{
@@ -811,13 +814,12 @@ body.is-resizing-tray *{ cursor:ew-resize!important; user-select:none!important;
   width:89px;
   height:82px;
   min-height:82px;
+  position:relative;
+  overflow:hidden;
   border:0;
   border-radius:15px;
-  padding:7px 8px;
-  display:grid;
-  grid-template-rows:40px minmax(0,1fr);
-  place-items:center;
-  gap:3px;
+  padding:0;
+  display:block;
   background:var(--surface-2);
   color:var(--ink);
   cursor:pointer;
@@ -825,28 +827,34 @@ body.is-resizing-tray *{ cursor:ew-resize!important; user-select:none!important;
 }
 .pack-card:hover{ box-shadow:inset 0 0 0 2px var(--pink); background:#fff; }
 .pack-card__thumb{
-  width:40px;
-  height:40px;
-  flex:0 0 40px;
+  width:100%;
+  height:100%;
   display:grid;
   place-items:center;
-  border-radius:13px;
+  border-radius:inherit;
   background:#fff;
   overflow:hidden;
 }
-.pack-card__thumb img{ width:88%; height:88%; object-fit:contain; }
+.pack-card__thumb img{ width:82%; height:82%; object-fit:contain; }
 .pack-card__name{
-  width:100%;
+  position:absolute;
+  z-index:1;
+  left:0;
+  right:0;
+  bottom:0;
+  width:auto;
   min-width:0;
-  max-width:100%;
-  max-height:24px;
-  align-self:center;
+  max-height:32px;
+  padding:14px 5px 5px;
   overflow:hidden;
   display:-webkit-box;
   -webkit-box-orient:vertical;
   -webkit-line-clamp:2;
-  font:700 11px/1.05 var(--font-display);
+  background:linear-gradient(transparent, rgba(0,0,0,.58));
+  color:#fff;
+  font:700 11px/1.05 var(--font-ui);
   text-align:center;
+  text-shadow:0 1px 2px rgba(0,0,0,.5);
   overflow-wrap:anywhere;
 }
 .sticker-pack-detail{
@@ -939,7 +947,10 @@ body.is-resizing-tray *{ cursor:ew-resize!important; user-select:none!important;
   flex:0 0 auto;
   width:89px;
   height:76px;
+  position:relative;
+  overflow:hidden;
   border-radius:15px;
+  font-family:var(--font-ui);
 }
 .background-list .bg-chip--action{
   min-height:76px;
