@@ -16,7 +16,8 @@ const deleteModeButton = document.getElementById("btn-delete-mode");
 const deleteZone = document.getElementById("project-delete-zone");
 const deleteModal = document.getElementById("modal-delete-project");
 let deleteMode = false;
-let pendingDeleteProject = null;
+let pendingDeleteProjects = [];
+const selectedProjects = new Map();
 
 const modal = document.getElementById("modal-new");
 const newTitle = document.getElementById("new-title");
@@ -42,6 +43,8 @@ async function renderList() {
   for (const p of projects) {
     const card = document.createElement("div");
     card.className = "card";
+    card.dataset.projectId = p.id;
+    card.__project = p;
 
     // thumbnail: background (if any) + topmost sticker, or empty mat
     let thumbInner = "";
@@ -124,6 +127,12 @@ async function open(id) {
 
 function setDeleteMode(enabled) {
   deleteMode = enabled;
+  if (!enabled) {
+    selectedProjects.clear();
+    grid.querySelectorAll(".is-delete-selected").forEach((card) => {
+      card.classList.remove("is-delete-selected");
+    });
+  }
   screenProjects.classList.toggle("delete-mode", enabled);
   deleteZone.hidden = !enabled;
   deleteModeButton.classList.toggle("is-on", enabled);
@@ -133,10 +142,19 @@ function bindProjectDeleteDrag(card, project) {
   card.addEventListener("pointerdown", (event) => {
     if (!deleteMode || event.button !== 0 || event.target.closest("input, button")) return;
     event.preventDefault();
+    selectProjectForDelete(card, project);
     const ghost = card.cloneNode(true);
     ghost.className = "card project-drag-ghost";
+    const countBadge = document.createElement("strong");
+    countBadge.className = "project-drag-count";
+    ghost.appendChild(countBadge);
     document.body.appendChild(ghost);
     const move = (e) => {
+      const hoveredCard = document.elementFromPoint(e.clientX, e.clientY)?.closest(".project-grid > .card");
+      if (hoveredCard?.__project) {
+        selectProjectForDelete(hoveredCard, hoveredCard.__project);
+      }
+      countBadge.textContent = `${selectedProjects.size}개`;
       ghost.style.left = `${e.clientX}px`;
       ghost.style.top = `${e.clientY}px`;
       const zone = deleteZone.getBoundingClientRect();
@@ -151,7 +169,7 @@ function bindProjectDeleteDrag(card, project) {
       ghost.remove();
       const dropped = deleteZone.classList.contains("is-over");
       deleteZone.classList.remove("is-over");
-      if (dropped) showDeleteConfirmation(project);
+      if (dropped) showDeleteConfirmation([...selectedProjects.values()]);
     };
     move(event);
     window.addEventListener("pointermove", move);
@@ -160,10 +178,18 @@ function bindProjectDeleteDrag(card, project) {
   });
 }
 
-function showDeleteConfirmation(project) {
-  pendingDeleteProject = project;
+function selectProjectForDelete(card, project) {
+  selectedProjects.set(project.id, project);
+  card.classList.add("is-delete-selected");
+}
+
+function showDeleteConfirmation(projects) {
+  if (!projects.length) return;
+  pendingDeleteProjects = projects;
   document.getElementById("delete-project-message").textContent =
-    `“${project.title}”은(는) 삭제하면 되돌릴 수 없어요.`;
+    projects.length === 1
+      ? `“${projects[0].title}”은(는) 삭제하면 되돌릴 수 없어요.`
+      : `선택한 프로젝트 ${projects.length}개를 삭제하면 되돌릴 수 없어요.`;
   deleteModal.hidden = false;
 }
 
@@ -178,20 +204,20 @@ function closeModal() { modal.hidden = true; }
 document.getElementById("btn-new").addEventListener("click", openModal);
 deleteModeButton.addEventListener("click", () => setDeleteMode(!deleteMode));
 document.getElementById("delete-project-cancel").addEventListener("click", () => {
-  pendingDeleteProject = null;
+  pendingDeleteProjects = [];
   deleteModal.hidden = true;
 });
 document.getElementById("delete-project-confirm").addEventListener("click", async () => {
-  if (!pendingDeleteProject) return;
-  await deleteProject(pendingDeleteProject.id);
-  pendingDeleteProject = null;
+  if (!pendingDeleteProjects.length) return;
+  await Promise.all(pendingDeleteProjects.map((project) => deleteProject(project.id)));
+  pendingDeleteProjects = [];
   deleteModal.hidden = true;
   setDeleteMode(false);
   renderList();
 });
 deleteModal.addEventListener("click", (event) => {
   if (event.target === deleteModal) {
-    pendingDeleteProject = null;
+    pendingDeleteProjects = [];
     deleteModal.hidden = true;
   }
 });
