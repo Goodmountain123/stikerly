@@ -49,7 +49,7 @@ export function projectCanvasSize(project) {
 // Longest side of a freshly dropped sticker, in canvas units, at scale 1.
 export const STICKER_BASE = 260;
 
-export const ZOOM = { min: 0.5, base: 1.0, max: 2.0 };
+export const ZOOM = { min: 0.5, base: 1.0, max: 4.0 };
 
 function uid(prefix) {
   return prefix + "_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
