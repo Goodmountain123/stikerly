@@ -1112,6 +1112,7 @@ class Editor {
     };
     const down = (event) => {
       event.preventDefault();
+      event.stopPropagation();
       dragging = true;
       moved = false;
       startX = event.clientX;

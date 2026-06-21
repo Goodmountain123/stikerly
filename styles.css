@@ -627,7 +627,7 @@ body{
   border-radius:66px;
   background:rgba(255,240,245,.94);
   color:#b82d56;
-  font:800 24px var(--font-ui);
+  font:800 13px var(--font-ui);
   box-shadow:0 8px 24px rgba(184,45,86,.18);
   pointer-events:none;
   animation:delete-zone-slide .22s ease-out;
@@ -637,7 +637,8 @@ body{
   from{ transform:translate(-50%,-100%); }
   to{ transform:translate(-50%,0); }
 }
-.delete-drop-zone__icon{font-size:58px}
+.delete-drop-zone > *{ transform:translateY(70px); }
+.delete-drop-zone__icon{font-size:28px}
 .delete-drop-zone.is-over{
   top:-54px;
   transform:translateX(-50%) scale(1.08);
@@ -658,13 +659,14 @@ body{
   cursor:ew-resize;
   touch-action:none;
   background:transparent;
+  transition:left .22s ease-out,width .22s ease-out;
 }
 .tray-resizer::after{
   content:"";
   position:absolute;
   left:16px;
   top:50%;
-  width:16px;
+  width:20px;
   height:86px;
   border-radius:999px;
   transform:translateY(-50%);
@@ -674,12 +676,12 @@ body{
 .tray-resizer::before{
   content:"◀▶";
   position:absolute;
-  left:50%;
+  left:26px;
   top:50%;
   width:48px;
   transform:translate(-50%,-50%);
   color:#fff;
-  font-size:11px;
+  font-size:8px;
   font-weight:900;
   letter-spacing:4px;
   text-align:center;
@@ -692,10 +694,19 @@ body{
   left:-48px;
   width:64px;
 }
-.screen--editor.tray-collapsed .tray-resizer::after{ left:24px; }
+.screen--editor.tray-collapsed .tray-resizer::after{ left:22px; }
+.screen--editor.tray-collapsed .tray-resizer::before{ left:32px; }
 .screen--editor.tray-snapping{ transition:grid-template-columns .22s ease-out; }
 body.is-resizing-tray,
 body.is-resizing-tray *{ cursor:ew-resize!important; user-select:none!important; }
+@media (max-width:760px), (pointer:coarse){
+  .screen--editor.tray-collapsed .tray-resizer{
+    left:-92px;
+    width:92px;
+  }
+  .screen--editor.tray-collapsed .tray-resizer::after{ left:56px; }
+  .screen--editor.tray-collapsed .tray-resizer::before{ left:66px; }
+}
 .screen--editor.ui-hidden .stage-wrap{
   grid-column:1 / -1;
   grid-row:1 / -1;
