@@ -1350,7 +1350,30 @@ body{
 @media (max-width:760px){
   body{ font-size:17px; }
   .wordmark{ font-size:29px; }
-  .welcome-ticker{ margin-left:5px; font-size:16px; }
+  .topbar--home{
+    flex-wrap:wrap;
+    row-gap:0;
+    padding-bottom:0;
+  }
+  .topbar--home .wordmark{ order:1; }
+  .topbar--home .topbar__spacer{ order:2; }
+  .topbar--home #btn-undo-delete,
+  .topbar--home #btn-delete-mode,
+  .topbar--home #btn-new{ order:3; }
+  .topbar--home .welcome-ticker{
+    order:10;
+    flex:0 0 calc(100% + 32px);
+    width:calc(100% + 32px);
+    max-width:none;
+    height:34px;
+    margin:9px -16px 0;
+    padding:0 16px;
+    place-items:center;
+    border-top:1px solid var(--line);
+    background:rgba(255,255,255,.52);
+    font-size:16px;
+    text-align:center;
+  }
   .btn{ padding:11px 19px; font-size:17px; }
   .card__name{ font-size:16px; }
   .card__meta{ font-size:12px; }

@@ -38,6 +38,7 @@ export async function renderProjectDataURL(project, {
 
   const stage = new Konva.Stage({ container: host, width: w, height: h });
   const layer = new Konva.Layer();
+  layer.clip({ x: 0, y: 0, width: w, height: h });
   stage.add(layer);
   layer.add(new Konva.Rect({ x: 0, y: 0, width: w, height: h, fill: "#ffffff" }));
 
@@ -77,7 +78,15 @@ export async function renderProjectDataURL(project, {
   layer.draw();
 
   const pixelRatio = maxSize ? Math.min(1, maxSize / Math.max(w, h)) : 1;
-  const dataURL = stage.toDataURL({ pixelRatio, mimeType, quality });
+  const dataURL = stage.toDataURL({
+    x: 0,
+    y: 0,
+    width: w,
+    height: h,
+    pixelRatio,
+    mimeType,
+    quality,
+  });
   stage.destroy();
   host.remove();
   return dataURL;
