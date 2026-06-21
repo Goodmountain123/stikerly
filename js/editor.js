@@ -1127,9 +1127,16 @@ class Editor {
     };
     this.stickerPackBack.addEventListener("click", showPacks);
     this.packSearch.addEventListener("input", filterPacks);
+    const clearHighlightOutsideCard = (event) => {
+      if (!event.target.closest(".is-item-highlighted")) {
+        this.clearTrayItemHighlight();
+      }
+    };
+    this.tray.addEventListener("pointerdown", clearHighlightOutsideCard);
     this.cleanup.push(() => {
       this.stickerPackBack.removeEventListener("click", showPacks);
       this.packSearch.removeEventListener("input", filterPacks);
+      this.tray.removeEventListener("pointerdown", clearHighlightOutsideCard);
     });
     this.bindTrayResize();
     this.bindPointerScroller(this.packCarousel, "y");
