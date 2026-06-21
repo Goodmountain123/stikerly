@@ -13,11 +13,10 @@ const screenEditor = document.getElementById("screen-editor");
 const grid = document.getElementById("project-grid");
 const emptyState = document.getElementById("empty-state");
 const deleteModeButton = document.getElementById("btn-delete-mode");
+const undoDeleteButton = document.getElementById("btn-undo-delete");
 const deleteZone = document.getElementById("project-delete-zone");
-const deleteModal = document.getElementById("modal-delete-project");
 let deleteMode = false;
-let pendingDeleteProjects = [];
-const selectedProjects = new Map();
+let deletedProjects = [];
 
 const modal = document.getElementById("modal-new");
 const newTitle = document.getElementById("new-title");
@@ -134,13 +133,11 @@ async function open(id) {
 function setDeleteMode(enabled) {
   deleteMode = enabled;
   if (!enabled) {
-    selectedProjects.clear();
-    grid.querySelectorAll(".is-delete-selected").forEach((card) => {
-      card.classList.remove("is-delete-selected");
-    });
+    deletedProjects = [];
   }
   screenProjects.classList.toggle("delete-mode", enabled);
   deleteZone.hidden = !enabled;
+  undoDeleteButton.hidden = !enabled || deletedProjects.length === 0;
   deleteModeButton.classList.toggle("is-on", enabled);
 }
 
@@ -148,11 +145,6 @@ function bindProjectDeleteDrag(card, project) {
   card.addEventListener("pointerdown", (event) => {
     if (!deleteMode || event.button !== 0 || event.target.closest("input, button")) return;
     event.preventDefault();
-    if (!selectedProjects.has(project.id)) {
-      selectProjectForDelete(card, project);
-      return;
-    }
-
     const startX = event.clientX;
     const startY = event.clientY;
     let ghost = null;
@@ -163,10 +155,6 @@ function bindProjectDeleteDrag(card, project) {
       if (!ghost) {
         ghost = card.cloneNode(true);
         ghost.className = "card project-drag-ghost";
-        const countBadge = document.createElement("strong");
-        countBadge.className = "project-drag-count";
-        countBadge.textContent = `${selectedProjects.size}개`;
-        ghost.appendChild(countBadge);
         document.body.appendChild(ghost);
       }
       ghost.style.left = `${e.clientX}px`;
@@ -176,7 +164,7 @@ function bindProjectDeleteDrag(card, project) {
         e.clientX >= zone.left && e.clientX <= zone.right &&
         e.clientY >= zone.top && e.clientY <= zone.bottom);
     };
-    const end = (e) => {
+    const end = async () => {
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", end);
       window.removeEventListener("pointercancel", end);
@@ -184,27 +172,17 @@ function bindProjectDeleteDrag(card, project) {
       ghost.remove();
       const dropped = deleteZone.classList.contains("is-over");
       deleteZone.classList.remove("is-over");
-      if (dropped) showDeleteConfirmation([...selectedProjects.values()]);
+      if (dropped) {
+        deletedProjects.push(structuredClone(project));
+        await deleteProject(project.id);
+        undoDeleteButton.hidden = false;
+        await renderList();
+      }
     };
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", end);
     window.addEventListener("pointercancel", end);
   });
-}
-
-function selectProjectForDelete(card, project) {
-  selectedProjects.set(project.id, project);
-  card.classList.add("is-delete-selected");
-}
-
-function showDeleteConfirmation(projects) {
-  if (!projects.length) return;
-  pendingDeleteProjects = projects;
-  document.getElementById("delete-project-message").textContent =
-    projects.length === 1
-      ? `“${projects[0].title}”은(는) 삭제하면 되돌릴 수 없어요.`
-      : `선택한 프로젝트 ${projects.length}개를 삭제하면 되돌릴 수 없어요.`;
-  deleteModal.hidden = false;
 }
 
 // ---------- new project modal ----------
@@ -217,23 +195,12 @@ function closeModal() { modal.hidden = true; }
 
 document.getElementById("btn-new").addEventListener("click", openModal);
 deleteModeButton.addEventListener("click", () => setDeleteMode(!deleteMode));
-document.getElementById("delete-project-cancel").addEventListener("click", () => {
-  pendingDeleteProjects = [];
-  deleteModal.hidden = true;
-});
-document.getElementById("delete-project-confirm").addEventListener("click", async () => {
-  if (!pendingDeleteProjects.length) return;
-  await Promise.all(pendingDeleteProjects.map((project) => deleteProject(project.id)));
-  pendingDeleteProjects = [];
-  deleteModal.hidden = true;
-  setDeleteMode(false);
-  renderList();
-});
-deleteModal.addEventListener("click", (event) => {
-  if (event.target === deleteModal) {
-    pendingDeleteProjects = [];
-    deleteModal.hidden = true;
-  }
+undoDeleteButton.addEventListener("click", async () => {
+  const project = deletedProjects.pop();
+  if (!project) return;
+  await putProject(project);
+  undoDeleteButton.hidden = deletedProjects.length === 0;
+  await renderList();
 });
 document.getElementById("new-cancel").addEventListener("click", closeModal);
 modal.addEventListener("click", (e) => { if (e.target === modal) closeModal(); });
