@@ -1363,6 +1363,13 @@ class Editor {
   }
 
   switchTab(name) {
+    if (this.editorScreen?.classList.contains("tray-collapsed")) {
+      const width = 105;
+      this.editorScreen.style.setProperty("--tray-width", `${width}px`);
+      this.editorScreen.classList.remove("tray-collapsed");
+      localStorage.setItem("stickerly-tray-width", String(width));
+      requestAnimationFrame(() => this.resize());
+    }
     const stickers = name === "stickers";
     const background = name === "background";
     const text = name === "text";
