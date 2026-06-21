@@ -633,7 +633,7 @@ body{
   justify-content:center;
   gap:21px;
   padding:27px 54px;
-  border:6px dashed #ff7b9e;
+  border:3px dashed #ff7b9e;
   border-radius:66px;
   background:rgba(255,240,245,.94);
   color:#b82d56;
@@ -648,7 +648,7 @@ body{
   to{ transform:translate(-50%,0); }
 }
 .delete-drop-zone > *{ transform:translateY(70px); }
-.delete-drop-zone > span{ transform:translateY(60px); }
+.delete-drop-zone > span{ transform:translateY(48px); }
 .delete-drop-zone__icon{ width:28px; height:28px; object-fit:contain; }
 .delete-drop-zone.is-over{
   top:-54px;
