@@ -3,11 +3,9 @@ import { listProjects, getProject, putProject, deleteProject } from "./storage.j
 import { loadPacks, findSticker } from "./packs.js";
 import {
   loadBackgrounds,
-  getBackgrounds,
   backgroundSrc,
-  loadBgImage,
 } from "./backgrounds.js";
-import { canvasSizeFromImage, newProject, projectCanvasSize } from "./model.js";
+import { newProject, projectCanvasSize } from "./model.js";
 import { openEditor } from "./editor.js";
 
 const screenProjects = document.getElementById("screen-projects");
@@ -23,9 +21,6 @@ let pendingDeleteProject = null;
 const modal = document.getElementById("modal-new");
 const newTitle = document.getElementById("new-title");
 const newCreate = document.getElementById("new-create");
-const newBackgroundGrid = document.getElementById("new-background-grid");
-const newBackgroundLabel = document.getElementById("new-background-label");
-let newBackgroundId = null;
 
 function showScreen(which) {
   screenProjects.classList.toggle("is-active", which === "projects");
@@ -152,31 +147,7 @@ function showDeleteConfirmation(project) {
 // ---------- new project modal ----------
 function openModal() {
   newTitle.value = "";
-  const backgrounds = getBackgrounds();
-  newBackgroundId = null;
   newCreate.disabled = true;
-  newBackgroundGrid.classList.add("is-disabled");
-  newBackgroundLabel.classList.add("is-disabled");
-  newBackgroundLabel.textContent = "이름을 먼저 적어주세요";
-  const backgroundGrid = newBackgroundGrid;
-  backgroundGrid.innerHTML = "";
-  backgrounds.forEach((bg) => {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "new-background-card";
-    button.dataset.bgId = bg.id;
-    button.style.backgroundImage = `url("${bg.url}")`;
-    const label = document.createElement("span");
-    label.textContent = bg.name;
-    button.appendChild(label);
-    button.addEventListener("click", () => {
-      newBackgroundId = bg.id;
-      [...backgroundGrid.children].forEach((item) =>
-        item.classList.toggle("is-on", item === button));
-      newCreate.disabled = !newTitle.value.trim();
-    });
-    backgroundGrid.appendChild(button);
-  });
   modal.hidden = false;
   newTitle.focus();
 }
@@ -185,10 +156,7 @@ function closeModal() { modal.hidden = true; }
 document.getElementById("btn-new").addEventListener("click", openModal);
 newTitle.addEventListener("input", () => {
   const hasName = Boolean(newTitle.value.trim());
-  newBackgroundGrid.classList.toggle("is-disabled", !hasName);
-  newBackgroundLabel.classList.toggle("is-disabled", !hasName);
-  newBackgroundLabel.textContent = hasName ? "배경을 골라주세요" : "이름을 먼저 적어주세요";
-  newCreate.disabled = !hasName || !newBackgroundId;
+  newCreate.disabled = !hasName;
 });
 deleteModeButton.addEventListener("click", () => setDeleteMode(!deleteMode));
 document.getElementById("delete-project-cancel").addEventListener("click", () => {
@@ -212,14 +180,9 @@ deleteModal.addEventListener("click", (event) => {
 document.getElementById("new-cancel").addEventListener("click", closeModal);
 modal.addEventListener("click", (e) => { if (e.target === modal) closeModal(); });
 newCreate.addEventListener("click", async () => {
-  const bg = getBackgrounds().find((item) => item.id === newBackgroundId);
-  if (!bg) return;
-  const image = await loadBgImage(bg.url);
-  const project = newProject(
-    newTitle.value.trim(),
-    { type: "asset", id: bg.id, url: bg.url, transform: { zoom: 1, x: 0, y: 0 } },
-    canvasSizeFromImage(image.width, image.height)
-  );
+  const title = newTitle.value.trim();
+  if (!title) return;
+  const project = newProject(title, null);
   await putProject(project);
   closeModal();
   showScreen("editor");
