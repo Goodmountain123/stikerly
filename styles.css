@@ -455,7 +455,12 @@ body{
 }
 .modal__title{ font-family:var(--font-display); font-weight:800; font-size:24px; margin:0 0 16px; }
 .field{ display:block; margin-bottom:16px; }
+.new-project-name-row{ display:flex; align-items:flex-end; gap:10px; margin-bottom:16px; }
+.new-project-name-row .field{ flex:1; min-width:0; margin:0; }
+.new-project-actions{ display:flex; gap:8px; }
+.new-project-actions .btn{ white-space:nowrap; }
 .field__label{ display:block; font-size:13px; font-weight:600; color:var(--ink-soft); margin-bottom:6px; }
+.field__label.is-disabled{ opacity:.55; }
 .field__input{ width:100%; padding:12px 14px; border-radius:var(--r-md); border:1.5px solid var(--line);
   font-size:15px; font-family:var(--font-ui); }
 .field__input:focus{ outline:none; border-color:var(--pink); }
@@ -465,6 +470,7 @@ body{
   gap:10px;
   margin:8px 0 20px;
 }
+.new-background-grid.is-disabled{ opacity:.38; pointer-events:none; filter:grayscale(.25); }
 .new-background-card{
   position:relative;
   height:92px;
@@ -502,6 +508,10 @@ body{
 }
 
 @media (max-width:560px){
+  .new-project-name-row{ align-items:stretch; flex-wrap:wrap; }
+  .new-project-name-row .field{ flex-basis:100%; }
+  .new-project-actions{ width:100%; }
+  .new-project-actions .btn{ flex:1; }
   .new-background-grid{ grid-template-columns:repeat(3,minmax(0,1fr)); }
   .topbar--editor .title-input{ flex-basis:140px; }
   .project-grid{ grid-template-columns:repeat(2,minmax(0,145px)); }

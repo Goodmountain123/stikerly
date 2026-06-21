@@ -22,6 +22,9 @@ let pendingDeleteProject = null;
 
 const modal = document.getElementById("modal-new");
 const newTitle = document.getElementById("new-title");
+const newCreate = document.getElementById("new-create");
+const newBackgroundGrid = document.getElementById("new-background-grid");
+const newBackgroundLabel = document.getElementById("new-background-label");
 let newBackgroundId = null;
 
 function showScreen(which) {
@@ -145,8 +148,12 @@ function showDeleteConfirmation(project) {
 function openModal() {
   newTitle.value = "";
   const backgrounds = getBackgrounds();
-  newBackgroundId = backgrounds[0]?.id || null;
-  const backgroundGrid = document.getElementById("new-background-grid");
+  newBackgroundId = null;
+  newCreate.disabled = true;
+  newBackgroundGrid.classList.add("is-disabled");
+  newBackgroundLabel.classList.add("is-disabled");
+  newBackgroundLabel.textContent = "이름을 먼저 적어주세요";
+  const backgroundGrid = newBackgroundGrid;
   backgroundGrid.innerHTML = "";
   backgrounds.forEach((bg) => {
     const button = document.createElement("button");
@@ -161,18 +168,23 @@ function openModal() {
       newBackgroundId = bg.id;
       [...backgroundGrid.children].forEach((item) =>
         item.classList.toggle("is-on", item === button));
+      newCreate.disabled = !newTitle.value.trim();
     });
     backgroundGrid.appendChild(button);
   });
-  if (backgroundGrid.firstElementChild) {
-    backgroundGrid.firstElementChild.classList.add("is-on");
-  }
   modal.hidden = false;
   newTitle.focus();
 }
 function closeModal() { modal.hidden = true; }
 
 document.getElementById("btn-new").addEventListener("click", openModal);
+newTitle.addEventListener("input", () => {
+  const hasName = Boolean(newTitle.value.trim());
+  newBackgroundGrid.classList.toggle("is-disabled", !hasName);
+  newBackgroundLabel.classList.toggle("is-disabled", !hasName);
+  newBackgroundLabel.textContent = hasName ? "배경을 골라주세요" : "이름을 먼저 적어주세요";
+  newCreate.disabled = !hasName || !newBackgroundId;
+});
 deleteModeButton.addEventListener("click", () => setDeleteMode(!deleteMode));
 document.getElementById("delete-project-cancel").addEventListener("click", () => {
   pendingDeleteProject = null;
@@ -194,7 +206,7 @@ deleteModal.addEventListener("click", (event) => {
 });
 document.getElementById("new-cancel").addEventListener("click", closeModal);
 modal.addEventListener("click", (e) => { if (e.target === modal) closeModal(); });
-document.getElementById("new-create").addEventListener("click", async () => {
+newCreate.addEventListener("click", async () => {
   const bg = getBackgrounds().find((item) => item.id === newBackgroundId);
   if (!bg) return;
   const image = await loadBgImage(bg.url);
