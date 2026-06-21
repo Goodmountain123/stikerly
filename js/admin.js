@@ -7,6 +7,8 @@ const dashboard = $("#dashboard");
 const logout = $("#logout");
 const selectedPacks = new Map();
 const selectedBackgrounds = new Map();
+let modalMode = null;
+let modalPack = null;
 
 function toast(message) {
   const el = $("#toast");
@@ -36,6 +38,29 @@ function updatePackSelection() {
 function updateBackgroundSelection() {
   $("#background-selection-count").textContent = `선택 ${selectedBackgrounds.size}개`;
   $("#delete-selected-backgrounds").disabled = selectedBackgrounds.size === 0;
+}
+
+function openAssetModal(mode, pack = null) {
+  modalMode = mode;
+  modalPack = pack;
+  $("#asset-modal-title").textContent =
+    mode === "pack" ? "새 스티커팩" : mode === "background" ? "새 배경" : "스티커 추가";
+  $("#asset-modal-name").value = "";
+  $("#asset-modal-name").placeholder =
+    mode === "pack" ? "스티커팩 이름" : mode === "background" ? "배경 이름" : "스티커 이름";
+  const files = $("#asset-modal-files");
+  files.value = "";
+  files.hidden = mode === "pack";
+  files.required = mode !== "pack";
+  files.multiple = mode === "sticker";
+  $("#asset-modal").hidden = false;
+  $("#asset-modal-name").focus();
+}
+
+function closeAssetModal() {
+  $("#asset-modal").hidden = true;
+  modalMode = null;
+  modalPack = null;
 }
 
 function safeFileName(name) {
@@ -185,34 +210,50 @@ async function importLocalBackgrounds() {
   }
 }
 
-$("#pack-form").addEventListener("submit", async (event) => {
-  event.preventDefault();
-  const { error } = await supabase.from("sticker_packs").insert({
-    name: $("#pack-name").value.trim(),
-    position: Date.now(),
-  });
-  if (error) return toast("팩을 추가하지 못했어요.");
-  event.target.reset();
-  await renderPacks();
+$("#open-pack-modal").addEventListener("click", () => openAssetModal("pack"));
+$("#open-background-modal").addEventListener("click", () => openAssetModal("background"));
+$("#asset-modal-cancel").addEventListener("click", closeAssetModal);
+$("#asset-modal").addEventListener("click", (event) => {
+  if (event.target.id === "asset-modal") closeAssetModal();
 });
-
-$("#background-form").addEventListener("submit", async (event) => {
+$("#asset-modal-form").addEventListener("submit", async (event) => {
   event.preventDefault();
-  const file = $("#background-file").files[0];
-  const path = `backgrounds/${safeFileName(file.name)}`;
-  const upload = await supabase.storage.from("assets").upload(path, file);
-  if (upload.error) return toast("이미지 업로드에 실패했어요.");
-  const { error } = await supabase.from("backgrounds").insert({
-    name: $("#background-name").value.trim(),
-    storage_path: path,
-    position: Date.now(),
-  });
-  if (error) {
-    await supabase.storage.from("assets").remove([path]);
-    return toast("배경을 등록하지 못했어요.");
+  const name = $("#asset-modal-name").value.trim();
+  const files = [...$("#asset-modal-files").files];
+  if (modalMode === "pack") {
+    const { error } = await supabase.from("sticker_packs").insert({ name, position: Date.now() });
+    if (error) return toast("팩을 추가하지 못했어요.");
+    await renderPacks();
+  } else if (modalMode === "background") {
+    const file = files[0];
+    const path = `backgrounds/${safeFileName(file.name)}`;
+    const upload = await supabase.storage.from("assets").upload(path, file);
+    if (upload.error) return toast("이미지 업로드에 실패했어요.");
+    const { error } = await supabase.from("backgrounds").insert({
+      name, storage_path: path, position: Date.now(),
+    });
+    if (error) {
+      await supabase.storage.from("assets").remove([path]);
+      return toast("배경을 등록하지 못했어요.");
+    }
+    await renderBackgrounds();
+  } else if (modalMode === "sticker" && modalPack) {
+    for (const [index, file] of files.entries()) {
+      const path = `stickers/${modalPack.id}/${safeFileName(file.name)}`;
+      const uploaded = await supabase.storage.from("assets").upload(path, file);
+      if (uploaded.error) continue;
+      const stickerName = files.length === 1 ? name : `${name} ${index + 1}`;
+      const inserted = await supabase.from("stickers").insert({
+        pack_id: modalPack.id,
+        name: stickerName,
+        storage_path: path,
+        position: Date.now() + index,
+      });
+      if (inserted.error) await supabase.storage.from("assets").remove([path]);
+    }
+    await renderPacks();
   }
-  event.target.reset();
-  await renderBackgrounds();
+  closeAssetModal();
 });
 
 $("#delete-selected-packs").addEventListener("click", async () => {
@@ -276,13 +317,7 @@ function packCard(pack) {
         <input class="pack-name" value="${escapeHtml(pack.name)}" aria-label="팩 이름">
         <span class="auto-save-note">자동 저장</span>
       </div>
-      <form class="upload">
-        <strong>스티커 추가</strong>
-        <div class="form">
-          <input class="sticker-files" type="file" accept="image/*" multiple required>
-          <button class="button">선택한 이미지 추가</button>
-        </div>
-      </form>
+      <button class="button sticker-add">＋ 스티커 추가</button>
       <div class="pack-tools">
         <span class="sticker-selection-count">선택 0개</span>
         <button class="button danger delete-selected-stickers" disabled>선택한 스티커 제거</button>
@@ -312,23 +347,7 @@ function packCard(pack) {
     return error;
   });
 
-  card.querySelector(".upload").onsubmit = async (event) => {
-    event.preventDefault();
-    const files = [...card.querySelector(".sticker-files").files];
-    for (const file of files) {
-      const path = `stickers/${pack.id}/${safeFileName(file.name)}`;
-      const uploaded = await supabase.storage.from("assets").upload(path, file);
-      if (uploaded.error) continue;
-      const inserted = await supabase.from("stickers").insert({
-        pack_id: pack.id,
-        name: file.name.replace(/\.[^.]+$/, ""),
-        storage_path: path,
-        position: Date.now(),
-      });
-      if (inserted.error) await supabase.storage.from("assets").remove([path]);
-    }
-    await renderPacks();
-  };
+  card.querySelector(".sticker-add").onclick = () => openAssetModal("sticker", pack);
   const selectedStickers = new Map();
   const deleteSelected = card.querySelector(".delete-selected-stickers");
   const selectionCount = card.querySelector(".sticker-selection-count");

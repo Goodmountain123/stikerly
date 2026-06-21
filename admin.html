@@ -43,10 +43,7 @@
       </nav>
 
       <section id="packs-panel">
-        <form id="pack-form" class="add-row">
-          <input id="pack-name" placeholder="새 스티커팩 이름" required>
-          <button class="button">팩 추가</button>
-        </form>
+        <button id="open-pack-modal" class="button add-button">＋ 팩 추가</button>
         <div class="selection-bar">
           <span id="pack-selection-count">선택 0개</span>
           <button id="delete-selected-packs" class="button danger" disabled>선택한 팩 제거</button>
@@ -55,11 +52,7 @@
       </section>
 
       <section id="backgrounds-panel" hidden>
-        <form id="background-form" class="add-row">
-          <input id="background-name" placeholder="배경 이름" required>
-          <input id="background-file" type="file" accept="image/*" required>
-          <button class="button">배경 추가</button>
-        </form>
+        <button id="open-background-modal" class="button add-button">＋ 배경 추가</button>
         <div class="selection-bar">
           <span id="background-selection-count">선택 0개</span>
           <button id="delete-selected-backgrounds" class="button danger" disabled>선택한 배경 제거</button>
@@ -68,6 +61,17 @@
       </section>
     </section>
   </main>
+  <div id="asset-modal" class="modal" hidden>
+    <form id="asset-modal-form" class="modal__card">
+      <h2 id="asset-modal-title"></h2>
+      <input id="asset-modal-name" placeholder="이름" required>
+      <input id="asset-modal-files" type="file" accept="image/*">
+      <div class="modal__actions">
+        <button id="asset-modal-cancel" type="button" class="button secondary">취소</button>
+        <button class="button">추가</button>
+      </div>
+    </form>
+  </div>
   <div id="toast" class="toast" hidden></div>
   <script type="module" src="./js/admin.js"></script>
 </body>
