@@ -965,6 +965,11 @@ body{
 .carousel--bg .bg-chip.is-active{
   box-shadow:inset 0 0 0 3px var(--pink),0 4px 12px rgba(255,114,166,.22);
 }
+.background-list .bg-chip.is-active{
+  outline:4px solid var(--pink);
+  outline-offset:-4px;
+  box-shadow:0 5px 15px rgba(255,114,166,.35);
+}
 .text-chip:nth-child(1){ background:#FFF0F6; }
 .text-chip:nth-child(2){ background:#EDF8FF; }
 .text-chip:nth-child(3){ background:#ECFFF7; }

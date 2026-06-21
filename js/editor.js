@@ -1399,10 +1399,8 @@ class Editor {
       return chip;
     };
 
-    const clearBg = () => this.setBackground(null);
     const pickBg = () => this.bgFileInput.click();
     this.bgUploadBtn = makeActionChip("bg-upload-btn", "+", "내 사진", pickBg);
-    this.bgNoneBtn = makeActionChip("bg-none", "×", "배경 없음", clearBg);
 
     getBackgrounds().forEach((bg) => {
       const chip = document.createElement("button");
@@ -1417,7 +1415,11 @@ class Editor {
       label.className = "bg-chip__label";
       label.textContent = bg.name || "배경";
       chip.appendChild(label);
-      chip.addEventListener("click", () => this.setBackground({ type: "asset", id: bg.id, url: bg.url }));
+      chip.addEventListener("click", () => {
+        const selected = this.project.background?.type === "asset"
+          && this.project.background.id === bg.id;
+        this.setBackground(selected ? null : { type: "asset", id: bg.id, url: bg.url });
+      });
       this.bgCarousel.appendChild(chip);
     });
 
@@ -1525,7 +1527,6 @@ class Editor {
         el.classList.toggle("is-active", el.dataset.bgId === activeId);
       });
     }
-    if (this.bgNoneBtn) this.bgNoneBtn.classList.toggle("is-active", !bg);
     if (this.bgUploadBtn) this.bgUploadBtn.classList.toggle("is-active", !!bg && bg.type === "photo");
     if (this.bgAdjustBtn) {
       this.bgAdjustBtn.disabled = !bg;
