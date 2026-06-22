@@ -590,6 +590,10 @@ class Editor {
     this.updateZoomReadout(true);
   }
 
+  isCanvasPanLocked() {
+    return this.zoom <= 1.1;
+  }
+
   clampStagePosition() {
     const scale = this.stage.scaleX();
     const pageW = this.canvasW * scale;
@@ -600,16 +604,20 @@ class Editor {
     let x = this.stage.x();
     let y = this.stage.y();
 
-    if (pageW <= viewW - PAN_MARGIN * 2) {
+    if (this.isCanvasPanLocked()) {
       x = (viewW - pageW) / 2;
-    } else {
-      x = clamp(x, viewW - pageW - PAN_MARGIN, PAN_MARGIN);
-    }
-
-    if (pageH <= viewH - PAN_MARGIN * 2) {
       y = (viewH - pageH) / 2;
     } else {
-      y = clamp(y, viewH - pageH - PAN_MARGIN, PAN_MARGIN);
+      if (pageW <= viewW - PAN_MARGIN * 2) {
+        x = (viewW - pageW) / 2;
+      } else {
+        x = clamp(x, viewW - pageW - PAN_MARGIN, PAN_MARGIN);
+      }
+      if (pageH <= viewH - PAN_MARGIN * 2) {
+        y = (viewH - pageH) / 2;
+      } else {
+        y = clamp(y, viewH - pageH - PAN_MARGIN, PAN_MARGIN);
+      }
     }
 
     this.stage.position({ x, y });
@@ -654,6 +662,7 @@ class Editor {
     let middlePan = false;
 
     this.stage.on("mousedown", (e) => {
+      if (this.isCanvasPanLocked()) return;
       const middleButton = e.evt.button === 1;
       if (!middleButton && !this.isCanvasTarget(e.target)) return;
       if (middleButton) {
@@ -753,6 +762,10 @@ class Editor {
 
   onTouchStart(e) {
     if (e.touches.length === 1) {
+      if (this.isCanvasPanLocked()) {
+        this.touchCanvasPan = null;
+        return;
+      }
       const point = this.touchPoints(e)[0];
       const target = this.stage.getIntersection(point);
       if (!target || this.isCanvasTarget(target)) {
@@ -792,6 +805,12 @@ class Editor {
 
   onTouchMove(e) {
     if (e.touches.length === 1 && this.touchCanvasPan) {
+      if (this.isCanvasPanLocked()) {
+        this.touchCanvasPan = null;
+        this.clampStagePosition();
+        this.stage.batchDraw();
+        return;
+      }
       const point = this.touchPoints(e)[0];
       this.stage.position({
         x: this.stage.x() + point.x - this.touchCanvasPan.x,

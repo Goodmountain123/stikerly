@@ -6,6 +6,7 @@ let currentIndex = 0;
 let playing = false;
 let repeatOne = false;
 let volumeLevel = 0.5;
+let muted = false;
 let initialized = false;
 let autoplayRetry = null;
 let preloadedTracks = [];
@@ -60,7 +61,6 @@ function syncUi() {
     const play = root.querySelector(".music-player__play");
     const repeat = root.querySelector("[data-music-repeat]");
     const volume = root.querySelector("[data-music-volume]");
-    const volumeSlider = root.querySelector("[data-music-volume-slider]");
     const list = root.querySelector(".music-player__list");
     if (title) title.textContent = track.name;
     if (play) {
@@ -72,15 +72,8 @@ function syncUi() {
       repeat.setAttribute("aria-pressed", String(repeatOne));
     }
     if (volume) {
-      volume.setAttribute(
-        "aria-label",
-        root.classList.contains("is-volume-open") ? "볼륨 닫기" : "볼륨 조절"
-      );
-    }
-    if (volumeSlider) {
-      const percent = Math.round(volumeLevel * 100);
-      volumeSlider.setAttribute("aria-valuenow", String(percent));
-      volumeSlider.style.setProperty("--music-volume", `${percent}%`);
+      volume.setAttribute("aria-label", muted ? "음소거 해제" : "음소거");
+      volume.setAttribute("aria-pressed", String(muted));
     }
     if (list) {
       [...list.children].forEach((item, index) => {
@@ -88,7 +81,7 @@ function syncUi() {
       });
     }
     root.classList.toggle("is-playing", playing);
-    root.classList.toggle("has-volume", volumeLevel > 0);
+    root.classList.toggle("has-volume", !muted);
   });
 }
 
@@ -156,15 +149,7 @@ function render(root) {
       <button class="music-player__btn music-player__play" data-music-play type="button" aria-label="재생">▶</button>
       <button class="music-player__title" data-music-list-toggle type="button" aria-label="곡 목록 열기"><span class="music-player__title-menu" aria-hidden="true">☰</span><span class="music-player__title-text"></span></button>
       <button class="music-player__btn music-player__repeat" data-music-repeat type="button" aria-label="한 곡 반복" aria-pressed="false"><img src="./assets/ui/music-repeat-one.png" alt=""></button>
-      <div class="music-player__volume-wrap">
-        <button class="music-player__btn music-player__volume" data-music-volume type="button" aria-label="볼륨 조절"><img src="./assets/ui/music-volume.png" alt=""></button>
-        <div class="music-player__volume-popover">
-          <div class="music-player__volume-slider" data-music-volume-slider role="slider" tabindex="0" aria-label="음악 볼륨" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(volumeLevel * 100)}">
-            <span class="music-player__volume-level"></span>
-            <i class="music-player__volume-thumb"></i>
-          </div>
-        </div>
-      </div>
+      <button class="music-player__btn music-player__volume" data-music-volume type="button" aria-label="음소거" aria-pressed="false"><img src="./assets/ui/music-volume.png" alt=""></button>
       <div class="music-player__list"></div>
     </div>
   `;
@@ -196,36 +181,8 @@ function render(root) {
     syncUi();
   });
   root.querySelector("[data-music-volume]").addEventListener("click", () => {
-    root.classList.toggle("is-volume-open");
-    root.classList.remove("is-list-open");
-    syncUi();
-  });
-  const volumeSlider = root.querySelector("[data-music-volume-slider]");
-  const setVolumeFromPointer = (event) => {
-    const rect = volumeSlider.getBoundingClientRect();
-    volumeLevel = Math.max(0, Math.min(1, (rect.bottom - event.clientY) / rect.height));
-    audio.volume = volumeLevel;
-    syncUi();
-  };
-  volumeSlider.addEventListener("pointerdown", (event) => {
-    event.preventDefault();
-    event.stopPropagation();
-    volumeSlider.setPointerCapture?.(event.pointerId);
-    setVolumeFromPointer(event);
-  });
-  volumeSlider.addEventListener("pointermove", (event) => {
-    if (!volumeSlider.hasPointerCapture?.(event.pointerId)) return;
-    event.preventDefault();
-    setVolumeFromPointer(event);
-  });
-  volumeSlider.addEventListener("keydown", (event) => {
-    if (!["ArrowUp", "ArrowDown", "Home", "End"].includes(event.key)) return;
-    event.preventDefault();
-    if (event.key === "Home") volumeLevel = 0;
-    else if (event.key === "End") volumeLevel = 1;
-    else volumeLevel = Math.max(0, Math.min(1,
-      volumeLevel + (event.key === "ArrowUp" ? 0.05 : -0.05)));
-    audio.volume = volumeLevel;
+    muted = !muted;
+    audio.muted = muted;
     syncUi();
   });
   root.querySelector("[data-music-list-toggle]").addEventListener("click", () => {
