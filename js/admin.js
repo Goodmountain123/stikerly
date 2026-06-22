@@ -13,6 +13,8 @@ const DEFAULT_WELCOME_MESSAGES = [
   "예쁘게 꾸며봐요!",
 ];
 let musicPlaylist = [];
+let musicPreview = null;
+let previewTrackId = null;
 let modalMode = null;
 let modalPack = null;
 let moveAssetState = null;
@@ -505,6 +507,11 @@ async function renderMusicPlaylist() {
 }
 
 function renderMusicList() {
+  if (musicPreview) {
+    musicPreview.pause();
+    musicPreview = null;
+    previewTrackId = null;
+  }
   const list = $("#music-list");
   if (!list) return;
   list.innerHTML = "";
@@ -519,6 +526,7 @@ function renderMusicList() {
       <span class="music-track__number">${index + 1}</span>
       <input class="music-track__name" value="${escapeHtml(track.name || "Music")}" aria-label="음악 이름">
       <div class="music-track__actions">
+        <button class="button music-preview" type="button" aria-label="미리듣기">▶</button>
         <button class="button secondary music-up" type="button" ${index === 0 ? "disabled" : ""}>↑</button>
         <button class="button secondary music-down" type="button" ${index === musicPlaylist.length - 1 ? "disabled" : ""}>↓</button>
         <button class="button danger music-remove" type="button">삭제</button>
@@ -533,6 +541,51 @@ function renderMusicList() {
         return error;
       }
     });
+    const previewButton = item.querySelector(".music-preview");
+    previewButton.onclick = async () => {
+      if (previewTrackId === track.id && musicPreview) {
+        if (!musicPreview.paused) {
+          musicPreview.pause();
+          return;
+        }
+        try {
+          await musicPreview.play();
+        } catch (error) {
+          console.error(error);
+          toast("음악을 재생하지 못했어요.");
+        }
+        return;
+      }
+      if (musicPreview) musicPreview.pause();
+      musicPreview = new Audio(
+        track.storage_path ? publicAssetUrl(track.storage_path) : track.url
+      );
+      previewTrackId = track.id;
+      musicPreview.preload = "auto";
+      musicPreview.volume = 0.7;
+      const syncPreviewButton = () => {
+        list.querySelectorAll(".music-preview").forEach((button) => {
+          button.textContent = "▶";
+          button.classList.remove("is-playing");
+        });
+        if (!musicPreview.paused && previewTrackId === track.id) {
+          previewButton.textContent = "❚❚";
+          previewButton.classList.add("is-playing");
+        }
+      };
+      musicPreview.addEventListener("play", syncPreviewButton);
+      musicPreview.addEventListener("pause", syncPreviewButton);
+      musicPreview.addEventListener("ended", () => {
+        musicPreview.currentTime = 0;
+        syncPreviewButton();
+      });
+      try {
+        await musicPreview.play();
+      } catch (error) {
+        console.error(error);
+        toast("음악을 재생하지 못했어요.");
+      }
+    };
     item.querySelector(".music-up").onclick = async () => moveMusicTrack(index, index - 1);
     item.querySelector(".music-down").onclick = async () => moveMusicTrack(index, index + 1);
     item.querySelector(".music-remove").onclick = async () => removeMusicTrack(index);
