@@ -215,18 +215,42 @@ body{
   touch-action:none;
 }
 .music-player.is-volume-open .music-player__volume-popover{ display:grid; }
-.music-player__volume-popover input{
-  position:absolute;
-  left:50%;
-  top:50%;
-  width:92px;
-  height:20px;
-  margin:0;
-  accent-color:var(--pink);
-  transform:translate(-50%,-50%) rotate(-90deg);
-  transform-origin:center;
+.music-player__volume-slider{
+  --music-volume:50%;
+  position:relative;
+  width:14px;
+  height:94px;
+  border-radius:999px;
+  background:#E7E3EA;
+  box-shadow:inset 0 0 0 1px rgba(64,53,82,.08);
   touch-action:none;
   cursor:pointer;
+}
+.music-player__volume-level{
+  position:absolute;
+  left:0;
+  right:0;
+  bottom:0;
+  height:var(--music-volume);
+  border-radius:999px;
+  background:var(--pink);
+  pointer-events:none;
+}
+.music-player__volume-thumb{
+  position:absolute;
+  left:50%;
+  bottom:calc(var(--music-volume) - 8px);
+  width:18px;
+  height:18px;
+  border-radius:50%;
+  background:var(--pink);
+  box-shadow:0 2px 6px rgba(64,53,82,.2);
+  transform:translateX(-50%);
+  pointer-events:none;
+}
+.music-player__volume-slider:focus-visible{
+  outline:3px solid rgba(169,139,255,.38);
+  outline-offset:4px;
 }
 .music-player__list{
   position:absolute;
@@ -1785,16 +1809,38 @@ body{
   }
   .topbar--home #btn-new::before{
     content:"+";
-    font:800 23px/1 var(--font-ui);
-    transform:translateY(-1px);
+    font:800 25px/1 var(--font-ui);
+    transform:translateY(2px);
   }
   .topbar--home #btn-delete-mode{
+    width:38px;
+    height:38px;
     padding:0;
     display:grid;
     place-items:center;
+    border-radius:50%;
+    border:0;
+    background:#E4E1E8;
+    box-shadow:0 4px 0 #C9C4CE;
+  }
+  .topbar--home #btn-delete-mode.is-on{
+    background:linear-gradient(135deg,var(--pink),#FF91C5);
+    box-shadow:0 4px 0 var(--pink-press);
   }
   .topbar--home #btn-delete-mode .ui-icon{
     margin:0;
+    opacity:.45;
+  }
+  .topbar--home #btn-delete-mode.is-on .ui-icon{
+    filter:brightness(0) invert(1);
+    opacity:1;
+  }
+  .topbar--home #btn-delete-mode:active{
+    transform:translateY(2px);
+    box-shadow:0 2px 0 #C9C4CE;
+  }
+  .topbar--home #btn-delete-mode.is-on:active{
+    box-shadow:0 2px 0 var(--pink-press);
   }
   .music-player{
     flex:0 0 38px;

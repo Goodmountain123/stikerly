@@ -8,6 +8,15 @@ let repeatOne = false;
 let volumeLevel = 0.5;
 let initialized = false;
 let autoplayRetry = null;
+let preloadedTracks = [];
+
+function clearAutoplayRetry() {
+  if (!autoplayRetry) return;
+  document.removeEventListener("pointerdown", autoplayRetry, true);
+  document.removeEventListener("touchstart", autoplayRetry, true);
+  document.removeEventListener("keydown", autoplayRetry, true);
+  autoplayRetry = null;
+}
 
 function normalizeTrack(track) {
   if (!track) return null;
@@ -68,7 +77,11 @@ function syncUi() {
         root.classList.contains("is-volume-open") ? "볼륨 닫기" : "볼륨 조절"
       );
     }
-    if (volumeSlider) volumeSlider.value = String(volumeLevel);
+    if (volumeSlider) {
+      const percent = Math.round(volumeLevel * 100);
+      volumeSlider.setAttribute("aria-valuenow", String(percent));
+      volumeSlider.style.setProperty("--music-volume", `${percent}%`);
+    }
     if (list) {
       [...list.children].forEach((item, index) => {
         item.classList.toggle("is-current", index === currentIndex);
@@ -86,6 +99,7 @@ async function playAt(index) {
   try {
     await audio.play();
     playing = true;
+    clearAutoplayRetry();
   } catch {
     playing = false;
   }
@@ -99,22 +113,23 @@ async function startRandomTrack() {
   syncUi();
   try {
     await audio.play();
+    clearAutoplayRetry();
   } catch {
     autoplayRetry = async (event) => {
-      if (event.target instanceof Element && event.target.closest("[data-music-player]")) {
-        document.removeEventListener("pointerdown", autoplayRetry, true);
-        autoplayRetry = null;
-        return;
-      }
+      if (
+        event.target instanceof Element &&
+        event.target.closest("[data-music-play]")
+      ) return;
       try {
         await audio.play();
       } catch {
         return;
       }
-      document.removeEventListener("pointerdown", autoplayRetry, true);
-      autoplayRetry = null;
+      clearAutoplayRetry();
     };
     document.addEventListener("pointerdown", autoplayRetry, true);
+    document.addEventListener("touchstart", autoplayRetry, true);
+    document.addEventListener("keydown", autoplayRetry, true);
   }
 }
 
@@ -144,7 +159,10 @@ function render(root) {
       <div class="music-player__volume-wrap">
         <button class="music-player__btn music-player__volume" data-music-volume type="button" aria-label="볼륨 조절"><img src="./assets/ui/music-volume.png" alt=""></button>
         <div class="music-player__volume-popover">
-          <input data-music-volume-slider type="range" min="0" max="1" step="0.05" value="${volumeLevel}" aria-label="음악 볼륨">
+          <div class="music-player__volume-slider" data-music-volume-slider role="slider" tabindex="0" aria-label="음악 볼륨" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(volumeLevel * 100)}">
+            <span class="music-player__volume-level"></span>
+            <i class="music-player__volume-thumb"></i>
+          </div>
         </div>
       </div>
       <div class="music-player__list"></div>
@@ -163,6 +181,7 @@ function render(root) {
       try {
         await audio.play();
         playing = true;
+        clearAutoplayRetry();
       } catch {
         playing = false;
       }
@@ -181,13 +200,32 @@ function render(root) {
     root.classList.remove("is-list-open");
     syncUi();
   });
-  root.querySelector("[data-music-volume-slider]").addEventListener("input", (event) => {
-    volumeLevel = Number(event.target.value);
+  const volumeSlider = root.querySelector("[data-music-volume-slider]");
+  const setVolumeFromPointer = (event) => {
+    const rect = volumeSlider.getBoundingClientRect();
+    volumeLevel = Math.max(0, Math.min(1, (rect.bottom - event.clientY) / rect.height));
     audio.volume = volumeLevel;
-    roots().forEach((player) => {
-      const slider = player.querySelector("[data-music-volume-slider]");
-      if (slider && slider !== event.target) slider.value = String(volumeLevel);
-    });
+    syncUi();
+  };
+  volumeSlider.addEventListener("pointerdown", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    volumeSlider.setPointerCapture?.(event.pointerId);
+    setVolumeFromPointer(event);
+  });
+  volumeSlider.addEventListener("pointermove", (event) => {
+    if (!volumeSlider.hasPointerCapture?.(event.pointerId)) return;
+    event.preventDefault();
+    setVolumeFromPointer(event);
+  });
+  volumeSlider.addEventListener("keydown", (event) => {
+    if (!["ArrowUp", "ArrowDown", "Home", "End"].includes(event.key)) return;
+    event.preventDefault();
+    if (event.key === "Home") volumeLevel = 0;
+    else if (event.key === "End") volumeLevel = 1;
+    else volumeLevel = Math.max(0, Math.min(1,
+      volumeLevel + (event.key === "ArrowUp" ? 0.05 : -0.05)));
+    audio.volume = volumeLevel;
     syncUi();
   });
   root.querySelector("[data-music-list-toggle]").addEventListener("click", () => {
@@ -201,6 +239,8 @@ export async function initMusicPlayers() {
   initialized = true;
   audio = new Audio();
   audio.preload = "auto";
+  audio.autoplay = true;
+  audio.playsInline = true;
   audio.volume = volumeLevel;
   audio.addEventListener("ended", () => {
     if (!repeatOne) playAt(currentIndex + 1);
@@ -214,6 +254,13 @@ export async function initMusicPlayers() {
     syncUi();
   });
   playlist = await loadPlaylist();
+  preloadedTracks = playlist.map((track) => {
+    const preload = new Audio();
+    preload.preload = "auto";
+    preload.src = track.url;
+    preload.load();
+    return preload;
+  });
   roots().forEach(render);
   syncUi();
   startRandomTrack();
