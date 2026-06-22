@@ -42,7 +42,9 @@ function bindSortable(container, itemSelector, table) {
 
   container.addEventListener("dragstart", (event) => {
     const item = event.target.closest(itemSelector);
-    if (!item || event.target.closest("input, button, .pack__body")) {
+    const draggingPackBody =
+      itemSelector === ".pack" && event.target.closest(".pack__body");
+    if (!item || event.target.closest("input, button") || draggingPackBody) {
       event.preventDefault();
       return;
     }
@@ -503,13 +505,17 @@ function packCard(pack) {
   const stickerList = card.querySelector(".stickers");
   pack.stickers.forEach((sticker) =>
     stickerList.appendChild(stickerCard(sticker, selectedStickers, updateStickerSelection)));
+  bindSortable(stickerList, ".asset", "stickers");
   return card;
 }
 
 function stickerCard(sticker, selection, updateSelection) {
   const item = document.createElement("div");
   item.className = "asset";
+  item.dataset.sortId = sticker.id;
+  item.draggable = true;
   item.innerHTML = `
+    <span class="sort-grip asset-sort-grip" aria-hidden="true">⋮⋮</span>
     <input class="select-box" type="checkbox" aria-label="스티커 선택">
     <img src="${publicAssetUrl(sticker.storage_path)}" alt="">
     <input class="asset-name" value="${escapeHtml(sticker.name)}" aria-label="스티커 이름">`;
