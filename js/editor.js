@@ -1149,47 +1149,68 @@ class Editor {
     const cardGap = 8;
     const trayPadding = 27;
     const minimumWidth = cardWidth + trayPadding;
+    const minimumHeight = 150;
     const snapWidths = [1, 2, 3].map((columns) =>
       columns * cardWidth + (columns - 1) * cardGap + trayPadding
     );
+    const snapHeights = [150, 240, 330];
     const snapRange = 34;
-    const collapsedRange = Math.round(minimumWidth * 0.48);
-    const savedValue = localStorage.getItem("stickerly-tray-width");
-    const savedWidth = Number(savedValue);
-    const nearestSnapWidth = (width) => {
-      if (width <= collapsedRange) return 0;
-      let closest = width;
+    const storedSize = (key) => {
+      const value = localStorage.getItem(key);
+      if (value === null) return null;
+      const number = Number(value);
+      return Number.isFinite(number) && number >= 0 ? number : null;
+    };
+    const savedWidth = storedSize("stickerly-tray-width");
+    const savedHeight = storedSize("stickerly-tray-height");
+    const isPortraitTray = () =>
+      window.matchMedia("(max-width: 760px) and (orientation: portrait)").matches;
+    const nearestSnap = (value, snaps, collapsedRange) => {
+      if (value <= collapsedRange) return 0;
+      let closest = value;
       let distance = Infinity;
-      snapWidths.forEach((snapWidth) => {
-        const nextDistance = Math.abs(width - snapWidth);
+      snaps.forEach((snap) => {
+        const nextDistance = Math.abs(value - snap);
         if (nextDistance < distance) {
           distance = nextDistance;
-          closest = snapWidth;
+          closest = snap;
         }
       });
-      return distance <= snapRange ? closest : width;
+      return distance <= snapRange ? closest : value;
     };
-    const applyWidth = (width) => {
-      this.editorScreen.style.setProperty("--tray-width", `${width}px`);
-      this.editorScreen.classList.toggle("tray-collapsed", width === 0);
+    const applySize = (value, portrait = isPortraitTray()) => {
+      const property = portrait ? "--tray-height" : "--tray-width";
+      this.editorScreen.style.setProperty(property, `${value}px`);
+      this.editorScreen.classList.toggle("tray-collapsed", value === 0);
     };
-    if (savedValue !== null && Number.isFinite(savedWidth) && savedWidth >= 0) {
-      applyWidth(savedWidth === 0 ? 0 : nearestSnapWidth(savedWidth));
-    }
+    const initialPortrait = isPortraitTray();
+    const initialValue = initialPortrait
+      ? (savedHeight ?? minimumHeight)
+      : (savedWidth ?? minimumWidth);
+    applySize(initialValue, initialPortrait);
+
     let dragging = false;
     let moved = false;
-    let startX = 0;
-    let currentWidth = savedWidth || minimumWidth;
+    let portraitDrag = false;
+    let startPointer = 0;
+    let currentSize = initialValue;
     let frame = 0;
     const move = (event) => {
       if (!dragging) return;
       event.preventDefault();
       const rect = this.editorScreen.getBoundingClientRect();
-      const maxWidth = Math.min(520, rect.width * 0.55);
-      const width = Math.round(clamp(rect.right - event.clientX, 0, maxWidth));
-      moved ||= Math.abs(event.clientX - startX) > 5;
-      currentWidth = width;
-      applyWidth(width);
+      const pointer = portraitDrag ? event.clientY : event.clientX;
+      const maxSize = portraitDrag
+        ? Math.min(420, rect.height * 0.6)
+        : Math.min(520, rect.width * 0.55);
+      const size = Math.round(clamp(
+        portraitDrag ? rect.bottom - event.clientY : rect.right - event.clientX,
+        0,
+        maxSize
+      ));
+      moved ||= Math.abs(pointer - startPointer) > 5;
+      currentSize = size;
+      applySize(size, portraitDrag);
       cancelAnimationFrame(frame);
       frame = requestAnimationFrame(() => this.resize());
     };
@@ -1200,22 +1221,28 @@ class Editor {
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", up);
       window.removeEventListener("pointercancel", up);
-      let finalWidth = currentWidth;
+      const minimumSize = portraitDrag ? minimumHeight : minimumWidth;
+      const collapsedRange = Math.round(minimumSize * 0.48);
+      const snaps = portraitDrag ? snapHeights : snapWidths;
+      let finalSize = currentSize;
       if (!moved) {
-        finalWidth = this.editorScreen.classList.contains("tray-collapsed")
-          ? minimumWidth
-          : currentWidth <= minimumWidth
+        finalSize = this.editorScreen.classList.contains("tray-collapsed")
+          ? minimumSize
+          : currentSize <= minimumSize
             ? 0
-            : currentWidth;
-      } else if (currentWidth < collapsedRange) {
-        finalWidth = 0;
+            : currentSize;
+      } else if (currentSize < collapsedRange) {
+        finalSize = 0;
       } else {
-        finalWidth = nearestSnapWidth(currentWidth);
+        finalSize = nearestSnap(currentSize, snaps, collapsedRange);
       }
       this.editorScreen.classList.add("tray-snapping");
       void this.editorScreen.offsetWidth;
-      applyWidth(finalWidth);
-      localStorage.setItem("stickerly-tray-width", String(finalWidth));
+      applySize(finalSize, portraitDrag);
+      localStorage.setItem(
+        portraitDrag ? "stickerly-tray-height" : "stickerly-tray-width",
+        String(finalSize)
+      );
       setTimeout(() => this.editorScreen.classList.remove("tray-snapping"), 240);
       requestAnimationFrame(() => this.resize());
     };
@@ -1224,20 +1251,39 @@ class Editor {
       event.stopPropagation();
       dragging = true;
       moved = false;
-      startX = event.clientX;
-      currentWidth = parseFloat(
-        getComputedStyle(this.editorScreen).getPropertyValue("--tray-width")
+      portraitDrag = isPortraitTray();
+      startPointer = portraitDrag ? event.clientY : event.clientX;
+      currentSize = parseFloat(
+        getComputedStyle(this.editorScreen).getPropertyValue(
+          portraitDrag ? "--tray-height" : "--tray-width"
+        )
       ) || 0;
       document.body.classList.add("is-resizing-tray");
       window.addEventListener("pointermove", move, { passive: false });
       window.addEventListener("pointerup", up);
       window.addEventListener("pointercancel", up);
     };
+    let previousPortrait = initialPortrait;
+    const syncOrientation = () => {
+      const portrait = isPortraitTray();
+      if (portrait === previousPortrait || dragging) return;
+      previousPortrait = portrait;
+      const saved = storedSize(
+        portrait ? "stickerly-tray-height" : "stickerly-tray-width"
+      );
+      applySize(
+        saved ?? (portrait ? minimumHeight : minimumWidth),
+        portrait
+      );
+      requestAnimationFrame(() => this.resize());
+    };
     this.trayResizer.addEventListener("pointerdown", down);
+    window.addEventListener("resize", syncOrientation);
     this.cleanup.push(() => {
       cancelAnimationFrame(frame);
       up();
       this.trayResizer.removeEventListener("pointerdown", down);
+      window.removeEventListener("resize", syncOrientation);
     });
   }
 
@@ -1536,10 +1582,19 @@ class Editor {
 
   switchTab(name) {
     if (this.editorScreen?.classList.contains("tray-collapsed")) {
-      const width = 116;
-      this.editorScreen.style.setProperty("--tray-width", `${width}px`);
+      const portrait = window.matchMedia(
+        "(max-width: 760px) and (orientation: portrait)"
+      ).matches;
+      const size = portrait ? 150 : 116;
+      this.editorScreen.style.setProperty(
+        portrait ? "--tray-height" : "--tray-width",
+        `${size}px`
+      );
       this.editorScreen.classList.remove("tray-collapsed");
-      localStorage.setItem("stickerly-tray-width", String(width));
+      localStorage.setItem(
+        portrait ? "stickerly-tray-height" : "stickerly-tray-width",
+        String(size)
+      );
       requestAnimationFrame(() => this.resize());
     }
     const stickers = name === "stickers";
