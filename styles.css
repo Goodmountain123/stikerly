@@ -1516,7 +1516,7 @@ body{
   .topbar--home .topbar__spacer{ order:2; }
   .topbar--home #btn-undo-delete,
   .topbar--home #btn-delete-mode,
-  .topbar--home #btn-new{ order:3; }
+  .topbar--home #btn-new{ order:4; }
   .topbar--home .welcome-ticker{
     order:10;
     flex:0 0 calc(100% + 32px);
@@ -1532,9 +1532,21 @@ body{
     text-align:center;
   }
   .topbar--home .music-player{
-    order:4;
+    order:3;
     flex:0 0 34px;
     max-width:34px;
+  }
+  .topbar--home #btn-new{
+    width:38px;
+    height:38px;
+    padding:0;
+    display:grid;
+    place-items:center;
+    font-size:0;
+  }
+  .topbar--home #btn-new::before{
+    content:"+";
+    font:800 27px/1 var(--font-ui);
   }
   .music-player{
     flex:0 0 34px;
@@ -1559,9 +1571,11 @@ body{
     box-shadow:0 5px 14px rgba(64,53,82,.14);
   }
   .music-player__panel{
-    position:absolute;
-    top:calc(100% + 8px);
-    right:0;
+    position:fixed;
+    top:68px;
+    left:50%;
+    right:auto;
+    transform:translateX(-50%);
     z-index:50;
     width:min(330px,calc(100vw - 20px));
     min-height:52px;
