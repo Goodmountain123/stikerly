@@ -916,35 +916,29 @@ body{
 .sticker-pack-list,
 .sticker-list,
 .tray-card-list{
-  scrollbar-width:auto;
-  scrollbar-color:#CDB9D8 rgba(234,221,240,.45);
-  scrollbar-gutter:stable;
+  scrollbar-width:none;
 }
 .sticker-pack-list::-webkit-scrollbar,
 .sticker-list::-webkit-scrollbar,
 .tray-card-list::-webkit-scrollbar{
-  width:10px;
+  display:none;
 }
-.sticker-pack-list::-webkit-scrollbar-track,
-.sticker-list::-webkit-scrollbar-track,
-.tray-card-list::-webkit-scrollbar-track{
-  background:rgba(234,221,240,.45);
+.tray-scrollbar{
+  position:absolute;
+  z-index:34;
+  right:3px;
+  width:7px;
+  overflow:hidden;
   border-radius:999px;
+  background:rgba(234,221,240,.72);
+  pointer-events:none;
 }
-.sticker-pack-list::-webkit-scrollbar-thumb,
-.sticker-list::-webkit-scrollbar-thumb,
-.tray-card-list::-webkit-scrollbar-thumb{
-  min-height:32px;
-  border:2px solid transparent;
+.tray-scrollbar__thumb{
+  width:100%;
+  min-height:34px;
   border-radius:999px;
-  background:#CDB9D8;
-  background-clip:padding-box;
-}
-.sticker-pack-list::-webkit-scrollbar-thumb:hover,
-.sticker-list::-webkit-scrollbar-thumb:hover,
-.tray-card-list::-webkit-scrollbar-thumb:hover{
-  background:#A98BFF;
-  background-clip:padding-box;
+  background:#C1A9D0;
+  will-change:transform;
 }
 .tray-resizer{
   position:absolute;

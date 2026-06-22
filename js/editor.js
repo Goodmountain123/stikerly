@@ -124,6 +124,7 @@ class Editor {
     this.bindTrayTabs();
     this.buildTray();
     this.buildBackgroundPanel();
+    this.bindPersistentTrayScrollbars();
     this.renderAllItems();
     this.renderBackground();
     this.bindTrayDrag();
@@ -1246,6 +1247,75 @@ class Editor {
     this.bindTrayResize();
     this.bindPointerScroller(this.packCarousel, "y");
     this.showStickerPacks();
+  }
+
+  bindPersistentTrayScrollbars() {
+    const containers = [
+      this.packCarousel,
+      this.stickerCarousel,
+      this.bgCarousel,
+      this.textCarousel,
+    ].filter(Boolean);
+
+    containers.forEach((container) => {
+      const track = document.createElement("div");
+      const thumb = document.createElement("div");
+      track.className = "tray-scrollbar";
+      thumb.className = "tray-scrollbar__thumb";
+      track.appendChild(thumb);
+      this.tray.appendChild(track);
+
+      const update = () => {
+        const trayRect = this.tray.getBoundingClientRect();
+        const rect = container.getBoundingClientRect();
+        const visible =
+          !container.hidden &&
+          rect.width > 0 &&
+          rect.height > 0 &&
+          container.scrollHeight > container.clientHeight + 1;
+        track.hidden = !visible;
+        if (!visible) return;
+
+        const trackHeight = Math.max(0, rect.height - 8);
+        const thumbHeight = Math.max(
+          34,
+          trackHeight * (container.clientHeight / container.scrollHeight)
+        );
+        const maxScroll = container.scrollHeight - container.clientHeight;
+        const maxTop = Math.max(0, trackHeight - thumbHeight);
+        const thumbTop = maxScroll
+          ? maxTop * (container.scrollTop / maxScroll)
+          : 0;
+
+        track.style.top = `${rect.top - trayRect.top + 4}px`;
+        track.style.height = `${trackHeight}px`;
+        thumb.style.height = `${Math.min(trackHeight, thumbHeight)}px`;
+        thumb.style.transform = `translateY(${thumbTop}px)`;
+      };
+
+      const scheduleUpdate = () => requestAnimationFrame(update);
+      const resizeObserver = new ResizeObserver(scheduleUpdate);
+      const mutationObserver = new MutationObserver(scheduleUpdate);
+      resizeObserver.observe(container);
+      resizeObserver.observe(this.tray);
+      mutationObserver.observe(container, {
+        childList:true,
+        subtree:true,
+        attributes:true,
+        attributeFilter:["hidden", "style", "class"],
+      });
+      container.addEventListener("scroll", scheduleUpdate, { passive:true });
+      window.addEventListener("resize", scheduleUpdate);
+      scheduleUpdate();
+
+      this.cleanup.push(() => {
+        resizeObserver.disconnect();
+        mutationObserver.disconnect();
+        container.removeEventListener("scroll", scheduleUpdate);
+        window.removeEventListener("resize", scheduleUpdate);
+        track.remove();
+      });
+    });
   }
 
   bindTrayResize() {
