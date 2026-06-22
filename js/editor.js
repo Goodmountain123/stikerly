@@ -1433,14 +1433,22 @@ class Editor {
         holdTimer: null,
         extracting: false,
       };
-      if (canExtract && e.pointerType !== "mouse") {
+      if (canExtract && e.pointerType === "mouse") {
+        gesture.previewActive = true;
+        gesture.extracting = true;
+        ghost.src = gesture.url;
+        ghost.hidden = false;
+        moveGhost(e.clientX, e.clientY);
+      } else if (canExtract) {
         const pendingGesture = gesture;
         gesture.holdTimer = setTimeout(() => {
           if (gesture !== pendingGesture || gesture.extracting) return;
           gesture.holdTimer = null;
           gesture.previewActive = true;
-          showStickerPreview(gesture.url, gesture.startX, gesture.startY, true);
-        }, 360);
+          ghost.src = gesture.url;
+          ghost.hidden = false;
+          moveGhost(gesture.startX, gesture.startY);
+        }, 120);
       }
       window.addEventListener("pointermove", onMove);
       window.addEventListener("pointerup", onUp);
@@ -1451,13 +1459,8 @@ class Editor {
       if (!gesture || gesture.type !== "sticker") return;
       const moved = Math.hypot(e.clientX - gesture.startX, e.clientY - gesture.startY) > 5;
       if (!gesture.extracting && isInsideTray(e)) {
-        if (gesture.pointerType === "mouse" && gesture.canExtract && moved) {
-          gesture.previewActive = true;
-          showStickerPreview(gesture.url, e.clientX, e.clientY);
-          return;
-        }
         if (gesture.previewActive) {
-          showStickerPreview(gesture.url, e.clientX, e.clientY, true);
+          moveGhost(e.clientX, e.clientY);
           return;
         }
         if (moved) {
@@ -1474,7 +1477,6 @@ class Editor {
       if (!gesture.extracting) {
         clearStickerHold();
         gesture.extracting = true;
-        hideStickerPreview();
         ghost.src = gesture.url;
         ghost.hidden = false;
       }
@@ -1509,22 +1511,7 @@ class Editor {
       gesture = null;
     };
 
-    const onStickerHoverMove = (e) => {
-      if (e.pointerType !== "mouse" || gesture) return;
-      const chip = e.target.closest(".sticker-chip");
-      if (!chip) {
-        hideStickerPreview();
-        return;
-      }
-      showStickerPreview(chip.dataset.url, e.clientX, e.clientY);
-    };
-    const onStickerHoverLeave = () => {
-      if (!gesture) hideStickerPreview();
-    };
-
     this.stickerCarousel.addEventListener("pointerdown", onDown);
-    this.stickerCarousel.addEventListener("pointermove", onStickerHoverMove);
-    this.stickerCarousel.addEventListener("pointerleave", onStickerHoverLeave);
     const onTextDown = (e) => {
       const chip = e.target.closest(".text-chip");
       if (!chip) return;
@@ -1589,8 +1576,6 @@ class Editor {
     this.textCarousel.addEventListener("pointerdown", onTextDown);
     this.cleanup.push(() => {
       this.stickerCarousel.removeEventListener("pointerdown", onDown);
-      this.stickerCarousel.removeEventListener("pointermove", onStickerHoverMove);
-      this.stickerCarousel.removeEventListener("pointerleave", onStickerHoverLeave);
       this.textCarousel.removeEventListener("pointerdown", onTextDown);
       hideStickerPreview();
     });
@@ -2574,6 +2559,23 @@ class Editor {
       this.project.title = this.titleInput.value.trim() || "제목 없는 프로젝트";
       this.commit();
     };
+
+    const deleteSelectedWithKeyboard = (event) => {
+      if (event.key !== "Delete" || !this.selectedId) return;
+      const target = event.target;
+      if (
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement ||
+        target instanceof HTMLSelectElement ||
+        target?.isContentEditable
+      ) return;
+      event.preventDefault();
+      this.removeItem(this.selectedId);
+    };
+    window.addEventListener("keydown", deleteSelectedWithKeyboard);
+    this.cleanup.push(() =>
+      window.removeEventListener("keydown", deleteSelectedWithKeyboard)
+    );
   }
 
   async save() {
