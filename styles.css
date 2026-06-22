@@ -158,10 +158,47 @@ body{
   cursor:pointer;
 }
 .music-player__repeat.is-on{
-  background:var(--pink);
-  color:#fff;
+  background:#5f536d;
 }
-.music-player__volume{ font-size:13px; }
+.music-player__repeat,
+.music-player__volume{ background:var(--pink); }
+.music-player__repeat img,
+.music-player__volume img{
+  width:17px;
+  height:17px;
+  object-fit:contain;
+  pointer-events:none;
+}
+.music-player__volume-wrap{
+  position:relative;
+  flex:0 0 auto;
+}
+.music-player__volume-popover{
+  position:absolute;
+  top:calc(100% + 9px);
+  right:50%;
+  bottom:auto;
+  z-index:32;
+  width:42px;
+  height:122px;
+  padding:10px 8px;
+  display:none;
+  place-items:center;
+  border:1.5px solid var(--line);
+  border-radius:15px;
+  background:#fff;
+  box-shadow:0 10px 25px rgba(64,53,82,.18);
+  transform:translateX(50%);
+}
+.music-player.is-volume-open .music-player__volume-popover{ display:grid; }
+.music-player__volume-popover input{
+  width:96px;
+  height:20px;
+  margin:0;
+  accent-color:var(--pink);
+  transform:rotate(-90deg);
+  cursor:pointer;
+}
 .music-player__list{
   position:absolute;
   top:calc(100% + 8px);

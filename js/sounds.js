@@ -13,7 +13,18 @@ const files = {
   punch: new URL("../assets/sfx/punch.mp3", import.meta.url).href,
 };
 
-function play(name, volume = 0.65, startAt = 0) {
+function preloadSounds() {
+  Object.entries(files).forEach(([name, src]) => {
+    const audio = new Audio(src);
+    audio.preload = "auto";
+    audio.load();
+    pools.set(name, [audio]);
+  });
+}
+
+preloadSounds();
+
+function play(name, volume = 0.65) {
   const src = files[name];
   if (!src) return;
   const pool = pools.get(name) || [];
@@ -25,11 +36,7 @@ function play(name, volume = 0.65, startAt = 0) {
     if (pool.length > 4) pool.shift();
     pools.set(name, pool);
   }
-  try {
-    audio.currentTime = startAt;
-  } catch {
-    audio.currentTime = 0;
-  }
+  audio.currentTime = 0;
   audio.volume = volume;
   audio.play().catch(() => {});
 }
@@ -38,7 +45,7 @@ export const sounds = {
   tap() {},
   softTap() {},
   page() {
-    play("page", 0.33, 0.4);
+    play("page", 0.55);
   },
   pop() {
     play("pop", 0.68);
@@ -59,7 +66,7 @@ export const sounds = {
     play("flip", 0.58);
   },
   swooshIn() {
-    play("page", 0.31, 0.4);
+    play("page", 0.52);
   },
   swooshOut() {},
   delete() {

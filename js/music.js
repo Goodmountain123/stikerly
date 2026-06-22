@@ -5,7 +5,7 @@ let playlist = [];
 let currentIndex = 0;
 let playing = false;
 let repeatOne = false;
-let muted = false;
+let volumeLevel = 0.7;
 let initialized = false;
 
 function normalizeTrack(track) {
@@ -35,7 +35,9 @@ function roots() {
 
 function closeOtherPanels(activeRoot) {
   roots().forEach((root) => {
-    if (root !== activeRoot) root.classList.remove("is-open");
+    if (root !== activeRoot) {
+      root.classList.remove("is-open", "is-list-open", "is-volume-open");
+    }
   });
 }
 
@@ -48,6 +50,7 @@ function syncUi() {
     const play = root.querySelector(".music-player__play");
     const repeat = root.querySelector("[data-music-repeat]");
     const volume = root.querySelector("[data-music-volume]");
+    const volumeSlider = root.querySelector("[data-music-volume-slider]");
     const list = root.querySelector(".music-player__list");
     if (title) title.textContent = track.name;
     if (play) {
@@ -59,9 +62,12 @@ function syncUi() {
       repeat.setAttribute("aria-pressed", String(repeatOne));
     }
     if (volume) {
-      volume.textContent = muted ? "🔇" : "🔊";
-      volume.setAttribute("aria-label", muted ? "소리 켜기" : "음소거");
+      volume.setAttribute(
+        "aria-label",
+        root.classList.contains("is-volume-open") ? "볼륨 닫기" : "볼륨 조절"
+      );
     }
+    if (volumeSlider) volumeSlider.value = String(volumeLevel);
     if (list) {
       [...list.children].forEach((item, index) => {
         item.classList.toggle("is-current", index === currentIndex);
@@ -106,8 +112,13 @@ function render(root) {
     <div class="music-player__panel">
       <button class="music-player__btn music-player__play" data-music-play type="button" aria-label="재생">▶</button>
       <button class="music-player__title" data-music-list-toggle type="button" aria-label="곡 목록 열기"></button>
-      <button class="music-player__btn music-player__repeat" data-music-repeat type="button" aria-label="한 곡 반복" aria-pressed="false">↻</button>
-      <button class="music-player__btn music-player__volume" data-music-volume type="button" aria-label="음소거">🔊</button>
+      <button class="music-player__btn music-player__repeat" data-music-repeat type="button" aria-label="한 곡 반복" aria-pressed="false"><img src="./assets/ui/music-repeat-one.png" alt=""></button>
+      <div class="music-player__volume-wrap">
+        <button class="music-player__btn music-player__volume" data-music-volume type="button" aria-label="볼륨 조절"><img src="./assets/ui/music-volume.png" alt=""></button>
+        <div class="music-player__volume-popover">
+          <input data-music-volume-slider type="range" min="0" max="1" step="0.05" value="${volumeLevel}" aria-label="음악 볼륨">
+        </div>
+      </div>
       <div class="music-player__list"></div>
     </div>
   `;
@@ -138,12 +149,21 @@ function render(root) {
     syncUi();
   });
   root.querySelector("[data-music-volume]").addEventListener("click", () => {
-    muted = !muted;
-    audio.muted = muted;
+    root.classList.toggle("is-volume-open");
+    root.classList.remove("is-list-open");
     syncUi();
+  });
+  root.querySelector("[data-music-volume-slider]").addEventListener("input", (event) => {
+    volumeLevel = Number(event.target.value);
+    audio.volume = volumeLevel;
+    roots().forEach((player) => {
+      const slider = player.querySelector("[data-music-volume-slider]");
+      if (slider && slider !== event.target) slider.value = String(volumeLevel);
+    });
   });
   root.querySelector("[data-music-list-toggle]").addEventListener("click", () => {
     root.classList.toggle("is-list-open");
+    root.classList.remove("is-volume-open");
   });
 }
 
@@ -152,6 +172,7 @@ export async function initMusicPlayers() {
   initialized = true;
   audio = new Audio();
   audio.preload = "metadata";
+  audio.volume = volumeLevel;
   audio.addEventListener("ended", () => {
     if (!repeatOne) playAt(currentIndex + 1);
   });
@@ -170,7 +191,7 @@ export async function initMusicPlayers() {
   document.addEventListener("pointerdown", (event) => {
     if (!(event.target instanceof Element) || event.target.closest("[data-music-player]")) return;
     roots().forEach((root) => {
-      root.classList.remove("is-open", "is-list-open");
+      root.classList.remove("is-open", "is-list-open", "is-volume-open");
     });
   });
 }
