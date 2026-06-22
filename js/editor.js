@@ -1511,7 +1511,22 @@ class Editor {
       gesture = null;
     };
 
+    const onStickerHoverMove = (e) => {
+      if (e.pointerType !== "mouse" || gesture) return;
+      const chip = e.target.closest(".sticker-chip");
+      if (!chip) {
+        hideStickerPreview();
+        return;
+      }
+      showStickerPreview(chip.dataset.url, e.clientX, e.clientY);
+    };
+    const onStickerHoverLeave = () => {
+      if (!gesture) hideStickerPreview();
+    };
+
     this.stickerCarousel.addEventListener("pointerdown", onDown);
+    this.stickerCarousel.addEventListener("pointermove", onStickerHoverMove);
+    this.stickerCarousel.addEventListener("pointerleave", onStickerHoverLeave);
     const onTextDown = (e) => {
       const chip = e.target.closest(".text-chip");
       if (!chip) return;
@@ -1576,6 +1591,8 @@ class Editor {
     this.textCarousel.addEventListener("pointerdown", onTextDown);
     this.cleanup.push(() => {
       this.stickerCarousel.removeEventListener("pointerdown", onDown);
+      this.stickerCarousel.removeEventListener("pointermove", onStickerHoverMove);
+      this.stickerCarousel.removeEventListener("pointerleave", onStickerHoverLeave);
       this.textCarousel.removeEventListener("pointerdown", onTextDown);
       hideStickerPreview();
     });
