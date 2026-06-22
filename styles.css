@@ -158,10 +158,15 @@ body{
   cursor:pointer;
 }
 .music-player__repeat.is-on{
-  background:#5f536d;
+  background:var(--pink);
 }
 .music-player__repeat,
-.music-player__volume{ background:var(--pink); }
+.music-player__volume{
+  background:#E4E1E8;
+}
+.music-player.is-volume-open .music-player__volume{
+  background:var(--pink);
+}
 .music-player__repeat img,
 .music-player__volume img{
   width:17px;
@@ -192,11 +197,15 @@ body{
 }
 .music-player.is-volume-open .music-player__volume-popover{ display:grid; }
 .music-player__volume-popover input{
-  width:96px;
-  height:20px;
+  width:20px;
+  height:96px;
   margin:0;
   accent-color:var(--pink);
-  transform:rotate(-90deg);
+  appearance:auto;
+  -webkit-appearance:slider-vertical;
+  writing-mode:vertical-lr;
+  direction:rtl;
+  transform:none;
   cursor:pointer;
 }
 .music-player__list{

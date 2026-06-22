@@ -7,6 +7,7 @@ let playing = false;
 let repeatOne = false;
 let volumeLevel = 0.7;
 let initialized = false;
+let autoplayRetry = null;
 
 function normalizeTrack(track) {
   if (!track) return null;
@@ -90,6 +91,32 @@ async function playAt(index) {
   syncUi();
 }
 
+async function startRandomTrack() {
+  if (!playlist.length) return;
+  currentIndex = Math.floor(Math.random() * playlist.length);
+  audio.src = playlist[currentIndex].url;
+  syncUi();
+  try {
+    await audio.play();
+  } catch {
+    autoplayRetry = async (event) => {
+      if (event.target instanceof Element && event.target.closest("[data-music-player]")) {
+        document.removeEventListener("pointerdown", autoplayRetry, true);
+        autoplayRetry = null;
+        return;
+      }
+      try {
+        await audio.play();
+      } catch {
+        return;
+      }
+      document.removeEventListener("pointerdown", autoplayRetry, true);
+      autoplayRetry = null;
+    };
+    document.addEventListener("pointerdown", autoplayRetry, true);
+  }
+}
+
 function renderList(root) {
   const list = root.querySelector(".music-player__list");
   list.innerHTML = "";
@@ -171,7 +198,7 @@ export async function initMusicPlayers() {
   if (initialized) return;
   initialized = true;
   audio = new Audio();
-  audio.preload = "metadata";
+  audio.preload = "auto";
   audio.volume = volumeLevel;
   audio.addEventListener("ended", () => {
     if (!repeatOne) playAt(currentIndex + 1);
@@ -187,6 +214,7 @@ export async function initMusicPlayers() {
   playlist = await loadPlaylist();
   roots().forEach(render);
   syncUi();
+  startRandomTrack();
 
   document.addEventListener("pointerdown", (event) => {
     if (!(event.target instanceof Element) || event.target.closest("[data-music-player]")) return;
