@@ -513,10 +513,6 @@ body{
   0%,100%{ transform:translate(-50%,-50%) rotate(-3deg) scale(.96); }
   50%{ transform:translate(-50%,-50%) rotate(3deg) scale(1.05); }
 }
-@media (prefers-reduced-motion:reduce){
-  .drag-ghost,
-  .drag-ghost.is-popping{ animation:none; }
-}
 .sticker-preview{
   position:fixed;
   z-index:1000;
