@@ -743,6 +743,39 @@ body{
   border-color:#fff;
 }
 .tray [hidden]{ display:none!important; }
+.sticker-pack-list,
+.sticker-list,
+.tray-card-list{
+  scrollbar-width:auto;
+  scrollbar-color:#CDB9D8 rgba(234,221,240,.45);
+  scrollbar-gutter:stable;
+}
+.sticker-pack-list::-webkit-scrollbar,
+.sticker-list::-webkit-scrollbar,
+.tray-card-list::-webkit-scrollbar{
+  width:10px;
+}
+.sticker-pack-list::-webkit-scrollbar-track,
+.sticker-list::-webkit-scrollbar-track,
+.tray-card-list::-webkit-scrollbar-track{
+  background:rgba(234,221,240,.45);
+  border-radius:999px;
+}
+.sticker-pack-list::-webkit-scrollbar-thumb,
+.sticker-list::-webkit-scrollbar-thumb,
+.tray-card-list::-webkit-scrollbar-thumb{
+  min-height:32px;
+  border:2px solid transparent;
+  border-radius:999px;
+  background:#CDB9D8;
+  background-clip:padding-box;
+}
+.sticker-pack-list::-webkit-scrollbar-thumb:hover,
+.sticker-list::-webkit-scrollbar-thumb:hover,
+.tray-card-list::-webkit-scrollbar-thumb:hover{
+  background:#A98BFF;
+  background-clip:padding-box;
+}
 .tray-resizer{
   position:absolute;
   z-index:35;
