@@ -1410,6 +1410,21 @@ body{
     grid-column:1;
     grid-row:2;
   }
+  .fit-canvas{
+    left:12px;
+    top:12px;
+    bottom:auto;
+  }
+  .ui-toggle{
+    left:12px;
+    top:58px;
+    bottom:auto;
+  }
+  .zoom-readout{
+    left:58px;
+    top:18px;
+    bottom:auto;
+  }
   .screen--editor .tray{
     grid-column:1;
     grid-row:3;
