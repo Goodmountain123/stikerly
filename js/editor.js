@@ -1072,55 +1072,70 @@ class Editor {
   animateStickerLanding(ref) {
     const targetScaleX = ref.art.scaleX();
     const targetScaleY = ref.art.scaleY();
-    ref.art.scale({
+    const visual = this.makeStickerMotionVisual(ref);
+    visual.scale({
       x: targetScaleX * 1.24,
       y: targetScaleY * 1.24,
     });
-    ref.art.to({
+    visual.to({
       scaleX: targetScaleX * 0.92,
       scaleY: targetScaleY * 0.92,
       duration:0.06,
       easing:Konva.Easings.EaseInOut,
       onFinish:() => {
-        ref.art.to({
+        visual.to({
           scaleX:targetScaleX,
           scaleY:targetScaleY,
           duration:0.08,
           easing:Konva.Easings.BackEaseOut,
-          onFinish:() => {
-            ref.transformOnly();
-            this.transformer.forceUpdate();
-            this.positionTransformHandle();
-            this.positionFlipControls();
-            this.layer.batchDraw();
-          },
+          onFinish:() => this.finishStickerMotionVisual(ref, visual),
         });
       },
     });
   }
 
   animateStickerPickup(ref) {
-    ref.group.scale({ x:1, y:1 });
-    ref.group.to({
-      scaleX:1.2,
-      scaleY:1.2,
+    const targetScaleX = ref.art.scaleX();
+    const targetScaleY = ref.art.scaleY();
+    const visual = this.makeStickerMotionVisual(ref);
+    visual.to({
+      scaleX:targetScaleX * 1.2,
+      scaleY:targetScaleY * 1.2,
       duration:0.06,
       easing:Konva.Easings.BackEaseOut,
       onFinish:() => {
-        ref.group.to({
-          scaleX:1,
-          scaleY:1,
+        visual.to({
+          scaleX:targetScaleX,
+          scaleY:targetScaleY,
           duration:0.09,
           easing:Konva.Easings.EaseInOut,
-          onFinish:() => {
-            this.transformer.forceUpdate();
-            this.positionTransformHandle();
-            this.positionFlipControls();
-            this.layer.batchDraw();
-          },
+          onFinish:() => this.finishStickerMotionVisual(ref, visual),
         });
       },
     });
+  }
+
+  makeStickerMotionVisual(ref) {
+    if (ref.motionVisual) {
+      ref.motionVisual.destroy();
+      ref.motionVisual = null;
+    }
+    ref.art.opacity(1);
+    const visual = ref.art.clone({ listening:false });
+    visual.opacity(1);
+    ref.group.add(visual);
+    ref.art.opacity(0);
+    ref.motionVisual = visual;
+    this.layer.batchDraw();
+    return visual;
+  }
+
+  finishStickerMotionVisual(ref, visual) {
+    if (ref.motionVisual !== visual) return;
+    ref.art.opacity(1);
+    visual.destroy();
+    ref.motionVisual = null;
+    this.layer.batchDraw();
   }
 
   async addText(fontFamily, x, y) {
