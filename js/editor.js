@@ -1525,6 +1525,12 @@ class Editor {
     if (!container || container.dataset.dragScrollBound) return;
     container.dataset.dragScrollBound = "true";
     let state = null;
+    let suppressClickUntil = 0;
+    const blockDraggedClick = (e) => {
+      if (performance.now() > suppressClickUntil) return;
+      e.preventDefault();
+      e.stopPropagation();
+    };
     const down = (e) => {
       if (e.button !== 0) return;
       state = {
@@ -1542,7 +1548,9 @@ class Editor {
       if (!state) return;
       const dx = e.clientX - state.x;
       const dy = e.clientY - state.y;
-      if (Math.hypot(dx, dy) > 5) state.moved = true;
+      const primaryDistance = axis === "y" ? Math.abs(dy) : Math.abs(dx);
+      const crossDistance = axis === "y" ? Math.abs(dx) : Math.abs(dy);
+      if (primaryDistance > 8 && primaryDistance > crossDistance) state.moved = true;
       if (!state.moved) return;
       e.preventDefault();
       if (axis === "y") container.scrollTop = state.top - dy;
@@ -1550,11 +1558,7 @@ class Editor {
     };
     const up = () => {
       if (state?.moved) {
-        const blockClick = (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-        };
-        container.addEventListener("click", blockClick, { capture: true, once: true });
+        suppressClickUntil = performance.now() + 180;
       }
       state = null;
       window.removeEventListener("pointermove", move);
@@ -1562,8 +1566,13 @@ class Editor {
       window.removeEventListener("pointercancel", up);
     };
     container.addEventListener("pointerdown", down);
+    container.addEventListener("click", blockDraggedClick, { capture: true });
     this.cleanup.push(() => {
       container.removeEventListener("pointerdown", down);
+      container.removeEventListener("click", blockDraggedClick, { capture: true });
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      window.removeEventListener("pointercancel", up);
       delete container.dataset.dragScrollBound;
     });
   }
