@@ -4,6 +4,8 @@ let audio = null;
 let playlist = [];
 let currentIndex = 0;
 let playing = false;
+let repeatOne = false;
+let muted = false;
 let initialized = false;
 
 function normalizeTrack(track) {
@@ -31,6 +33,12 @@ function roots() {
   return [...document.querySelectorAll("[data-music-player]")];
 }
 
+function closeOtherPanels(activeRoot) {
+  roots().forEach((root) => {
+    if (root !== activeRoot) root.classList.remove("is-open");
+  });
+}
+
 function syncUi() {
   const track = playlist[currentIndex];
   roots().forEach((root) => {
@@ -38,8 +46,27 @@ function syncUi() {
     if (!track) return;
     const title = root.querySelector(".music-player__title");
     const play = root.querySelector(".music-player__play");
+    const repeat = root.querySelector("[data-music-repeat]");
+    const volume = root.querySelector("[data-music-volume]");
+    const list = root.querySelector(".music-player__list");
     if (title) title.textContent = track.name;
-    if (play) play.textContent = playing ? "Ⅱ" : "▶";
+    if (play) {
+      play.textContent = playing ? "❚❚" : "▶";
+      play.setAttribute("aria-label", playing ? "일시정지" : "재생");
+    }
+    if (repeat) {
+      repeat.classList.toggle("is-on", repeatOne);
+      repeat.setAttribute("aria-pressed", String(repeatOne));
+    }
+    if (volume) {
+      volume.textContent = muted ? "🔇" : "🔊";
+      volume.setAttribute("aria-label", muted ? "소리 켜기" : "음소거");
+    }
+    if (list) {
+      [...list.children].forEach((item, index) => {
+        item.classList.toggle("is-current", index === currentIndex);
+      });
+    }
     root.classList.toggle("is-playing", playing);
   });
 }
@@ -57,13 +84,41 @@ async function playAt(index) {
   syncUi();
 }
 
+function renderList(root) {
+  const list = root.querySelector(".music-player__list");
+  list.innerHTML = "";
+  playlist.forEach((track, index) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "music-player__track";
+    button.textContent = track.name;
+    button.addEventListener("click", () => {
+      playAt(index);
+      root.classList.remove("is-list-open");
+    });
+    list.appendChild(button);
+  });
+}
+
 function render(root) {
   root.innerHTML = `
-    <button class="music-player__btn" data-music-prev type="button" aria-label="이전 곡">‹</button>
-    <button class="music-player__btn music-player__play" data-music-play type="button" aria-label="재생">▶</button>
-    <span class="music-player__title"></span>
-    <button class="music-player__btn" data-music-next type="button" aria-label="다음 곡">›</button>
+    <button class="music-player__mobile-toggle" type="button" aria-label="음악 재생창 열기">♫</button>
+    <div class="music-player__panel">
+      <button class="music-player__btn" data-music-prev type="button" aria-label="이전 곡">‹</button>
+      <button class="music-player__btn music-player__play" data-music-play type="button" aria-label="재생">▶</button>
+      <button class="music-player__title" data-music-list-toggle type="button" aria-label="곡 목록 열기"></button>
+      <button class="music-player__btn music-player__repeat" data-music-repeat type="button" aria-label="한 곡 반복" aria-pressed="false">↻</button>
+      <button class="music-player__btn music-player__volume" data-music-volume type="button" aria-label="음소거">🔊</button>
+      <button class="music-player__btn" data-music-next type="button" aria-label="다음 곡">›</button>
+      <div class="music-player__list"></div>
+    </div>
   `;
+  renderList(root);
+  root.querySelector(".music-player__mobile-toggle").addEventListener("click", () => {
+    const opening = !root.classList.contains("is-open");
+    closeOtherPanels(root);
+    root.classList.toggle("is-open", opening);
+  });
   root.querySelector("[data-music-play]").addEventListener("click", async () => {
     if (!playlist.length) return;
     if (!audio.src) return playAt(currentIndex);
@@ -76,12 +131,24 @@ function render(root) {
       }
     } else {
       audio.pause();
-      playing = false;
     }
     syncUi();
   });
   root.querySelector("[data-music-prev]").addEventListener("click", () => playAt(currentIndex - 1));
   root.querySelector("[data-music-next]").addEventListener("click", () => playAt(currentIndex + 1));
+  root.querySelector("[data-music-repeat]").addEventListener("click", () => {
+    repeatOne = !repeatOne;
+    audio.loop = repeatOne;
+    syncUi();
+  });
+  root.querySelector("[data-music-volume]").addEventListener("click", () => {
+    muted = !muted;
+    audio.muted = muted;
+    syncUi();
+  });
+  root.querySelector("[data-music-list-toggle]").addEventListener("click", () => {
+    root.classList.toggle("is-list-open");
+  });
 }
 
 export async function initMusicPlayers() {
@@ -89,7 +156,9 @@ export async function initMusicPlayers() {
   initialized = true;
   audio = new Audio();
   audio.preload = "metadata";
-  audio.addEventListener("ended", () => playAt(currentIndex + 1));
+  audio.addEventListener("ended", () => {
+    if (!repeatOne) playAt(currentIndex + 1);
+  });
   audio.addEventListener("pause", () => {
     playing = false;
     syncUi();
@@ -101,4 +170,11 @@ export async function initMusicPlayers() {
   playlist = await loadPlaylist();
   roots().forEach(render);
   syncUi();
+
+  document.addEventListener("pointerdown", (event) => {
+    if (!(event.target instanceof Element) || event.target.closest("[data-music-player]")) return;
+    roots().forEach((root) => {
+      root.classList.remove("is-open", "is-list-open");
+    });
+  });
 }

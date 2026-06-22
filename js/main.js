@@ -167,6 +167,7 @@ function projectDateTitle(date = new Date()) {
 async function open(id) {
   const project = await getProject(id);
   if (!project) return;
+  sounds.page();
   showScreen("editor");
   openEditor(project, {
     onExit: () => { showScreen("projects"); renderList(); },
@@ -250,11 +251,11 @@ undoDeleteButton.addEventListener("click", async () => {
 document.getElementById("new-cancel").addEventListener("click", closeModal);
 modal.addEventListener("click", (e) => { if (e.target === modal) closeModal(); });
 newCreate.addEventListener("click", async () => {
-  sounds.pop();
   const title = newTitle.value.trim() || projectDateTitle();
   const project = newProject(title, null);
   await putProject(project);
   closeModal();
+  sounds.page();
   showScreen("editor");
   openEditor(project, {
     onExit: () => { showScreen("projects"); renderList(); },

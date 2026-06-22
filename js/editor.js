@@ -357,7 +357,6 @@ class Editor {
     if (!ref || ref.isText || this.selectedPart !== "art") return;
     ref.item[key === "flipH" ? "flipX" : "flipY"] =
       !ref.item[key === "flipH" ? "flipX" : "flipY"];
-    sounds.flip();
     ref.refresh();
     this.transformer.forceUpdate();
     this.positionTransformHandle();
@@ -1100,7 +1099,7 @@ class Editor {
   }
 
   animateStickerPickup(ref) {
-    sounds.pop();
+    sounds.pickup();
     const targetScaleX = ref.art.scaleX();
     const targetScaleY = ref.art.scaleY();
     const visual = this.makeStickerMotionVisual(ref);
@@ -1530,6 +1529,7 @@ class Editor {
       if (canExtract && e.pointerType === "mouse") {
         gesture.previewActive = true;
         gesture.extracting = true;
+        sounds.pickup();
         ghost.src = gesture.url;
         sizeGhostForCanvas();
         ghost.classList.remove("is-popping");
@@ -1543,6 +1543,7 @@ class Editor {
           if (gesture !== pendingGesture || gesture.extracting) return;
           gesture.holdTimer = null;
           gesture.previewActive = true;
+          sounds.pickup();
           ghost.src = gesture.url;
           sizeGhostForCanvas();
           ghost.classList.remove("is-popping");
@@ -1579,6 +1580,7 @@ class Editor {
       if (!gesture.extracting) {
         clearStickerHold();
         gesture.extracting = true;
+        sounds.pickup();
         ghost.src = gesture.url;
         sizeGhostForCanvas();
         ghost.classList.remove("is-popping");
@@ -2499,11 +2501,9 @@ class Editor {
 
     if (key === "flipH") {
       item.flipX = !item.flipX;
-      sounds.flip();
     }
     if (key === "flipV") {
       item.flipY = !item.flipY;
-      sounds.flip();
     }
     if (key === "forward") return this.restack(id, 1);
     if (key === "backward") return this.restack(id, -1);
@@ -2851,6 +2851,7 @@ class Editor {
   async exit() {
     clearTimeout(this.autoSaveTimer);
     await this.save();
+    sounds.page();
     this.destroy();
     app = null;
     if (this.cb.onExit) this.cb.onExit();
