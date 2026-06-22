@@ -11,17 +11,26 @@ let initialized = false;
 let autoplayRetry = null;
 let preloadedTracks = [];
 const MUTE_COOKIE = "stickerly_music_muted";
+const PLAY_COOKIE = "stickerly_music_playing";
+const REPEAT_COOKIE = "stickerly_music_repeat_one";
 
-function readMuteCookie() {
-  return document.cookie
+function readBooleanCookie(name, fallback = false) {
+  const prefix = `${name}=`;
+  const entry = document.cookie
     .split(";")
     .map((part) => part.trim())
-    .some((part) => part === `${MUTE_COOKIE}=1`);
+    .find((part) => part.startsWith(prefix));
+  if (!entry) return fallback;
+  return entry.slice(prefix.length) === "1";
 }
 
-function saveMuteCookie() {
+function readMuteCookie() {
+  return readBooleanCookie(MUTE_COOKIE);
+}
+
+function saveBooleanCookie(name, value) {
   const maxAge = 60 * 60 * 24 * 365;
-  document.cookie = `${MUTE_COOKIE}=${muted ? "1" : "0"}; max-age=${maxAge}; path=/; SameSite=Lax`;
+  document.cookie = `${name}=${value ? "1" : "0"}; max-age=${maxAge}; path=/; SameSite=Lax`;
 }
 
 function clearAutoplayRetry() {
@@ -186,17 +195,19 @@ function render(root) {
     } else {
       audio.pause();
     }
+    saveBooleanCookie(PLAY_COOKIE, !audio.paused);
     syncUi();
   });
   root.querySelector("[data-music-repeat]").addEventListener("click", () => {
     repeatOne = !repeatOne;
     audio.loop = repeatOne;
+    saveBooleanCookie(REPEAT_COOKIE, repeatOne);
     syncUi();
   });
   root.querySelector("[data-music-volume]").addEventListener("click", () => {
     muted = !muted;
     audio.muted = muted;
-    saveMuteCookie();
+    saveBooleanCookie(MUTE_COOKIE, muted);
     syncUi();
   });
   root.querySelector("[data-music-list-toggle]").addEventListener("click", () => {
@@ -214,16 +225,21 @@ export async function initMusicPlayers() {
   audio.playsInline = true;
   audio.volume = volumeLevel;
   muted = readMuteCookie();
+  playing = readBooleanCookie(PLAY_COOKIE, true);
+  repeatOne = readBooleanCookie(REPEAT_COOKIE);
   audio.muted = muted;
+  audio.loop = repeatOne;
   audio.addEventListener("ended", () => {
     if (!repeatOne) playAt(currentIndex + 1);
   });
   audio.addEventListener("pause", () => {
     playing = false;
+    saveBooleanCookie(PLAY_COOKIE, false);
     syncUi();
   });
   audio.addEventListener("play", () => {
     playing = true;
+    saveBooleanCookie(PLAY_COOKIE, true);
     syncUi();
   });
   playlist = await loadPlaylist();
@@ -236,7 +252,7 @@ export async function initMusicPlayers() {
   });
   roots().forEach(render);
   syncUi();
-  startRandomTrack();
+  if (playing) startRandomTrack();
 
   document.addEventListener("pointerdown", (event) => {
     if (!(event.target instanceof Element) || event.target.closest("[data-music-player]")) return;
