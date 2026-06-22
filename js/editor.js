@@ -1213,11 +1213,17 @@ class Editor {
       nameResizeObserver.observe(label);
       this.cleanup.push(() => nameResizeObserver.disconnect());
 
-      chip.addEventListener("click", () => this.activatePack(pack.id));
+      chip.addEventListener("click", () => {
+        sounds.packOpen();
+        this.activatePack(pack.id);
+      });
       this.packCarousel.appendChild(chip);
     });
 
-    const showPacks = () => this.showStickerPacks();
+    const showPacks = () => {
+      sounds.packClose();
+      this.showStickerPacks();
+    };
     const filterPacks = () => {
       const query = this.packSearch.value.trim().toLocaleLowerCase("ko");
       this.packCarousel.querySelectorAll(".pack-card").forEach((card) => {

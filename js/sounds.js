@@ -9,6 +9,8 @@ const files = {
   finish: new URL("../assets/sfx/finish.mp3", import.meta.url).href,
   undo: new URL("../assets/sfx/undu.mp3", import.meta.url).href,
   click: new URL("../assets/sfx/click.mp3", import.meta.url).href,
+  button: new URL("../assets/sfx/button.mp3", import.meta.url).href,
+  punch: new URL("../assets/sfx/punch.mp3", import.meta.url).href,
 };
 
 function play(name, volume = 0.65) {
@@ -39,6 +41,12 @@ export const sounds = {
   },
   pickup() {
     play("click", 0.65);
+  },
+  packOpen() {
+    play("button", 0.62);
+  },
+  packClose() {
+    play("punch", 0.62);
   },
   drop() {
     play("pop", 0.68);
