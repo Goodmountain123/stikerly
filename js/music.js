@@ -104,12 +104,10 @@ function render(root) {
   root.innerHTML = `
     <button class="music-player__mobile-toggle" type="button" aria-label="음악 재생창 열기">♫</button>
     <div class="music-player__panel">
-      <button class="music-player__btn" data-music-prev type="button" aria-label="이전 곡">‹</button>
       <button class="music-player__btn music-player__play" data-music-play type="button" aria-label="재생">▶</button>
       <button class="music-player__title" data-music-list-toggle type="button" aria-label="곡 목록 열기"></button>
       <button class="music-player__btn music-player__repeat" data-music-repeat type="button" aria-label="한 곡 반복" aria-pressed="false">↻</button>
       <button class="music-player__btn music-player__volume" data-music-volume type="button" aria-label="음소거">🔊</button>
-      <button class="music-player__btn" data-music-next type="button" aria-label="다음 곡">›</button>
       <div class="music-player__list"></div>
     </div>
   `;
@@ -134,8 +132,6 @@ function render(root) {
     }
     syncUi();
   });
-  root.querySelector("[data-music-prev]").addEventListener("click", () => playAt(currentIndex - 1));
-  root.querySelector("[data-music-next]").addEventListener("click", () => playAt(currentIndex + 1));
   root.querySelector("[data-music-repeat]").addEventListener("click", () => {
     repeatOne = !repeatOne;
     audio.loop = repeatOne;
