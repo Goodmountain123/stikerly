@@ -923,6 +923,7 @@ class Editor {
       }
       ref.item.x = group.x();
       ref.item.y = group.y();
+      if (!ref.isText) this.animateStickerLanding(ref);
       this.commit();
     });
 
