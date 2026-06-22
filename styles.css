@@ -1117,6 +1117,7 @@ body{
   background:#C1A9D0;
   will-change:transform;
 }
+.screen--editor.tray-collapsed .tray-scrollbar{ display:none!important; }
 .tray-resizer{
   position:absolute;
   z-index:35;
