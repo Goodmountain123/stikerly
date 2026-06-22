@@ -1641,10 +1641,7 @@ body{
 .pack-card:nth-child(3n){ background:linear-gradient(135deg,#ECFFF7,#FFF5E7); }
 .pack-card:hover{ filter:saturate(1.12); }
 .pack-card__thumb{ box-shadow:0 3px 10px rgba(64,53,82,.1); }
-.sticker-list .sticker-chip:nth-child(4n+1){ background:linear-gradient(145deg,#fff,#FFF0F6); }
-.sticker-list .sticker-chip:nth-child(4n+2){ background:linear-gradient(145deg,#fff,#EDF8FF); }
-.sticker-list .sticker-chip:nth-child(4n+3){ background:linear-gradient(145deg,#fff,#ECFFF7); }
-.sticker-list .sticker-chip:nth-child(4n){ background:linear-gradient(145deg,#fff,#FFF8DF); }
+.sticker-list .sticker-chip{ background:#fff; }
 .menu-row{ background:linear-gradient(135deg,rgba(255,255,255,.72),rgba(255,245,251,.68)); }
 .menu-btn:nth-child(4n+1){ background:#FFF0F6; }
 .menu-btn:nth-child(4n+2){ background:#EDF8FF; }
