@@ -35,6 +35,57 @@ function autoSave(input, save) {
   });
 }
 
+function bindSortable(container, itemSelector, table) {
+  let dragged = null;
+  let changed = false;
+
+  container.addEventListener("dragstart", (event) => {
+    const item = event.target.closest(itemSelector);
+    if (!item || event.target.closest("input, button, .pack__body")) {
+      event.preventDefault();
+      return;
+    }
+    dragged = item;
+    changed = false;
+    if ("open" in item) item.open = false;
+    item.classList.add("is-sorting");
+    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.setData("text/plain", item.dataset.sortId);
+  });
+
+  container.addEventListener("dragover", (event) => {
+    if (!dragged) return;
+    event.preventDefault();
+    const target = event.target.closest(itemSelector);
+    if (!target || target === dragged) return;
+    const rect = target.getBoundingClientRect();
+    const sameRow = event.clientY > rect.top && event.clientY < rect.bottom;
+    const before = sameRow
+      ? event.clientX < rect.left + rect.width / 2
+      : event.clientY < rect.top + rect.height / 2;
+    container.insertBefore(dragged, before ? target : target.nextSibling);
+    changed = true;
+  });
+
+  container.addEventListener("drop", (event) => event.preventDefault());
+  container.addEventListener("dragend", async () => {
+    if (!dragged) return;
+    dragged.classList.remove("is-sorting");
+    dragged = null;
+    if (!changed) return;
+
+    const items = [...container.querySelectorAll(itemSelector)];
+    const results = await Promise.all(items.map((item, position) =>
+      supabase.from(table).update({ position }).eq("id", item.dataset.sortId)
+    ));
+    if (results.some((result) => result.error)) {
+      toast("순서를 저장하지 못했어요.");
+      return;
+    }
+    toast("순서를 저장했어요.");
+  });
+}
+
 function updatePackSelection() {
   $("#pack-selection-count").textContent = `선택 ${selectedPacks.size}개`;
   $("#delete-selected-packs").disabled = selectedPacks.size === 0;
@@ -326,11 +377,14 @@ async function renderPacks() {
 function packCard(pack) {
   const card = document.createElement("details");
   card.className = "pack";
+  card.dataset.sortId = pack.id;
+  card.draggable = true;
   const thumbnail = pack.stickers[0]
     ? publicAssetUrl(pack.stickers[0].storage_path)
     : "";
   card.innerHTML = `
     <summary class="pack__summary">
+      <span class="sort-grip" aria-hidden="true">⋮⋮</span>
       <input class="select-box pack-select" type="checkbox" aria-label="팩 선택">
       ${thumbnail ? `<img src="${thumbnail}" alt="">` : `<span class="pack__empty">＋</span>`}
       <span class="pack__summary-main">
@@ -425,7 +479,10 @@ async function renderBackgrounds() {
   data.forEach((background) => {
     const item = document.createElement("div");
     item.className = "asset";
+    item.dataset.sortId = background.id;
+    item.draggable = true;
     item.innerHTML = `
+      <span class="sort-grip asset-sort-grip" aria-hidden="true">⋮⋮</span>
       <input class="select-box" type="checkbox" aria-label="배경 선택">
       <img src="${publicAssetUrl(background.storage_path)}" alt="">
       <input class="asset-name" value="${escapeHtml(background.name)}" aria-label="배경 이름">`;
@@ -447,6 +504,9 @@ async function renderBackgrounds() {
   });
   updateBackgroundSelection();
 }
+
+bindSortable($("#pack-list"), ".pack", "sticker_packs");
+bindSortable($("#background-list"), ".asset", "backgrounds");
 
 function escapeHtml(value) {
   return String(value).replace(/[&<>"']/g, (char) => ({
