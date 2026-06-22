@@ -1143,8 +1143,16 @@ class Editor {
 
       const label = document.createElement("span");
       label.className = "pack-card__name";
-      label.textContent = pack.name;
+      const labelText = document.createElement("span");
+      labelText.className = "pack-card__name-text";
+      labelText.textContent = pack.name;
+      label.appendChild(labelText);
       chip.appendChild(label);
+      requestAnimationFrame(() => {
+        const overflow = Math.max(0, labelText.scrollWidth - label.clientWidth);
+        label.classList.toggle("is-overflowing", overflow > 1);
+        label.style.setProperty("--pack-name-shift", `${overflow}px`);
+      });
 
       chip.addEventListener("click", () => this.activatePack(pack.id));
       this.packCarousel.appendChild(chip);

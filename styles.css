@@ -957,12 +957,10 @@ body.is-resizing-tray *{ cursor:ew-resize!important; user-select:none!important;
   width:max-content;
   min-width:0;
   max-width:calc(100% - 10px);
-  max-height:38px;
+  max-height:none;
   padding:4px 7px;
   overflow:hidden;
-  display:-webkit-box;
-  -webkit-box-orient:vertical;
-  -webkit-line-clamp:2;
+  display:block;
   border-radius:7px;
   background:#5f536d;
   color:#fff;
@@ -970,7 +968,21 @@ body.is-resizing-tray *{ cursor:ew-resize!important; user-select:none!important;
   text-align:center;
   text-shadow:0 1px 2px rgba(0,0,0,.5);
   transform:translateX(-50%);
-  overflow-wrap:anywhere;
+  white-space:nowrap;
+}
+.pack-card__name-text{
+  display:inline-block;
+  min-width:max-content;
+  will-change:transform;
+}
+.pack-card__name.is-overflowing .pack-card__name-text{
+  animation:pack-name-marquee 10s ease-in-out infinite;
+}
+.pack-card__name.is-overflowing{ text-align:left; }
+@keyframes pack-name-marquee{
+  0%,20%{ transform:translateX(0); }
+  45%,65%{ transform:translateX(calc(-1 * var(--pack-name-shift))); }
+  90%,100%{ transform:translateX(0); }
 }
 .sticker-pack-detail{
   height:100%;
