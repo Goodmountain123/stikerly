@@ -375,13 +375,22 @@ $("#move-stickers-form").addEventListener("submit", async (event) => {
   const targetPackId = $("#move-stickers-target").value || null;
   const basePosition = Date.now();
   const table = moveAssetState.type === "background" ? "backgrounds" : "stickers";
-  const results = await Promise.all(moveAssetState.assets.map((asset, index) =>
-    supabase.from(table).update({
-      pack_id: targetPackId,
-      position: basePosition + index,
-    }).eq("id", asset.id)
-  ));
-  if (results.some((result) => result.error)) return toast("어셋을 이동하지 못했어요.");
+  const assetIds = moveAssetState.assets.map((asset) => asset.id);
+  const moved = await supabase.from(table)
+    .update({ pack_id: targetPackId, position: basePosition })
+    .in("id", assetIds)
+    .select("id,pack_id");
+  if (moved.error) {
+    console.error("Asset move failed", moved.error);
+    const missingColumn = moved.error.code === "42703" ||
+      String(moved.error.message || "").includes("pack_id");
+    return toast(missingColumn
+      ? "최신 schema.sql을 Supabase에서 실행해 주세요."
+      : "어셋을 이동하지 못했어요.");
+  }
+  if ((moved.data || []).length !== assetIds.length) {
+    return toast("일부 어셋이 이동되지 않았어요. 관리자 권한을 확인해 주세요.");
+  }
   if (moveAssetState.type === "background" && !moveAssetState.sourcePack) {
     selectedBackgrounds.clear();
   }
@@ -550,20 +559,22 @@ async function removeMusicTrack(index) {
 
 async function renderPacks() {
   let { data: packs, error } = await supabase
-    .from("sticker_packs").select("*, stickers(*), backgrounds(*)")
-    .order("position");
-  if (error) {
-    const fallback = await supabase
-      .from("sticker_packs").select("*, stickers(*)")
-      .order("position");
-    packs = fallback.data;
-    error = fallback.error;
-  }
+    .from("sticker_packs").select("*, stickers(*)").order("position");
   if (error) return toast("팩을 불러오지 못했어요.");
+  const backgroundResult = await supabase
+    .from("backgrounds").select("*").not("pack_id", "is", null).order("position");
+  const backgroundsByPack = new Map();
+  if (!backgroundResult.error) {
+    (backgroundResult.data || []).forEach((background) => {
+      const items = backgroundsByPack.get(background.pack_id) || [];
+      items.push(background);
+      backgroundsByPack.set(background.pack_id, items);
+    });
+  }
   packs = (packs || []).map((pack) => ({
     ...pack,
     stickers: [...(pack.stickers || [])].sort((a, b) => a.position - b.position),
-    backgrounds: [...(pack.backgrounds || [])].sort((a, b) => a.position - b.position),
+    backgrounds: backgroundsByPack.get(pack.id) || [],
   }));
   const list = $("#pack-list");
   list.innerHTML = "";
