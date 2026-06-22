@@ -8,7 +8,6 @@ let repeatOne = false;
 let volumeLevel = 0.5;
 let muted = false;
 let initialized = false;
-let autoplayRetry = null;
 let preloadedTracks = [];
 const MUTE_COOKIE = "stickerly_music_muted";
 const PLAY_COOKIE = "stickerly_music_playing";
@@ -31,14 +30,6 @@ function readMuteCookie() {
 function saveBooleanCookie(name, value) {
   const maxAge = 60 * 60 * 24 * 365;
   document.cookie = `${name}=${value ? "1" : "0"}; max-age=${maxAge}; path=/; SameSite=Lax`;
-}
-
-function clearAutoplayRetry() {
-  if (!autoplayRetry) return;
-  document.removeEventListener("pointerdown", autoplayRetry, true);
-  document.removeEventListener("touchstart", autoplayRetry, true);
-  document.removeEventListener("keydown", autoplayRetry, true);
-  autoplayRetry = null;
 }
 
 function normalizeTrack(track) {
@@ -121,7 +112,6 @@ async function playAt(index) {
   try {
     await audio.play();
     playing = true;
-    clearAutoplayRetry();
   } catch {
     playing = false;
   }
@@ -135,23 +125,10 @@ async function startRandomTrack() {
   syncUi();
   try {
     await audio.play();
-    clearAutoplayRetry();
   } catch {
-    autoplayRetry = async (event) => {
-      if (
-        event.target instanceof Element &&
-        event.target.closest("[data-music-play]")
-      ) return;
-      try {
-        await audio.play();
-      } catch {
-        return;
-      }
-      clearAutoplayRetry();
-    };
-    document.addEventListener("pointerdown", autoplayRetry, true);
-    document.addEventListener("touchstart", autoplayRetry, true);
-    document.addEventListener("keydown", autoplayRetry, true);
+    playing = false;
+    saveBooleanCookie(PLAY_COOKIE, false);
+    syncUi();
   }
 }
 
@@ -200,7 +177,6 @@ function render(root) {
       try {
         await audio.play();
         playing = true;
-        clearAutoplayRetry();
       } catch {
         playing = false;
       }
