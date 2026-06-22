@@ -1806,10 +1806,10 @@ class Editor {
       : null;
     this.bgDirty = true;
     if (bg) {
-      await this.renderBackground();
+      await this.renderBackground({ animate: true });
     } else {
       this.changeCanvasSize({ w: 1080, h: 1080 });
-      await this.renderBackground();
+      await this.renderBackground({ animate: true });
     }
     this.commit();
   }
@@ -1825,12 +1825,11 @@ class Editor {
     }
   }
 
-  async renderBackground() {
-    if (this.bgNode) {
-      this.bgNode.destroy();
-      this.bgNode = null;
-      this.bgImage = null;
-    }
+  async renderBackground({ animate = false } = {}) {
+    const previousBgNode = this.bgNode;
+    this.bgNode = null;
+    this.bgImage = null;
+    if (!animate) previousBgNode?.destroy();
 
     const bg = this.project.background;
     if (bg) {
@@ -1871,9 +1870,61 @@ class Editor {
       }
     }
 
+    let pageTurnNode = this.bgNode;
+    let removePageTurnNode = false;
+    if (animate && !pageTurnNode) {
+      pageTurnNode = new Konva.Rect({
+        x:0,
+        y:0,
+        width:this.canvasW,
+        height:this.canvasH,
+        fill:"#ffffff",
+        listening:false,
+        name:"background-page-turn",
+      });
+      this.layer.add(pageTurnNode);
+      removePageTurnNode = true;
+    }
+
     this.reorderLayer();
     this.layer.batchDraw();
     this.markBgActive();
+    if (animate && pageTurnNode) {
+      this.animateBackgroundPageTurn(pageTurnNode, previousBgNode, removePageTurnNode);
+    } else {
+      previousBgNode?.destroy();
+    }
+  }
+
+  animateBackgroundPageTurn(node, previousNode, removeAtEnd = false) {
+    node.position({ x:this.canvasW, y:0 });
+    node.offsetX(this.canvasW);
+    node.scaleX(0.035);
+    node.skewY(-0.045);
+    node.shadowColor("rgba(52,38,72,.32)");
+    node.shadowBlur(28);
+    node.shadowOffsetX(-16);
+    node.shadowOpacity(0.55);
+    node.to({
+      scaleX:1,
+      skewY:0,
+      duration:0.48,
+      easing:Konva.Easings.EaseInOut,
+      onFinish:() => {
+        previousNode?.destroy();
+        if (removeAtEnd) {
+          node.destroy();
+        } else {
+          node.position({ x:0, y:0 });
+          node.offsetX(0);
+          node.scaleX(1);
+          node.skewY(0);
+          node.shadowEnabled(false);
+        }
+        this.reorderLayer();
+        this.layer.batchDraw();
+      },
+    });
   }
 
   markBgActive() {
