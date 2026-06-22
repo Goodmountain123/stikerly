@@ -1584,9 +1584,18 @@ class Editor {
     const tray = document.querySelector(".tray");
     let gesture = null;
 
-    const moveGhost = (x, y) => {
-      ghost.style.left = x + "px";
-      ghost.style.top = y + "px";
+    const ghostCenter = (x, y, pointerType = gesture?.pointerType) => {
+      if (pointerType === "mouse") return { x, y };
+      const size = parseFloat(ghost.style.width) || ghost.offsetWidth || 96;
+      return {
+        x: x - size * 0.68,
+        y: y - size * 0.32,
+      };
+    };
+    const moveGhost = (x, y, pointerType = gesture?.pointerType) => {
+      const center = ghostCenter(x, y, pointerType);
+      ghost.style.left = center.x + "px";
+      ghost.style.top = center.y + "px";
     };
     const sizeGhostForCanvas = () => {
       const size = STICKER_BASE * this.stage.scaleX();
@@ -1652,7 +1661,7 @@ class Editor {
         void ghost.offsetWidth;
         ghost.classList.add("is-popping");
         ghost.hidden = false;
-        moveGhost(e.clientX, e.clientY);
+        moveGhost(e.clientX, e.clientY, e.pointerType);
       } else if (canExtract) {
         const pendingGesture = gesture;
         gesture.holdTimer = setTimeout(() => {
@@ -1666,7 +1675,7 @@ class Editor {
           void ghost.offsetWidth;
           ghost.classList.add("is-popping");
           ghost.hidden = false;
-          moveGhost(gesture.startX, gesture.startY);
+          moveGhost(gesture.startX, gesture.startY, gesture.pointerType);
         }, 96);
       }
       window.addEventListener("pointermove", onMove);
@@ -1679,7 +1688,7 @@ class Editor {
       const moved = Math.hypot(e.clientX - gesture.startX, e.clientY - gesture.startY) > 5;
       if (!gesture.extracting && isInsideTray(e)) {
         if (gesture.previewActive) {
-          moveGhost(e.clientX, e.clientY);
+          moveGhost(e.clientX, e.clientY, gesture.pointerType);
           return;
         }
         if (moved) {
@@ -1704,7 +1713,7 @@ class Editor {
         ghost.classList.add("is-popping");
         ghost.hidden = false;
       }
-      moveGhost(e.clientX, e.clientY);
+      moveGhost(e.clientX, e.clientY, gesture.pointerType);
     };
 
     const onUp = (e) => {
@@ -1718,15 +1727,16 @@ class Editor {
       if (!gesture || gesture.type !== "sticker") return;
 
       const rect = this.host.getBoundingClientRect();
+      const dropCenter = ghostCenter(e.clientX, e.clientY, gesture.pointerType);
       const inside =
-        e.clientX >= rect.left &&
-        e.clientX <= rect.right &&
-        e.clientY >= rect.top &&
-        e.clientY <= rect.bottom;
+        dropCenter.x >= rect.left &&
+        dropCenter.x <= rect.right &&
+        dropCenter.y >= rect.top &&
+        dropCenter.y <= rect.bottom;
 
       if (gesture.extracting && inside) {
-        const sx = e.clientX - rect.left;
-        const sy = e.clientY - rect.top;
+        const sx = dropCenter.x - rect.left;
+        const sy = dropCenter.y - rect.top;
         const world = {
           x: (sx - this.stage.x()) / this.stage.scaleX(),
           y: (sy - this.stage.y()) / this.stage.scaleX(),
