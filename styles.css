@@ -1757,6 +1757,7 @@ body{
     max-width:38px;
   }
   .topbar--home #btn-new{
+    position:relative;
     width:38px;
     height:38px;
     padding:0;
@@ -1765,9 +1766,20 @@ body{
     font-size:0;
   }
   .topbar--home #btn-new::before{
-    content:"+";
-    font:800 25px/1 var(--font-ui);
-    transform:translateY(2px);
+    content:"";
+    width:20px;
+    height:4px;
+    border-radius:999px;
+    background:#fff;
+    transform:none;
+  }
+  .topbar--home #btn-new::after{
+    content:"";
+    position:absolute;
+    width:4px;
+    height:20px;
+    border-radius:999px;
+    background:#fff;
   }
   .topbar--home #btn-delete-mode{
     width:38px;
@@ -1899,30 +1911,59 @@ body{
   .menu-btn img{ width:32px; height:32px; }
 }
 
-@media (orientation:landscape) and (max-height:600px){
+@media (orientation:landscape) and (max-width:1000px){
   .topbar--home{
     flex-wrap:nowrap;
-    padding-bottom:max(10px,env(safe-area-inset-bottom));
+    min-height:50px;
+    gap:7px;
+    padding:max(6px,env(safe-area-inset-top)) 10px 7px;
   }
+  .topbar--home .wordmark{ font-size:23px; }
   .topbar--home .topbar__spacer{ display:none; }
   .topbar--home .welcome-ticker{
     order:2;
     flex:1 1 auto;
     width:auto;
     max-width:none;
-    height:38px;
+    height:32px;
     margin:0;
     padding:0 8px;
     place-items:center;
     border:0;
     background:transparent;
-    font-size:14px;
+    font-size:12px;
     text-align:center;
   }
   .topbar--home .music-player{ order:3; }
   .topbar--home #btn-undo-delete,
   .topbar--home #btn-delete-mode,
   .topbar--home #btn-new{ order:4; }
+  .topbar--home .music-player,
+  .topbar--home #btn-undo-delete,
+  .topbar--home #btn-delete-mode,
+  .topbar--home #btn-new{
+    flex-basis:32px;
+    width:32px;
+    min-width:32px;
+    max-width:32px;
+    height:32px;
+  }
+  .topbar--home .music-player__mobile-toggle{
+    width:32px;
+    height:32px;
+  }
+  .topbar--home .music-player__mobile-toggle img{ width:18px; height:18px; }
+  .topbar--home #btn-delete-mode .ui-icon,
+  .topbar--home #btn-undo-delete .ui-icon{ width:19px; height:19px; }
+  .topbar--home #btn-new::before{ width:17px; height:3px; }
+  .topbar--home #btn-new::after{ width:3px; height:17px; }
+  .home-tabs{ padding-top:5px; }
+  .home-tab{
+    min-width:92px;
+    padding:7px 14px;
+    border-radius:12px 12px 0 0;
+    font-size:13px;
+  }
   .drawer-pack-grid{
     grid-template-columns:repeat(auto-fill,minmax(120px,140px));
     justify-content:center;
