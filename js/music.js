@@ -83,6 +83,7 @@ function syncUi() {
     const play = root.querySelector(".music-player__play");
     const repeat = root.querySelector("[data-music-repeat]");
     const volume = root.querySelector("[data-music-volume]");
+    const volumeSlider = root.querySelector("[data-music-volume-slider]");
     const list = root.querySelector(".music-player__list");
     if (title) title.textContent = track.name;
     if (play) {
@@ -94,8 +95,14 @@ function syncUi() {
       repeat.setAttribute("aria-pressed", String(repeatOne));
     }
     if (volume) {
-      volume.setAttribute("aria-label", muted ? "음소거 해제" : "음소거");
-      volume.setAttribute("aria-pressed", String(muted));
+      volume.setAttribute(
+        "aria-label",
+        root.classList.contains("is-volume-open") ? "볼륨 닫기" : "볼륨 조절"
+      );
+    }
+    if (volumeSlider) {
+      const percent = muted ? 0 : Math.round(volumeLevel * 100);
+      volumeSlider.value = String(percent / 100);
     }
     if (list) {
       [...list.children].forEach((item, index) => {
@@ -171,7 +178,12 @@ function render(root) {
       <button class="music-player__btn music-player__play" data-music-play type="button" aria-label="재생">▶</button>
       <button class="music-player__title" data-music-list-toggle type="button" aria-label="곡 목록 열기"><span class="music-player__title-menu" aria-hidden="true">☰</span><span class="music-player__title-text"></span></button>
       <button class="music-player__btn music-player__repeat" data-music-repeat type="button" aria-label="한 곡 반복" aria-pressed="false"><img src="./assets/ui/music-repeat-one.png" alt=""></button>
-      <button class="music-player__btn music-player__volume" data-music-volume type="button" aria-label="음소거" aria-pressed="false"><img src="./assets/ui/music-volume.png" alt=""></button>
+      <div class="music-player__volume-wrap">
+        <button class="music-player__btn music-player__volume" data-music-volume type="button" aria-label="볼륨 조절"><img src="./assets/ui/music-volume.png" alt=""></button>
+        <div class="music-player__volume-popover">
+          <input data-music-volume-slider type="range" min="0" max="1" step="0.05" value="${muted ? 0 : volumeLevel}" aria-label="음악 볼륨">
+        </div>
+      </div>
       <div class="music-player__list"></div>
     </div>
   `;
@@ -205,9 +217,21 @@ function render(root) {
     syncUi();
   });
   root.querySelector("[data-music-volume]").addEventListener("click", () => {
-    muted = !muted;
+    root.classList.toggle("is-volume-open");
+    root.classList.remove("is-list-open");
+    syncUi();
+  });
+  root.querySelector("[data-music-volume-slider]").addEventListener("input", (event) => {
+    const nextVolume = Number(event.target.value);
+    muted = nextVolume <= 0;
+    if (!muted) volumeLevel = nextVolume;
     audio.muted = muted;
+    audio.volume = muted ? volumeLevel : nextVolume;
     saveBooleanCookie(MUTE_COOKIE, muted);
+    roots().forEach((player) => {
+      const slider = player.querySelector("[data-music-volume-slider]");
+      if (slider && slider !== event.target) slider.value = event.target.value;
+    });
     syncUi();
   });
   root.querySelector("[data-music-list-toggle]").addEventListener("click", () => {

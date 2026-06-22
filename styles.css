@@ -192,6 +192,39 @@ body{
   margin:auto;
   pointer-events:none;
 }
+.music-player__volume-wrap{
+  position:relative;
+  flex:0 0 auto;
+}
+.music-player__volume-popover{
+  position:absolute;
+  top:calc(100% + 9px);
+  right:50%;
+  z-index:32;
+  width:42px;
+  height:122px;
+  padding:10px 8px;
+  display:none;
+  place-items:center;
+  border:1.5px solid var(--line);
+  border-radius:15px;
+  background:#fff;
+  box-shadow:0 10px 25px rgba(64,53,82,.18);
+  transform:translateX(50%);
+}
+.music-player.is-volume-open .music-player__volume-popover{ display:grid; }
+.music-player__volume-popover input{
+  position:absolute;
+  left:50%;
+  top:50%;
+  width:92px;
+  height:20px;
+  margin:0;
+  accent-color:var(--pink);
+  transform:translate(-50%,-50%) rotate(-90deg);
+  transform-origin:center;
+  cursor:pointer;
+}
 .music-player__list{
   position:absolute;
   top:calc(100% + 8px);
@@ -1888,6 +1921,7 @@ body{
   }
   .music-player__btn{ width:24px; height:24px; font-size:13px; }
   .music-player__title{ font-size:11px; }
+  .music-player__volume-wrap{ display:none; }
   .btn{ padding:11px 19px; font-size:17px; }
   .card__name{ font-size:16px; }
   .card__meta{ font-size:12px; }
