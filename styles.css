@@ -212,18 +212,20 @@ body{
   background:#fff;
   box-shadow:0 10px 25px rgba(64,53,82,.18);
   transform:translateX(50%);
+  touch-action:none;
 }
 .music-player.is-volume-open .music-player__volume-popover{ display:grid; }
 .music-player__volume-popover input{
-  width:20px;
-  height:96px;
+  position:absolute;
+  left:50%;
+  top:50%;
+  width:92px;
+  height:20px;
   margin:0;
   accent-color:var(--pink);
-  appearance:auto;
-  -webkit-appearance:slider-vertical;
-  writing-mode:vertical-lr;
-  direction:rtl;
-  transform:none;
+  transform:translate(-50%,-50%) rotate(-90deg);
+  transform-origin:center;
+  touch-action:none;
   cursor:pointer;
 }
 .music-player__list{
