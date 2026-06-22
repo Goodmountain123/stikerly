@@ -108,9 +108,11 @@ function openAssetModal(mode, pack = null) {
   modalPack = pack;
   $("#asset-modal-title").textContent =
     mode === "pack" ? "새 어셋 팩" : mode === "background" ? "배경 추가" : "스티커 추가";
-  $("#asset-modal-name").value = "";
-  $("#asset-modal-name").placeholder =
+  const nameInput = $("#asset-modal-name");
+  nameInput.value = "";
+  nameInput.placeholder =
     mode === "pack" ? "어셋 팩 이름" : mode === "background" ? "배경 이름" : "스티커 이름";
+  nameInput.required = mode !== "sticker";
   const files = $("#asset-modal-files");
   files.value = "";
   files.hidden = mode === "pack";
@@ -423,11 +425,19 @@ $("#asset-modal-form").addEventListener("submit", async (event) => {
     }
     await Promise.all([renderPacks(), renderBackgrounds()]);
   } else if (modalMode === "sticker" && modalPack) {
+    const baseName = name || modalPack.name || "스티커";
+    const { count } = await supabase
+      .from("stickers")
+      .select("id", { count:"exact", head:true })
+      .eq("pack_id", modalPack.id);
+    const startNumber = (count || 0) + 1;
     for (const [index, file] of files.entries()) {
       const path = `stickers/${modalPack.id}/${safeFileName(file.name)}`;
       const uploaded = await supabase.storage.from("assets").upload(path, file);
       if (uploaded.error) continue;
-      const stickerName = files.length === 1 ? name : `${name} ${index + 1}`;
+      const stickerName = name
+        ? files.length === 1 ? name : `${name} ${index + 1}`
+        : `${baseName} ${startNumber + index}`;
       const inserted = await supabase.from("stickers").insert({
         pack_id: modalPack.id,
         name: stickerName,
