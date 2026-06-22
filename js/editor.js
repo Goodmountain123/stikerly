@@ -1104,7 +1104,6 @@ class Editor {
     const flipY = ref.item.flipY ? -1 : 1;
     const targetScaleX = ref.item.scale * flipX;
     const targetScaleY = ref.item.scale * flipY;
-    ref.art.stop();
     ref.art.scale({ x:targetScaleX, y:targetScaleY });
     ref.art.to({
       scaleX:targetScaleX * 1.2,
@@ -1873,7 +1872,6 @@ class Editor {
 
   animateBackgroundCollapse(node) {
     return new Promise((resolve) => {
-      node.stop();
       node.position({ x:this.canvasW / 2, y:this.canvasH / 2 });
       node.offset({ x:this.canvasW / 2, y:this.canvasH / 2 });
       node.to({
