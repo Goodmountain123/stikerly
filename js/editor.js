@@ -1197,11 +1197,21 @@ class Editor {
       labelText.textContent = pack.name;
       label.appendChild(labelText);
       chip.appendChild(label);
-      requestAnimationFrame(() => {
-        const overflow = Math.max(0, labelText.scrollWidth - label.clientWidth);
+      const updateNameMarquee = () => {
+        if (!label.isConnected) return;
+        const style = getComputedStyle(label);
+        const horizontalPadding =
+          parseFloat(style.paddingLeft) + parseFloat(style.paddingRight);
+        const visibleWidth = Math.max(0, label.clientWidth - horizontalPadding);
+        const overflow = Math.max(0, labelText.scrollWidth - visibleWidth);
         label.classList.toggle("is-overflowing", overflow > 1);
-        label.style.setProperty("--pack-name-shift", `${overflow}px`);
-      });
+        label.style.setProperty("--pack-name-shift", `${Math.ceil(overflow)}px`);
+      };
+      requestAnimationFrame(updateNameMarquee);
+      document.fonts?.ready.then(updateNameMarquee);
+      const nameResizeObserver = new ResizeObserver(updateNameMarquee);
+      nameResizeObserver.observe(label);
+      this.cleanup.push(() => nameResizeObserver.disconnect());
 
       chip.addEventListener("click", () => this.activatePack(pack.id));
       this.packCarousel.appendChild(chip);
