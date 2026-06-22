@@ -1910,60 +1910,82 @@ class Editor {
       }
     }
 
-    let pageTurnNode = this.bgNode;
-    let removePageTurnNode = false;
-    if (animate && !pageTurnNode) {
-      pageTurnNode = new Konva.Rect({
+    let transitionNode = this.bgNode;
+    let removeTransitionNode = false;
+    if (animate && !transitionNode) {
+      transitionNode = new Konva.Rect({
         x:0,
         y:0,
         width:this.canvasW,
         height:this.canvasH,
         fill:"#ffffff",
         listening:false,
-        name:"background-page-turn",
+        name:"background-transition",
       });
-      this.layer.add(pageTurnNode);
-      removePageTurnNode = true;
+      this.layer.add(transitionNode);
+      removeTransitionNode = true;
     }
 
     this.reorderLayer();
     this.layer.batchDraw();
     this.markBgActive();
-    if (animate && pageTurnNode) {
-      this.animateBackgroundPageTurn(pageTurnNode, previousBgNode, removePageTurnNode);
+    if (animate && transitionNode) {
+      this.animateBackgroundSwap(transitionNode, previousBgNode, removeTransitionNode);
     } else {
       previousBgNode?.destroy();
     }
   }
 
-  animateBackgroundPageTurn(node, previousNode, removeAtEnd = false) {
-    node.position({ x:this.canvasW, y:0 });
-    node.offsetX(this.canvasW);
-    node.scaleX(0.035);
-    node.skewY(-0.045);
-    node.shadowColor("rgba(52,38,72,.32)");
-    node.shadowBlur(28);
-    node.shadowOffsetX(-16);
-    node.shadowOpacity(0.55);
-    node.to({
-      scaleX:1,
-      skewY:0,
-      duration:0.48,
-      easing:Konva.Easings.EaseInOut,
-      onFinish:() => {
-        previousNode?.destroy();
-        if (removeAtEnd) {
-          node.destroy();
-        } else {
-          node.position({ x:0, y:0 });
-          node.offsetX(0);
-          node.scaleX(1);
-          node.skewY(0);
-          node.shadowEnabled(false);
-        }
-        this.reorderLayer();
-        this.layer.batchDraw();
-      },
+  animateBackgroundSwap(node, previousNode, removeAtEnd = false) {
+    const centerNode = (target) => {
+      target.position({ x:this.canvasW / 2, y:this.canvasH / 2 });
+      target.offset({ x:this.canvasW / 2, y:this.canvasH / 2 });
+    };
+    const revealNext = () => {
+      previousNode?.destroy();
+      centerNode(node);
+      node.opacity(1);
+      node.scale({ x:0.02, y:0.02 });
+      node.to({
+        scaleX:1.08,
+        scaleY:1.08,
+        duration:0.28,
+        easing:Konva.Easings.BackEaseOut,
+        onFinish:() => {
+          node.to({
+            scaleX:1,
+            scaleY:1,
+            duration:0.13,
+            easing:Konva.Easings.EaseInOut,
+            onFinish:() => {
+              if (removeAtEnd) {
+                node.destroy();
+              } else {
+                node.position({ x:0, y:0 });
+                node.offset({ x:0, y:0 });
+                node.scale({ x:1, y:1 });
+              }
+              this.reorderLayer();
+              this.layer.batchDraw();
+            },
+          });
+        },
+      });
+    };
+
+    node.opacity(0);
+    if (!previousNode) {
+      revealNext();
+      return;
+    }
+    centerNode(previousNode);
+    previousNode.to({
+      scaleX:0.02,
+      scaleY:0.02,
+      opacity:0.15,
+      duration:0.25,
+      easing:Konva.Easings.EaseIn,
+      onFinish:revealNext,
     });
   }
 
