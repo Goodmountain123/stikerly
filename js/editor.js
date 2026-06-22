@@ -3,6 +3,7 @@
 
 import { putProject } from "./storage.js";
 import {
+  STICKER_BASE,
   ZOOM,
   canvasSizeFromImage,
   newStickerItem,
@@ -1455,6 +1456,11 @@ class Editor {
       ghost.style.left = x + "px";
       ghost.style.top = y + "px";
     };
+    const sizeGhostForCanvas = () => {
+      const size = STICKER_BASE * this.stage.scaleX();
+      ghost.style.width = `${size}px`;
+      ghost.style.height = `${size}px`;
+    };
     const showStickerPreview = (url, x, y, touch = false) => {
       stickerPreview.src = url;
       stickerPreview.style.left = x + "px";
@@ -1508,6 +1514,7 @@ class Editor {
         gesture.previewActive = true;
         gesture.extracting = true;
         ghost.src = gesture.url;
+        sizeGhostForCanvas();
         ghost.classList.remove("is-popping");
         void ghost.offsetWidth;
         ghost.classList.add("is-popping");
@@ -1520,6 +1527,7 @@ class Editor {
           gesture.holdTimer = null;
           gesture.previewActive = true;
           ghost.src = gesture.url;
+          sizeGhostForCanvas();
           ghost.classList.remove("is-popping");
           void ghost.offsetWidth;
           ghost.classList.add("is-popping");
@@ -1555,6 +1563,7 @@ class Editor {
         clearStickerHold();
         gesture.extracting = true;
         ghost.src = gesture.url;
+        sizeGhostForCanvas();
         ghost.classList.remove("is-popping");
         void ghost.offsetWidth;
         ghost.classList.add("is-popping");
