@@ -41,6 +41,7 @@
         <button class="tab is-on" data-tab="packs">스티커팩</button>
         <button class="tab" data-tab="backgrounds">배경</button>
         <button class="tab" data-tab="messages">환영 문구</button>
+        <button class="tab" data-tab="music">음악</button>
       </nav>
 
       <section id="packs-panel">
@@ -66,6 +67,13 @@
         <p>한 줄에 문구 하나씩 입력해 주세요. 10초마다 랜덤으로 바뀝니다.</p>
         <textarea id="welcome-messages" rows="8"></textarea>
         <button id="save-welcome-messages" class="button">문구 저장</button>
+      </section>
+      <section id="music-panel" class="panel music-panel" hidden>
+        <h2>재생 목록</h2>
+        <p>음악 파일을 올리면 앱 상단 플레이어에 순서대로 보여요.</p>
+        <button id="upload-music" class="button add-button" type="button">＋ 음악 업로드</button>
+        <input id="music-files" type="file" accept="audio/*" multiple hidden>
+        <div id="music-list" class="music-list"></div>
       </section>
     </section>
   </main>

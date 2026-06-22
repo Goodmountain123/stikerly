@@ -12,6 +12,7 @@ const DEFAULT_WELCOME_MESSAGES = [
   "어서오세요, 반가워요!",
   "예쁘게 꾸며봐요!",
 ];
+let musicPlaylist = [];
 let modalMode = null;
 let modalPack = null;
 let moveStickerState = null;
@@ -145,6 +146,16 @@ function safeFileName(name) {
   return `${crypto.randomUUID()}${ext.replace(/[^a-z0-9.]/g, "")}`;
 }
 
+function safeAudioName(name) {
+  const dot = name.lastIndexOf(".");
+  const ext = dot >= 0 ? name.slice(dot).toLowerCase() : ".mp3";
+  return `${crypto.randomUUID()}${ext.replace(/[^a-z0-9.]/g, "")}`;
+}
+
+function trackNameFromFile(file) {
+  return file.name.replace(/\.[^.]+$/, "").trim() || "Music";
+}
+
 function storageSegment(value) {
   return encodeURIComponent(value).replaceAll("%", "_");
 }
@@ -207,6 +218,7 @@ document.querySelectorAll(".tab").forEach((tab) => {
     $("#packs-panel").hidden = tab.dataset.tab !== "packs";
     $("#backgrounds-panel").hidden = tab.dataset.tab !== "backgrounds";
     $("#messages-panel").hidden = tab.dataset.tab !== "messages";
+    $("#music-panel").hidden = tab.dataset.tab !== "music";
   });
 });
 
@@ -222,6 +234,36 @@ $("#save-welcome-messages").addEventListener("click", async () => {
   });
   if (error) return toast("문구를 저장하지 못했어요.");
   toast("환영 문구를 저장했어요.");
+});
+
+$("#upload-music").addEventListener("click", () => $("#music-files").click());
+$("#music-files").addEventListener("change", async () => {
+  const files = [...$("#music-files").files];
+  if (!files.length) return;
+  $("#upload-music").disabled = true;
+  try {
+    for (const file of files) {
+      const path = `music/${safeAudioName(file.name)}`;
+      const upload = await supabase.storage
+        .from("assets")
+        .upload(path, file, { contentType: file.type || "audio/mpeg" });
+      if (upload.error) throw upload.error;
+      musicPlaylist.push({
+        id: crypto.randomUUID(),
+        name: trackNameFromFile(file),
+        storage_path: path,
+      });
+    }
+    await saveMusicPlaylist();
+    renderMusicList();
+    toast("음악을 추가했어요.");
+  } catch (error) {
+    console.error(error);
+    toast("음악 업로드에 실패했어요.");
+  } finally {
+    $("#music-files").value = "";
+    $("#upload-music").disabled = false;
+  }
 });
 
 $("#import-local-assets").addEventListener("click", async () => {
@@ -393,7 +435,7 @@ $("#delete-selected-backgrounds").addEventListener("click", async () => {
 });
 
 async function renderAll() {
-  await Promise.all([renderPacks(), renderBackgrounds(), renderWelcomeMessages()]);
+  await Promise.all([renderPacks(), renderBackgrounds(), renderWelcomeMessages(), renderMusicPlaylist()]);
 }
 
 async function renderWelcomeMessages() {
@@ -401,6 +443,74 @@ async function renderWelcomeMessages() {
     .from("app_settings").select("value").eq("key", "welcome_messages").maybeSingle();
   const messages = Array.isArray(data?.value) ? data.value : DEFAULT_WELCOME_MESSAGES;
   $("#welcome-messages").value = messages.join("\n");
+}
+
+async function saveMusicPlaylist() {
+  const { error } = await supabase.from("app_settings").upsert({
+    key: "music_playlist",
+    value: musicPlaylist,
+  });
+  if (error) throw error;
+}
+
+async function renderMusicPlaylist() {
+  const { data } = await supabase
+    .from("app_settings").select("value").eq("key", "music_playlist").maybeSingle();
+  musicPlaylist = Array.isArray(data?.value) ? data.value : [];
+  renderMusicList();
+}
+
+function renderMusicList() {
+  const list = $("#music-list");
+  if (!list) return;
+  list.innerHTML = "";
+  if (!musicPlaylist.length) {
+    list.innerHTML = `<p class="empty-music">아직 음악이 없어요.</p>`;
+    return;
+  }
+  musicPlaylist.forEach((track, index) => {
+    const item = document.createElement("div");
+    item.className = "music-track";
+    item.innerHTML = `
+      <span class="music-track__number">${index + 1}</span>
+      <input class="music-track__name" value="${escapeHtml(track.name || "Music")}" aria-label="음악 이름">
+      <div class="music-track__actions">
+        <button class="button secondary music-up" type="button" ${index === 0 ? "disabled" : ""}>↑</button>
+        <button class="button secondary music-down" type="button" ${index === musicPlaylist.length - 1 ? "disabled" : ""}>↓</button>
+        <button class="button danger music-remove" type="button">삭제</button>
+      </div>
+    `;
+    autoSave(item.querySelector(".music-track__name"), async (name) => {
+      musicPlaylist[index] = { ...musicPlaylist[index], name };
+      try {
+        await saveMusicPlaylist();
+        return null;
+      } catch (error) {
+        return error;
+      }
+    });
+    item.querySelector(".music-up").onclick = async () => moveMusicTrack(index, index - 1);
+    item.querySelector(".music-down").onclick = async () => moveMusicTrack(index, index + 1);
+    item.querySelector(".music-remove").onclick = async () => removeMusicTrack(index);
+    list.appendChild(item);
+  });
+}
+
+async function moveMusicTrack(from, to) {
+  const next = [...musicPlaylist];
+  const [track] = next.splice(from, 1);
+  next.splice(to, 0, track);
+  musicPlaylist = next;
+  await saveMusicPlaylist();
+  renderMusicList();
+}
+
+async function removeMusicTrack(index) {
+  const [track] = musicPlaylist.splice(index, 1);
+  if (track?.storage_path) await supabase.storage.from("assets").remove([track.storage_path]);
+  await saveMusicPlaylist();
+  renderMusicList();
+  toast("음악을 삭제했어요.");
 }
 
 async function renderPacks() {

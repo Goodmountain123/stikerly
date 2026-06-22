@@ -9,8 +9,10 @@ import { newProject, projectCanvasSize } from "./model.js";
 import { openEditor } from "./editor.js";
 import { supabase, supabaseConfigured } from "./supabase.js";
 import { installUiSounds, sounds } from "./sounds.js";
+import { initMusicPlayers } from "./music.js";
 
 installUiSounds();
+initMusicPlayers();
 
 const DEFAULT_WELCOME_MESSAGES = [
   "오늘은 뭘 하고 놀까요?",

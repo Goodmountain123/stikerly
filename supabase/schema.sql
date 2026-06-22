@@ -95,6 +95,10 @@ values (
 )
 on conflict (key) do nothing;
 
+insert into public.app_settings (key, value)
+values ('music_playlist', '[]'::jsonb)
+on conflict (key) do nothing;
+
 drop policy if exists "Admins see own membership" on public.admin_users;
 create policy "Admins see own membership" on public.admin_users for select
 using (user_id = auth.uid());
