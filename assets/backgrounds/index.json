@@ -1,10 +1,10 @@
 [
-  { "id": "ballet-studio", "name": "발레 스튜디오", "file": "ballet studio.png" },
-  { "id": "sunset",   "name": "노을",   "file": "sunset.jpg" },
-  { "id": "ocean",    "name": "바다",   "file": "ocean.jpg" },
-  { "id": "mint",     "name": "민트",   "file": "mint.jpg" },
+  { "id": "ballet-studio", "name": "발레 스튜디오", "file": "ballet studio.png", "packId": "ballet-poodle" },
+  { "id": "sunset", "name": "노을", "file": "sunset.jpg" },
+  { "id": "ocean", "name": "바다", "file": "ocean.jpg" },
+  { "id": "mint", "name": "민트", "file": "mint.jpg" },
   { "id": "lavender", "name": "라벤더", "file": "lavender.jpg" },
   { "id": "confetti", "name": "컨페티", "file": "confetti.jpg" },
-  { "id": "grid",     "name": "모눈",   "file": "grid.png" },
-  { "id": "dots",     "name": "도트",   "file": "dots.png" }
+  { "id": "grid", "name": "모눈", "file": "grid.png" },
+  { "id": "dots", "name": "도트", "file": "dots.png" }
 ]

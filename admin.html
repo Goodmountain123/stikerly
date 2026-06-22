@@ -10,7 +10,7 @@
 <body>
   <main class="admin">
     <header class="admin__header">
-      <div><h1>Stickerly 관리자</h1><p>스티커와 배경을 관리해요.</p></div>
+      <div><h1>Stickerly 관리자</h1><p>한 팩 안의 스티커와 배경을 함께 관리해요.</p></div>
       <button id="logout" class="button secondary" hidden>로그아웃</button>
     </header>
 
@@ -38,14 +38,14 @@
       </section>
 
       <nav class="tabs">
-        <button class="tab is-on" data-tab="packs">스티커팩</button>
-        <button class="tab" data-tab="backgrounds">배경</button>
+        <button class="tab is-on" data-tab="packs">어셋 팩</button>
+        <button class="tab" data-tab="backgrounds">미분류 배경</button>
         <button class="tab" data-tab="messages">환영 문구</button>
         <button class="tab" data-tab="music">음악</button>
       </nav>
 
       <section id="packs-panel">
-        <button id="open-pack-modal" class="button add-button">＋ 팩 추가</button>
+        <button id="open-pack-modal" class="button add-button">＋ 어셋 팩 추가</button>
         <div class="selection-bar">
           <span id="pack-selection-count">선택 0개</span>
           <button id="delete-selected-packs" class="button danger" disabled>선택한 팩 제거</button>
@@ -54,9 +54,10 @@
       </section>
 
       <section id="backgrounds-panel" hidden>
-        <button id="open-background-modal" class="button add-button">＋ 배경 추가</button>
+        <button id="open-background-modal" class="button add-button">＋ 미분류 배경 추가</button>
         <div class="selection-bar">
           <span id="background-selection-count">선택 0개</span>
+          <button id="move-selected-unassigned-backgrounds" class="button" disabled>팩으로 이동</button>
           <button id="delete-selected-backgrounds" class="button danger" disabled>선택한 배경 제거</button>
         </div>
         <div id="background-list" class="grid"></div>
@@ -90,8 +91,8 @@
   </div>
   <div id="move-stickers-modal" class="modal" hidden>
     <form id="move-stickers-form" class="modal__card">
-      <h2>스티커 이동</h2>
-      <p>선택한 스티커를 이동할 팩을 골라 주세요.</p>
+      <h2 id="move-assets-title">어셋 이동</h2>
+      <p id="move-assets-description">선택한 어셋을 이동할 팩을 골라 주세요.</p>
       <select id="move-stickers-target" required></select>
       <div class="modal__actions">
         <button id="move-stickers-cancel" type="button" class="button secondary">취소</button>

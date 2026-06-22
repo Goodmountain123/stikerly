@@ -15,7 +15,7 @@ const DEFAULT_WELCOME_MESSAGES = [
 let musicPlaylist = [];
 let modalMode = null;
 let modalPack = null;
-let moveStickerState = null;
+let moveAssetState = null;
 
 function toast(message) {
   const el = $("#toast");
@@ -98,16 +98,17 @@ function updatePackSelection() {
 function updateBackgroundSelection() {
   $("#background-selection-count").textContent = `선택 ${selectedBackgrounds.size}개`;
   $("#delete-selected-backgrounds").disabled = selectedBackgrounds.size === 0;
+  $("#move-selected-unassigned-backgrounds").disabled = selectedBackgrounds.size === 0;
 }
 
 function openAssetModal(mode, pack = null) {
   modalMode = mode;
   modalPack = pack;
   $("#asset-modal-title").textContent =
-    mode === "pack" ? "새 스티커팩" : mode === "background" ? "새 배경" : "스티커 추가";
+    mode === "pack" ? "새 어셋 팩" : mode === "background" ? "배경 추가" : "스티커 추가";
   $("#asset-modal-name").value = "";
   $("#asset-modal-name").placeholder =
-    mode === "pack" ? "스티커팩 이름" : mode === "background" ? "배경 이름" : "스티커 이름";
+    mode === "pack" ? "어셋 팩 이름" : mode === "background" ? "배경 이름" : "스티커 이름";
   const files = $("#asset-modal-files");
   files.value = "";
   files.hidden = mode === "pack";
@@ -123,21 +124,31 @@ function closeAssetModal() {
   modalPack = null;
 }
 
-async function openMoveStickersModal(sourcePack, stickers) {
-  const { data: packs, error } = await supabase
-    .from("sticker_packs").select("id,name").neq("id", sourcePack.id).order("position");
-  if (error || !packs?.length) return toast("이동할 다른 스티커팩이 없어요.");
-  moveStickerState = { sourcePack, stickers };
+async function openMoveAssetsModal(sourcePack, assets, type) {
+  let query = supabase.from("sticker_packs").select("id,name").order("position");
+  if (sourcePack?.id) query = query.neq("id", sourcePack.id);
+  const { data: packs, error } = await query;
+  const canMoveToUnassigned = type === "background" && Boolean(sourcePack);
+  if (error || (!packs?.length && !canMoveToUnassigned)) {
+    return toast("이동할 다른 팩이 없어요.");
+  }
+  moveAssetState = { sourcePack, assets, type };
   const target = $("#move-stickers-target");
-  target.innerHTML = packs
-    .map((pack) => `<option value="${pack.id}">${escapeHtml(pack.name)}</option>`)
-    .join("");
+  target.innerHTML = [
+    canMoveToUnassigned ? `<option value="">미분류 배경</option>` : "",
+    ...(packs || []).map((pack) =>
+      `<option value="${pack.id}">${escapeHtml(pack.name)}</option>`
+    ),
+  ].join("");
+  $("#move-assets-title").textContent = type === "background" ? "배경 이동" : "스티커 이동";
+  $("#move-assets-description").textContent =
+    `선택한 ${type === "background" ? "배경" : "스티커"}을 이동할 팩을 골라 주세요.`;
   $("#move-stickers-modal").hidden = false;
 }
 
-function closeMoveStickersModal() {
+function closeMoveAssetsModal() {
   $("#move-stickers-modal").hidden = true;
-  moveStickerState = null;
+  moveAssetState = null;
 }
 
 function safeFileName(name) {
@@ -327,6 +338,10 @@ async function importLocalPacks() {
 
 async function importLocalBackgrounds() {
   const backgrounds = await fetch("./assets/backgrounds/index.json").then((response) => response.json());
+  const { data: packs, error: packsError } = await supabase
+    .from("sticker_packs").select("id,legacy_id");
+  if (packsError) throw packsError;
+  const packIds = new Map((packs || []).map((pack) => [pack.legacy_id, pack.id]));
   for (const [index, background] of backgrounds.entries()) {
     const path = `legacy/backgrounds/${storageSegment(background.file)}`;
     const blob = await fetchAsset(`./assets/backgrounds/${background.file}`);
@@ -334,6 +349,7 @@ async function importLocalBackgrounds() {
       .from("assets").upload(path, blob, { contentType: blob.type, upsert: true });
     if (uploadError) throw uploadError;
     const { error } = await supabase.from("backgrounds").upsert({
+      pack_id: packIds.get(background.packId) || null,
       legacy_id: background.id,
       name: background.name,
       storage_path: path,
@@ -349,25 +365,29 @@ $("#asset-modal-cancel").addEventListener("click", closeAssetModal);
 $("#asset-modal").addEventListener("click", (event) => {
   if (event.target.id === "asset-modal") closeAssetModal();
 });
-$("#move-stickers-cancel").addEventListener("click", closeMoveStickersModal);
+$("#move-stickers-cancel").addEventListener("click", closeMoveAssetsModal);
 $("#move-stickers-modal").addEventListener("click", (event) => {
-  if (event.target.id === "move-stickers-modal") closeMoveStickersModal();
+  if (event.target.id === "move-stickers-modal") closeMoveAssetsModal();
 });
 $("#move-stickers-form").addEventListener("submit", async (event) => {
   event.preventDefault();
-  if (!moveStickerState?.stickers.length) return;
-  const targetPackId = $("#move-stickers-target").value;
+  if (!moveAssetState?.assets.length) return;
+  const targetPackId = $("#move-stickers-target").value || null;
   const basePosition = Date.now();
-  const results = await Promise.all(moveStickerState.stickers.map((sticker, index) =>
-    supabase.from("stickers").update({
+  const table = moveAssetState.type === "background" ? "backgrounds" : "stickers";
+  const results = await Promise.all(moveAssetState.assets.map((asset, index) =>
+    supabase.from(table).update({
       pack_id: targetPackId,
       position: basePosition + index,
-    }).eq("id", sticker.id)
+    }).eq("id", asset.id)
   ));
-  if (results.some((result) => result.error)) return toast("스티커를 이동하지 못했어요.");
-  closeMoveStickersModal();
-  toast("스티커를 이동했어요.");
-  await renderPacks();
+  if (results.some((result) => result.error)) return toast("어셋을 이동하지 못했어요.");
+  if (moveAssetState.type === "background" && !moveAssetState.sourcePack) {
+    selectedBackgrounds.clear();
+  }
+  closeMoveAssetsModal();
+  toast("선택한 어셋을 이동했어요.");
+  await Promise.all([renderPacks(), renderBackgrounds()]);
 });
 $("#asset-modal-form").addEventListener("submit", async (event) => {
   event.preventDefault();
@@ -383,13 +403,14 @@ $("#asset-modal-form").addEventListener("submit", async (event) => {
     const upload = await supabase.storage.from("assets").upload(path, file);
     if (upload.error) return toast("이미지 업로드에 실패했어요.");
     const { error } = await supabase.from("backgrounds").insert({
+      pack_id: modalPack?.id || null,
       name, storage_path: path, position: Date.now(),
     });
     if (error) {
       await supabase.storage.from("assets").remove([path]);
       return toast("배경을 등록하지 못했어요.");
     }
-    await renderBackgrounds();
+    await Promise.all([renderPacks(), renderBackgrounds()]);
   } else if (modalMode === "sticker" && modalPack) {
     for (const [index, file] of files.entries()) {
       const path = `stickers/${modalPack.id}/${safeFileName(file.name)}`;
@@ -412,9 +433,18 @@ $("#asset-modal-form").addEventListener("submit", async (event) => {
 $("#delete-selected-packs").addEventListener("click", async () => {
   if (!selectedPacks.size || !confirm(`선택한 스티커팩 ${selectedPacks.size}개를 제거할까요?`)) return;
   for (const pack of selectedPacks.values()) {
+    const backgrounds = pack.backgrounds || [];
+    if (backgrounds.length) {
+      const { error: backgroundError } = await supabase
+        .from("backgrounds").delete().in("id", backgrounds.map((item) => item.id));
+      if (backgroundError) return toast("팩의 배경을 제거하지 못했어요.");
+    }
     const { error } = await supabase.from("sticker_packs").delete().eq("id", pack.id);
     if (error) return toast("일부 팩을 제거하지 못했어요.");
-    const paths = pack.stickers.map((item) => item.storage_path);
+    const paths = [
+      ...pack.stickers.map((item) => item.storage_path),
+      ...backgrounds.map((item) => item.storage_path),
+    ];
     if (paths.length) await supabase.storage.from("assets").remove(paths);
   }
   selectedPacks.clear();
@@ -432,6 +462,11 @@ $("#delete-selected-backgrounds").addEventListener("click", async () => {
   selectedBackgrounds.clear();
   updateBackgroundSelection();
   await renderBackgrounds();
+});
+
+$("#move-selected-unassigned-backgrounds").addEventListener("click", () => {
+  if (!selectedBackgrounds.size) return;
+  openMoveAssetsModal(null, [...selectedBackgrounds.values()], "background");
 });
 
 async function renderAll() {
@@ -515,9 +550,11 @@ async function removeMusicTrack(index) {
 
 async function renderPacks() {
   const { data: packs, error } = await supabase
-    .from("sticker_packs").select("*, stickers(*)")
-    .order("position").order("position", { referencedTable: "stickers" });
-  if (error) return toast("스티커팩을 불러오지 못했어요.");
+    .from("sticker_packs").select("*, stickers(*), backgrounds(*)")
+    .order("position")
+    .order("position", { referencedTable: "stickers" })
+    .order("position", { referencedTable: "backgrounds" });
+  if (error) return toast("팩을 불러오지 못했어요. 최신 SQL을 실행해 주세요.");
   const list = $("#pack-list");
   list.innerHTML = "";
   packs.forEach((pack) => list.appendChild(packCard(pack)));
@@ -531,7 +568,9 @@ function packCard(pack) {
   card.draggable = true;
   const thumbnail = pack.stickers[0]
     ? publicAssetUrl(pack.stickers[0].storage_path)
-    : "";
+    : pack.backgrounds?.[0]
+      ? publicAssetUrl(pack.backgrounds[0].storage_path)
+      : "";
   card.innerHTML = `
     <summary class="pack__summary">
       <span class="sort-grip" aria-hidden="true">⋮⋮</span>
@@ -539,7 +578,7 @@ function packCard(pack) {
       ${thumbnail ? `<img src="${thumbnail}" alt="">` : `<span class="pack__empty">＋</span>`}
       <span class="pack__summary-main">
         <span class="pack__summary-name">${escapeHtml(pack.name)}</span>
-        <span class="pack__summary-count">스티커 ${pack.stickers.length}개</span>
+        <span class="pack__summary-count">스티커 ${pack.stickers.length}개 · 배경 ${(pack.backgrounds || []).length}개</span>
       </span>
       <span class="pack__chevron">⌄</span>
     </summary>
@@ -548,16 +587,36 @@ function packCard(pack) {
         <input class="pack-name" value="${escapeHtml(pack.name)}" aria-label="팩 이름">
         <span class="auto-save-note">자동 저장</span>
       </div>
-      <button class="button sticker-add">＋ 스티커 추가</button>
-      <div class="pack-tools">
-        <span class="sticker-selection-count">선택 0개</span>
-        <div class="pack-tool-actions">
-          <button class="button secondary clear-selected-stickers" disabled>선택 취소</button>
-          <button class="button move-selected-stickers" disabled>이동</button>
-          <button class="button danger delete-selected-stickers" disabled>선택한 스티커 제거</button>
+      <section class="pack-assets-section">
+        <div class="pack-assets-heading">
+          <h3>스티커</h3>
+          <button class="button sticker-add">＋ 스티커 추가</button>
         </div>
-      </div>
-      <div class="stickers"></div>
+        <div class="pack-tools">
+          <span class="sticker-selection-count">선택 0개</span>
+          <div class="pack-tool-actions">
+            <button class="button secondary clear-selected-stickers" disabled>선택 취소</button>
+            <button class="button move-selected-stickers" disabled>이동</button>
+            <button class="button danger delete-selected-stickers" disabled>선택한 스티커 제거</button>
+          </div>
+        </div>
+        <div class="stickers"></div>
+      </section>
+      <section class="pack-assets-section">
+        <div class="pack-assets-heading">
+          <h3>배경</h3>
+          <button class="button background-add">＋ 배경 추가</button>
+        </div>
+        <div class="pack-tools">
+          <span class="background-selection-count">선택 0개</span>
+          <div class="pack-tool-actions">
+            <button class="button secondary clear-selected-pack-backgrounds" disabled>선택 취소</button>
+            <button class="button move-selected-backgrounds" disabled>이동</button>
+            <button class="button danger delete-selected-pack-backgrounds" disabled>선택한 배경 제거</button>
+          </div>
+        </div>
+        <div class="pack-backgrounds"></div>
+      </section>
     </div>`;
 
   const packSelect = card.querySelector(".pack-select");
@@ -583,6 +642,7 @@ function packCard(pack) {
   });
 
   card.querySelector(".sticker-add").onclick = () => openAssetModal("sticker", pack);
+  card.querySelector(".background-add").onclick = () => openAssetModal("background", pack);
   const selectedStickers = new Map();
   const deleteSelected = card.querySelector(".delete-selected-stickers");
   const clearSelected = card.querySelector(".clear-selected-stickers");
@@ -603,7 +663,7 @@ function packCard(pack) {
     updateStickerSelection();
   };
   moveSelected.onclick = () =>
-    openMoveStickersModal(pack, [...selectedStickers.values()]);
+    openMoveAssetsModal(pack, [...selectedStickers.values()], "sticker");
   deleteSelected.onclick = async () => {
     if (!selectedStickers.size || !confirm(`선택한 스티커 ${selectedStickers.size}개를 제거할까요?`)) return;
     const stickers = [...selectedStickers.values()];
@@ -616,6 +676,44 @@ function packCard(pack) {
   pack.stickers.forEach((sticker) =>
     stickerList.appendChild(stickerCard(sticker, selectedStickers, updateStickerSelection)));
   bindSortable(stickerList, ".asset", "stickers");
+
+  const selectedPackBackgrounds = new Map();
+  const backgroundList = card.querySelector(".pack-backgrounds");
+  const backgroundCount = card.querySelector(".background-selection-count");
+  const clearBackgrounds = card.querySelector(".clear-selected-pack-backgrounds");
+  const moveBackgrounds = card.querySelector(".move-selected-backgrounds");
+  const deleteBackgrounds = card.querySelector(".delete-selected-pack-backgrounds");
+  const updatePackBackgroundSelection = () => {
+    backgroundCount.textContent = `선택 ${selectedPackBackgrounds.size}개`;
+    [clearBackgrounds, moveBackgrounds, deleteBackgrounds].forEach((button) => {
+      button.disabled = selectedPackBackgrounds.size === 0;
+    });
+  };
+  clearBackgrounds.onclick = () => {
+    selectedPackBackgrounds.clear();
+    backgroundList.querySelectorAll(".asset").forEach((item) => {
+      item.classList.remove("is-selected");
+      item.querySelector(".select-box").checked = false;
+    });
+    updatePackBackgroundSelection();
+  };
+  moveBackgrounds.onclick = () =>
+    openMoveAssetsModal(pack, [...selectedPackBackgrounds.values()], "background");
+  deleteBackgrounds.onclick = async () => {
+    if (!selectedPackBackgrounds.size) return;
+    const backgrounds = [...selectedPackBackgrounds.values()];
+    const { error } = await supabase
+      .from("backgrounds").delete().in("id", backgrounds.map((item) => item.id));
+    if (error) return toast("배경을 제거하지 못했어요.");
+    await supabase.storage
+      .from("assets").remove(backgrounds.map((item) => item.storage_path));
+    await renderPacks();
+  };
+  (pack.backgrounds || []).forEach((background) =>
+    backgroundList.appendChild(
+      backgroundCard(background, selectedPackBackgrounds, updatePackBackgroundSelection)
+    ));
+  bindSortable(backgroundList, ".asset", "backgrounds");
   return card;
 }
 
@@ -650,35 +748,49 @@ function stickerCard(sticker, selection, updateSelection) {
   return item;
 }
 
+function backgroundCard(background, selection, updateSelection) {
+  const item = document.createElement("div");
+  item.className = "asset";
+  item.dataset.sortId = background.id;
+  item.draggable = true;
+  item.innerHTML = `
+    <span class="sort-grip asset-sort-grip" aria-hidden="true">⋮⋮</span>
+    <input class="select-box" type="checkbox" aria-label="배경 선택">
+    <img src="${publicAssetUrl(background.storage_path)}" alt="">
+    <input class="asset-name" value="${escapeHtml(background.name)}" aria-label="배경 이름">`;
+  const checkbox = item.querySelector(".select-box");
+  const setSelected = (selected) => {
+    checkbox.checked = selected;
+    if (selected) selection.set(background.id, background);
+    else selection.delete(background.id);
+    item.classList.toggle("is-selected", selected);
+    updateSelection();
+  };
+  checkbox.addEventListener("click", (event) => event.stopPropagation());
+  checkbox.onchange = () => setSelected(checkbox.checked);
+  item.addEventListener("click", (event) => {
+    if (event.target.closest(".asset-name")) return;
+    setSelected(!checkbox.checked);
+  });
+  autoSave(item.querySelector(".asset-name"), async (name) => {
+    const { error } = await supabase
+      .from("backgrounds").update({ name }).eq("id", background.id);
+    return error;
+  });
+  return item;
+}
+
 async function renderBackgrounds() {
-  const { data, error } = await supabase.from("backgrounds").select("*").order("position");
+  const { data, error } = await supabase
+    .from("backgrounds").select("*").is("pack_id", null).order("position");
   if (error) return toast("배경을 불러오지 못했어요.");
   const list = $("#background-list");
   list.innerHTML = "";
   data.forEach((background) => {
-    const item = document.createElement("div");
-    item.className = "asset";
-    item.dataset.sortId = background.id;
-    item.draggable = true;
-    item.innerHTML = `
-      <span class="sort-grip asset-sort-grip" aria-hidden="true">⋮⋮</span>
-      <input class="select-box" type="checkbox" aria-label="배경 선택">
-      <img src="${publicAssetUrl(background.storage_path)}" alt="">
-      <input class="asset-name" value="${escapeHtml(background.name)}" aria-label="배경 이름">`;
+    const item = backgroundCard(background, selectedBackgrounds, updateBackgroundSelection);
     const checkbox = item.querySelector(".select-box");
     checkbox.checked = selectedBackgrounds.has(background.id);
     item.classList.toggle("is-selected", checkbox.checked);
-    checkbox.onchange = () => {
-      if (checkbox.checked) selectedBackgrounds.set(background.id, background);
-      else selectedBackgrounds.delete(background.id);
-      item.classList.toggle("is-selected", checkbox.checked);
-      updateBackgroundSelection();
-    };
-    autoSave(item.querySelector(".asset-name"), async (name) => {
-      const { error: saveError } = await supabase.from("backgrounds")
-        .update({ name }).eq("id", background.id);
-      return saveError;
-    });
     list.appendChild(item);
   });
   updateBackgroundSelection();

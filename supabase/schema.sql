@@ -24,6 +24,7 @@ create table if not exists public.stickers (
 
 create table if not exists public.backgrounds (
   id uuid primary key default gen_random_uuid(),
+  pack_id uuid references public.sticker_packs(id) on delete set null,
   legacy_id text,
   name text not null,
   storage_path text not null unique,
@@ -33,13 +34,30 @@ create table if not exists public.backgrounds (
 
 alter table public.sticker_packs add column if not exists legacy_id text;
 alter table public.backgrounds add column if not exists legacy_id text;
+alter table public.backgrounds add column if not exists pack_id uuid
+  references public.sticker_packs(id) on delete set null;
 alter table public.stickers add column if not exists legacy_asset_id text;
+create index if not exists backgrounds_pack_id_idx
+  on public.backgrounds (pack_id);
 create unique index if not exists sticker_packs_legacy_id_key
   on public.sticker_packs (legacy_id);
 create unique index if not exists backgrounds_legacy_id_key
   on public.backgrounds (legacy_id);
 create unique index if not exists stickers_pack_legacy_asset_key
   on public.stickers (pack_id, legacy_asset_id);
+
+-- 기존 발레 배경을 발레 푸들 팩에 연결합니다.
+-- 백조의 호수 배경의 legacy_id 또는 이름이 다르면 관리자 페이지에서 직접 이동할 수 있습니다.
+update public.backgrounds as background
+set pack_id = pack.id
+from public.sticker_packs as pack
+where pack.legacy_id = 'ballet-poodle'
+  and background.pack_id is null
+  and (
+    background.legacy_id in ('ballet-studio', 'swan-lake', 'swan-lake-stage')
+    or lower(background.storage_path) like '%swan%'
+    or background.name ilike '%백조%'
+  );
 
 create table if not exists public.app_settings (
   key text primary key,

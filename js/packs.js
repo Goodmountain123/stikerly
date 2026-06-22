@@ -12,8 +12,10 @@ export async function loadPacks() {
   let useRemoteOnly = false;
   if (supabaseConfigured) {
     const [{ data, error }, { data: sourceSetting }] = await Promise.all([
-      supabase.from("sticker_packs").select("*, stickers(*)")
-        .order("position").order("position", { referencedTable: "stickers" }),
+      supabase.from("sticker_packs").select("*, stickers(*), backgrounds(*)")
+        .order("position")
+        .order("position", { referencedTable: "stickers" })
+        .order("position", { referencedTable: "backgrounds" }),
       supabase.from("app_settings").select("value").eq("key", "assets_source").maybeSingle(),
     ]);
     useRemoteOnly = sourceSetting?.value === "supabase";
@@ -23,6 +25,11 @@ export async function loadPacks() {
         folder: pack.id,
         name: pack.name,
         thumbnailUrl: pack.stickers[0] ? publicAssetUrl(pack.stickers[0].storage_path) : "",
+        backgrounds: (pack.backgrounds || []).map((background) => ({
+          id: background.legacy_id || background.id,
+          name: background.name,
+          url: publicAssetUrl(background.storage_path),
+        })),
         stickers: pack.stickers.map((sticker) => ({
           assetId: sticker.legacy_asset_id || sticker.id,
           name: sticker.name,
@@ -35,7 +42,18 @@ export async function loadPacks() {
       return _packs;
     }
   }
-  const index = await fetch(`${ROOT}/index.json`).then((r) => r.json());
+  const [index, backgroundIndex] = await Promise.all([
+    fetch(`${ROOT}/index.json`).then((r) => r.json()),
+    fetch("./assets/backgrounds/index.json").then((r) => r.json()),
+  ]);
+  const localBackgrounds = new Map(backgroundIndex.map((background) => [
+    background.id,
+    {
+      id: background.id,
+      name: background.name,
+      url: `./assets/backgrounds/${background.file}`,
+    },
+  ]));
   const localPacks = await Promise.all(
     index.map(async (folder) => {
       const meta = await fetch(`${ROOT}/${folder}/pack.json`).then((r) => r.json());
@@ -45,6 +63,9 @@ export async function loadPacks() {
         folder,
         name: meta.name,
         thumbnailUrl: `${base}/${meta.thumbnail}`,
+        backgrounds: (meta.backgrounds || [])
+          .map((backgroundId) => localBackgrounds.get(backgroundId))
+          .filter(Boolean),
         stickers: meta.stickers.map((assetId) => ({
           assetId,
           url: `${base}/${assetId}`,

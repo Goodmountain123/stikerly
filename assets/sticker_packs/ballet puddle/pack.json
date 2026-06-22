@@ -2,6 +2,7 @@
   "id": "ballet-poodle",
   "name": "발레 푸들팩",
   "thumbnail": "ballet-puddle_10.png",
+  "backgrounds": ["ballet-studio"],
   "stickers": [
     "ballet-puddle_10.png",
     "ballet-puddle_11.png",

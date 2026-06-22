@@ -18,6 +18,7 @@ export async function loadBackgrounds() {
     if (!error && data?.length) {
       remoteBackgrounds = data.map((item) => ({
         id: item.legacy_id || item.id,
+        packId: item.pack_id || null,
         name: item.name,
         url: publicAssetUrl(item.storage_path),
       }));
@@ -30,6 +31,7 @@ export async function loadBackgrounds() {
   const idx = await fetch(`${ROOT}/index.json`).then((r) => r.json());
   const localBackgrounds = idx.map((b) => ({
     id: b.id,
+    packId: b.packId || null,
     name: b.name,
     url: `${ROOT}/${b.file}`,
   }));
