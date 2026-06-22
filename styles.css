@@ -1380,6 +1380,7 @@ body{
 
 @media (max-width:760px){
   body{ font-size:17px; }
+  .drag-ghost{ width:96px; height:96px; }
   .wordmark{ font-size:29px; }
   .topbar--home{
     flex-wrap:wrap;

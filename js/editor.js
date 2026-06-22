@@ -1448,7 +1448,7 @@ class Editor {
           ghost.src = gesture.url;
           ghost.hidden = false;
           moveGhost(gesture.startX, gesture.startY);
-        }, 120);
+        }, 96);
       }
       window.addEventListener("pointermove", onMove);
       window.addEventListener("pointerup", onUp);
