@@ -14,6 +14,7 @@ import { getPacks, findSticker, loadImage } from "./packs.js";
 import { buildItemGroup } from "./sticker.js";
 import { buildTextGroup } from "./text.js";
 import { exportPNG, renderProjectDataURL } from "./export.js";
+import { sounds } from "./sounds.js";
 import {
   getBackgrounds,
   adjustableCoverCrop,
@@ -356,6 +357,7 @@ class Editor {
     if (!ref || ref.isText || this.selectedPart !== "art") return;
     ref.item[key === "flipH" ? "flipX" : "flipY"] =
       !ref.item[key === "flipH" ? "flipX" : "flipY"];
+    sounds.flip();
     ref.refresh();
     this.transformer.forceUpdate();
     this.positionTransformHandle();
@@ -563,6 +565,7 @@ class Editor {
         gesture.ref.shadow.draggable(true);
       }
       gesture.ref.refresh();
+      sounds.softTap();
       this.handleGesture = null;
       this.positionTransformHandle();
       this.positionFlipControls();
@@ -886,6 +889,7 @@ class Editor {
 
     art.on("click tap", (e) => {
       e.cancelBubble = true;
+      sounds.softTap();
       if (this.highlightedTrayItemId !== ref.item.id) {
         this.clearTrayItemHighlight();
       }
@@ -1070,6 +1074,7 @@ class Editor {
   }
 
   animateStickerLanding(ref) {
+    sounds.drop();
     const targetScaleX = ref.art.scaleX();
     const targetScaleY = ref.art.scaleY();
     const visual = this.makeStickerMotionVisual(ref);
@@ -1095,6 +1100,7 @@ class Editor {
   }
 
   animateStickerPickup(ref) {
+    sounds.pop();
     const targetScaleX = ref.art.scaleX();
     const targetScaleY = ref.art.scaleY();
     const visual = this.makeStickerMotionVisual(ref);
@@ -1861,6 +1867,7 @@ class Editor {
   }
 
   async setBackground(bg) {
+    sounds.swooshIn();
     this.project.background = bg
       ? { ...bg, transform: { zoom: 1, x: 0, y: 0 } }
       : null;
@@ -1992,6 +1999,7 @@ class Editor {
     };
     const revealNext = () => {
       previousNode?.destroy();
+      sounds.swooshOut();
       centerNode(node);
       node.opacity(1);
       node.scale({ x:0.02, y:0.02 });
@@ -2489,8 +2497,14 @@ class Editor {
     if (!ref) return;
     const item = ref.item;
 
-    if (key === "flipH") item.flipX = !item.flipX;
-    if (key === "flipV") item.flipY = !item.flipY;
+    if (key === "flipH") {
+      item.flipX = !item.flipX;
+      sounds.flip();
+    }
+    if (key === "flipV") {
+      item.flipY = !item.flipY;
+      sounds.flip();
+    }
     if (key === "forward") return this.restack(id, 1);
     if (key === "backward") return this.restack(id, -1);
     if (key === "delete") return this.removeItem(id);
@@ -2557,6 +2571,7 @@ class Editor {
   }
 
   removeItem(id) {
+    sounds.delete();
     const ref = this.refs.get(id);
     if (ref) ref.group.destroy();
     this.refs.delete(id);
@@ -2824,6 +2839,7 @@ class Editor {
     toast("멋진 작품을 준비하는 중…");
     try {
       const result = await exportPNG(this.project);
+      if (result === "shared" || result === "downloaded") sounds.success();
       if (result === "shared") toast("사진으로 저장해 주세요!");
       if (result === "downloaded") toast("완성한 그림을 저장했어요!");
     } catch (err) {

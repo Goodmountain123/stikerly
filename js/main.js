@@ -8,6 +8,9 @@ import {
 import { newProject, projectCanvasSize } from "./model.js";
 import { openEditor } from "./editor.js";
 import { supabase, supabaseConfigured } from "./supabase.js";
+import { installUiSounds, sounds } from "./sounds.js";
+
+installUiSounds();
 
 const DEFAULT_WELCOME_MESSAGES = [
   "오늘은 뭘 하고 놀까요?",
@@ -212,6 +215,7 @@ function bindProjectDeleteDrag(card, project) {
       const dropped = deleteZone.classList.contains("is-over");
       deleteZone.classList.remove("is-over");
       if (dropped) {
+        sounds.delete();
         deletedProjects.push(structuredClone(project));
         await deleteProject(project.id);
         undoDeleteButton.hidden = false;
@@ -244,6 +248,7 @@ undoDeleteButton.addEventListener("click", async () => {
 document.getElementById("new-cancel").addEventListener("click", closeModal);
 modal.addEventListener("click", (e) => { if (e.target === modal) closeModal(); });
 newCreate.addEventListener("click", async () => {
+  sounds.pop();
   const title = newTitle.value.trim() || projectDateTitle();
   const project = newProject(title, null);
   await putProject(project);
