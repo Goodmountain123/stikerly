@@ -47,7 +47,7 @@ function syncUi() {
   roots().forEach((root) => {
     root.hidden = playlist.length === 0;
     if (!track) return;
-    const title = root.querySelector(".music-player__title");
+    const title = root.querySelector(".music-player__title-text");
     const play = root.querySelector(".music-player__play");
     const repeat = root.querySelector("[data-music-repeat]");
     const volume = root.querySelector("[data-music-volume]");
@@ -138,7 +138,7 @@ function render(root) {
     <button class="music-player__mobile-toggle" type="button" aria-label="음악 재생창 열기">♫</button>
     <div class="music-player__panel">
       <button class="music-player__btn music-player__play" data-music-play type="button" aria-label="재생">▶</button>
-      <button class="music-player__title" data-music-list-toggle type="button" aria-label="곡 목록 열기"></button>
+      <button class="music-player__title" data-music-list-toggle type="button" aria-label="곡 목록 열기"><span class="music-player__title-menu" aria-hidden="true">☰</span><span class="music-player__title-text"></span></button>
       <button class="music-player__btn music-player__repeat" data-music-repeat type="button" aria-label="한 곡 반복" aria-pressed="false"><img src="./assets/ui/music-repeat-one.png" alt=""></button>
       <div class="music-player__volume-wrap">
         <button class="music-player__btn music-player__volume" data-music-volume type="button" aria-label="볼륨 조절"><img src="./assets/ui/music-volume.png" alt=""></button>
