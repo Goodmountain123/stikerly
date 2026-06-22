@@ -136,7 +136,7 @@ function renderList(root) {
 
 function render(root) {
   root.innerHTML = `
-    <button class="music-player__mobile-toggle" type="button" aria-label="음악 재생창 열기">♫</button>
+    <button class="music-player__mobile-toggle" type="button" aria-label="음악 재생창 열기"><img src="./assets/ui/music-mobile.png" alt=""></button>
     <div class="music-player__panel">
       <button class="music-player__btn music-player__play" data-music-play type="button" aria-label="재생">▶</button>
       <button class="music-player__title" data-music-list-toggle type="button" aria-label="곡 목록 열기"><span class="music-player__title-menu" aria-hidden="true">☰</span><span class="music-player__title-text"></span></button>

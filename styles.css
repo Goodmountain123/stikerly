@@ -1641,17 +1641,22 @@ body{
     padding:0;
     background:#E4E1E8;
     color:#B8B3BD;
-    font-size:0;
     box-shadow:0 5px 14px rgba(64,53,82,.14);
   }
   .music-player.is-playing .music-player__mobile-toggle{
     background:var(--pink);
     color:#fff;
   }
-  .music-player__mobile-toggle::before{
-    content:"♫";
-    font:800 18px/1 var(--font-ui);
-    transform:translateY(-1px);
+  .music-player__mobile-toggle img{
+    width:21px;
+    height:21px;
+    display:block;
+    object-fit:contain;
+    opacity:.55;
+    pointer-events:none;
+  }
+  .music-player.is-playing .music-player__mobile-toggle img{
+    opacity:1;
   }
   .music-player__panel{
     position:fixed;
@@ -1691,6 +1696,7 @@ body{
   .topbar--editor .iconbtn{ width:38px; height:38px; }
   .topbar--editor .iconbtn .ui-icon{ width:26px; height:26px; }
   .topbar--editor .btn{ padding:8px 11px; font-size:15px; }
+  .topbar--editor #btn-export{ font-size:12px; }
   .topbar--editor .title-input{ font-size:18px; }
   .tray-tab{ width:52px; min-height:42px; font-size:13px; }
   .pack-search input{ font-size:13px; }
