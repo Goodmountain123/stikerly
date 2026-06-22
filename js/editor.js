@@ -1406,6 +1406,14 @@ class Editor {
       if (!chip) return;
       e.preventDefault();
       hideStickerPreview();
+      const chipRect = chip.getBoundingClientRect();
+      const insetX = chipRect.width * 0.2;
+      const insetY = chipRect.height * 0.18;
+      const canExtract =
+        e.clientX >= chipRect.left + insetX &&
+        e.clientX <= chipRect.right - insetX &&
+        e.clientY >= chipRect.top + insetY &&
+        e.clientY <= chipRect.bottom - insetY;
       gesture = {
         type: "sticker",
         pack: chip.dataset.pack,
@@ -1415,6 +1423,7 @@ class Editor {
         startY: e.clientY,
         pointerType: e.pointerType,
         lastY: e.clientY,
+        canExtract,
         extracting: false,
       };
       window.addEventListener("pointermove", onMove);
@@ -1426,13 +1435,14 @@ class Editor {
       if (!gesture || gesture.type !== "sticker") return;
       const moved = Math.hypot(e.clientX - gesture.startX, e.clientY - gesture.startY) > 5;
       if (!gesture.extracting && isInsideTray(e)) {
-        if (gesture.pointerType !== "mouse" && moved) {
+        if (gesture.canExtract && gesture.pointerType !== "mouse" && moved) {
           showStickerPreview(gesture.url, e.clientX, e.clientY, true);
         }
         this.stickerCarousel.scrollTop -= e.clientY - gesture.lastY;
         gesture.lastY = e.clientY;
         return;
       }
+      if (!gesture.canExtract) return;
       if (!gesture.extracting) {
         gesture.extracting = true;
         hideStickerPreview();
