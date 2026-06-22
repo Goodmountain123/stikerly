@@ -5,7 +5,7 @@ let playlist = [];
 let currentIndex = 0;
 let playing = false;
 let repeatOne = false;
-let volumeLevel = 0.7;
+let volumeLevel = 0.5;
 let initialized = false;
 let autoplayRetry = null;
 
@@ -75,6 +75,7 @@ function syncUi() {
       });
     }
     root.classList.toggle("is-playing", playing);
+    root.classList.toggle("has-volume", volumeLevel > 0);
   });
 }
 
@@ -187,6 +188,7 @@ function render(root) {
       const slider = player.querySelector("[data-music-volume-slider]");
       if (slider && slider !== event.target) slider.value = String(volumeLevel);
     });
+    syncUi();
   });
   root.querySelector("[data-music-list-toggle]").addEventListener("click", () => {
     root.classList.toggle("is-list-open");
