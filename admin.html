@@ -80,6 +80,17 @@
       </div>
     </form>
   </div>
+  <div id="move-stickers-modal" class="modal" hidden>
+    <form id="move-stickers-form" class="modal__card">
+      <h2>스티커 이동</h2>
+      <p>선택한 스티커를 이동할 팩을 골라 주세요.</p>
+      <select id="move-stickers-target" required></select>
+      <div class="modal__actions">
+        <button id="move-stickers-cancel" type="button" class="button secondary">취소</button>
+        <button class="button">이동</button>
+      </div>
+    </form>
+  </div>
   <div id="toast" class="toast" hidden></div>
   <script type="module" src="./js/admin.js"></script>
 </body>

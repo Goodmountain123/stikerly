@@ -14,6 +14,7 @@ const DEFAULT_WELCOME_MESSAGES = [
 ];
 let modalMode = null;
 let modalPack = null;
+let moveStickerState = null;
 
 function toast(message) {
   const el = $("#toast");
@@ -117,6 +118,23 @@ function closeAssetModal() {
   $("#asset-modal").hidden = true;
   modalMode = null;
   modalPack = null;
+}
+
+async function openMoveStickersModal(sourcePack, stickers) {
+  const { data: packs, error } = await supabase
+    .from("sticker_packs").select("id,name").neq("id", sourcePack.id).order("position");
+  if (error || !packs?.length) return toast("이동할 다른 스티커팩이 없어요.");
+  moveStickerState = { sourcePack, stickers };
+  const target = $("#move-stickers-target");
+  target.innerHTML = packs
+    .map((pack) => `<option value="${pack.id}">${escapeHtml(pack.name)}</option>`)
+    .join("");
+  $("#move-stickers-modal").hidden = false;
+}
+
+function closeMoveStickersModal() {
+  $("#move-stickers-modal").hidden = true;
+  moveStickerState = null;
 }
 
 function safeFileName(name) {
@@ -287,6 +305,26 @@ $("#asset-modal-cancel").addEventListener("click", closeAssetModal);
 $("#asset-modal").addEventListener("click", (event) => {
   if (event.target.id === "asset-modal") closeAssetModal();
 });
+$("#move-stickers-cancel").addEventListener("click", closeMoveStickersModal);
+$("#move-stickers-modal").addEventListener("click", (event) => {
+  if (event.target.id === "move-stickers-modal") closeMoveStickersModal();
+});
+$("#move-stickers-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  if (!moveStickerState?.stickers.length) return;
+  const targetPackId = $("#move-stickers-target").value;
+  const basePosition = Date.now();
+  const results = await Promise.all(moveStickerState.stickers.map((sticker, index) =>
+    supabase.from("stickers").update({
+      pack_id: targetPackId,
+      position: basePosition + index,
+    }).eq("id", sticker.id)
+  ));
+  if (results.some((result) => result.error)) return toast("스티커를 이동하지 못했어요.");
+  closeMoveStickersModal();
+  toast("스티커를 이동했어요.");
+  await renderPacks();
+});
 $("#asset-modal-form").addEventListener("submit", async (event) => {
   event.preventDefault();
   const name = $("#asset-modal-name").value.trim();
@@ -401,7 +439,11 @@ function packCard(pack) {
       <button class="button sticker-add">＋ 스티커 추가</button>
       <div class="pack-tools">
         <span class="sticker-selection-count">선택 0개</span>
-        <button class="button danger delete-selected-stickers" disabled>선택한 스티커 제거</button>
+        <div class="pack-tool-actions">
+          <button class="button secondary clear-selected-stickers" disabled>선택 취소</button>
+          <button class="button move-selected-stickers" disabled>이동</button>
+          <button class="button danger delete-selected-stickers" disabled>선택한 스티커 제거</button>
+        </div>
       </div>
       <div class="stickers"></div>
     </div>`;
@@ -431,11 +473,25 @@ function packCard(pack) {
   card.querySelector(".sticker-add").onclick = () => openAssetModal("sticker", pack);
   const selectedStickers = new Map();
   const deleteSelected = card.querySelector(".delete-selected-stickers");
+  const clearSelected = card.querySelector(".clear-selected-stickers");
+  const moveSelected = card.querySelector(".move-selected-stickers");
   const selectionCount = card.querySelector(".sticker-selection-count");
   const updateStickerSelection = () => {
     selectionCount.textContent = `선택 ${selectedStickers.size}개`;
-    deleteSelected.disabled = selectedStickers.size === 0;
+    [deleteSelected, clearSelected, moveSelected].forEach((button) => {
+      button.disabled = selectedStickers.size === 0;
+    });
   };
+  clearSelected.onclick = () => {
+    selectedStickers.clear();
+    card.querySelectorAll(".stickers .asset").forEach((item) => {
+      item.classList.remove("is-selected");
+      item.querySelector(".select-box").checked = false;
+    });
+    updateStickerSelection();
+  };
+  moveSelected.onclick = () =>
+    openMoveStickersModal(pack, [...selectedStickers.values()]);
   deleteSelected.onclick = async () => {
     if (!selectedStickers.size || !confirm(`선택한 스티커 ${selectedStickers.size}개를 제거할까요?`)) return;
     const stickers = [...selectedStickers.values()];
@@ -458,12 +514,19 @@ function stickerCard(sticker, selection, updateSelection) {
     <img src="${publicAssetUrl(sticker.storage_path)}" alt="">
     <input class="asset-name" value="${escapeHtml(sticker.name)}" aria-label="스티커 이름">`;
   const checkbox = item.querySelector(".select-box");
-  checkbox.onchange = () => {
+  const setSelected = (selected) => {
+    checkbox.checked = selected;
     if (checkbox.checked) selection.set(sticker.id, sticker);
     else selection.delete(sticker.id);
     item.classList.toggle("is-selected", checkbox.checked);
     updateSelection();
   };
+  checkbox.addEventListener("click", (event) => event.stopPropagation());
+  checkbox.onchange = () => setSelected(checkbox.checked);
+  item.addEventListener("click", (event) => {
+    if (event.target.closest(".asset-name")) return;
+    setSelected(!checkbox.checked);
+  });
   autoSave(item.querySelector(".asset-name"), async (name) => {
     const { error } = await supabase.from("stickers").update({ name }).eq("id", sticker.id);
     return error;
