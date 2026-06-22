@@ -499,12 +499,23 @@ body{
   animation:sticker-drag-wiggle .9s ease-in-out infinite;
   will-change:transform;
 }
+.drag-ghost.is-popping{
+  animation:
+    sticker-pick-pop .22s cubic-bezier(.2,1.35,.45,1) 1,
+    sticker-drag-wiggle .9s ease-in-out .22s infinite;
+}
+@keyframes sticker-pick-pop{
+  0%{ transform:translate(-50%,-50%) rotate(-2deg) scale(.25); opacity:.2; }
+  65%{ transform:translate(-50%,-50%) rotate(2deg) scale(1.16); opacity:1; }
+  100%{ transform:translate(-50%,-50%) rotate(-3deg) scale(.96); opacity:.95; }
+}
 @keyframes sticker-drag-wiggle{
   0%,100%{ transform:translate(-50%,-50%) rotate(-3deg) scale(.96); }
   50%{ transform:translate(-50%,-50%) rotate(3deg) scale(1.05); }
 }
 @media (prefers-reduced-motion:reduce){
-  .drag-ghost{ animation:none; }
+  .drag-ghost,
+  .drag-ghost.is-popping{ animation:none; }
 }
 .sticker-preview{
   position:fixed;

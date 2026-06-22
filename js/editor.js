@@ -1057,10 +1057,41 @@ class Editor {
     const item = newStickerItem(packId, assetId, x, y, maxZ + 1);
     this.project.stickerItems = this.project.stickerItems || [];
     this.project.stickerItems.push(item);
-    await this.spawnNode(item);
+    const ref = await this.spawnNode(item);
     this.reorderLayer();
     this.select(item.id);
+    if (ref) this.animateStickerLanding(ref);
     this.commit();
+  }
+
+  animateStickerLanding(ref) {
+    const targetScaleX = ref.art.scaleX();
+    const targetScaleY = ref.art.scaleY();
+    ref.art.scale({
+      x: targetScaleX * 1.24,
+      y: targetScaleY * 1.24,
+    });
+    ref.art.to({
+      scaleX: targetScaleX * 0.92,
+      scaleY: targetScaleY * 0.92,
+      duration:0.12,
+      easing:Konva.Easings.EaseInOut,
+      onFinish:() => {
+        ref.art.to({
+          scaleX:targetScaleX,
+          scaleY:targetScaleY,
+          duration:0.16,
+          easing:Konva.Easings.BackEaseOut,
+          onFinish:() => {
+            ref.transformOnly();
+            this.transformer.forceUpdate();
+            this.positionTransformHandle();
+            this.positionFlipControls();
+            this.layer.batchDraw();
+          },
+        });
+      },
+    });
   }
 
   async addText(fontFamily, x, y) {
@@ -1437,6 +1468,9 @@ class Editor {
         gesture.previewActive = true;
         gesture.extracting = true;
         ghost.src = gesture.url;
+        ghost.classList.remove("is-popping");
+        void ghost.offsetWidth;
+        ghost.classList.add("is-popping");
         ghost.hidden = false;
         moveGhost(e.clientX, e.clientY);
       } else if (canExtract) {
@@ -1446,6 +1480,9 @@ class Editor {
           gesture.holdTimer = null;
           gesture.previewActive = true;
           ghost.src = gesture.url;
+          ghost.classList.remove("is-popping");
+          void ghost.offsetWidth;
+          ghost.classList.add("is-popping");
           ghost.hidden = false;
           moveGhost(gesture.startX, gesture.startY);
         }, 96);
@@ -1478,6 +1515,9 @@ class Editor {
         clearStickerHold();
         gesture.extracting = true;
         ghost.src = gesture.url;
+        ghost.classList.remove("is-popping");
+        void ghost.offsetWidth;
+        ghost.classList.add("is-popping");
         ghost.hidden = false;
       }
       moveGhost(e.clientX, e.clientY);
@@ -1489,6 +1529,7 @@ class Editor {
       window.removeEventListener("pointercancel", onUp);
       clearStickerHold();
       ghost.hidden = true;
+      ghost.classList.remove("is-popping");
       hideStickerPreview();
       if (!gesture || gesture.type !== "sticker") return;
 
