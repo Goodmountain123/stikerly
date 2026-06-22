@@ -1395,6 +1395,11 @@ class Editor {
       stickerPreview.hidden = true;
       stickerPreview.classList.remove("is-touch");
     };
+    const clearStickerHold = () => {
+      if (!gesture?.holdTimer) return;
+      clearTimeout(gesture.holdTimer);
+      gesture.holdTimer = null;
+    };
     const isInsideTray = (e) => {
       const rect = tray.getBoundingClientRect();
       return e.clientX >= rect.left && e.clientX <= rect.right &&
@@ -1424,8 +1429,19 @@ class Editor {
         pointerType: e.pointerType,
         lastY: e.clientY,
         canExtract,
+        previewActive: false,
+        holdTimer: null,
         extracting: false,
       };
+      if (canExtract && e.pointerType !== "mouse") {
+        const pendingGesture = gesture;
+        gesture.holdTimer = setTimeout(() => {
+          if (gesture !== pendingGesture || gesture.extracting) return;
+          gesture.holdTimer = null;
+          gesture.previewActive = true;
+          showStickerPreview(gesture.url, gesture.startX, gesture.startY, true);
+        }, 360);
+      }
       window.addEventListener("pointermove", onMove);
       window.addEventListener("pointerup", onUp);
       window.addEventListener("pointercancel", onUp);
@@ -1435,15 +1451,28 @@ class Editor {
       if (!gesture || gesture.type !== "sticker") return;
       const moved = Math.hypot(e.clientX - gesture.startX, e.clientY - gesture.startY) > 5;
       if (!gesture.extracting && isInsideTray(e)) {
-        if (gesture.canExtract && gesture.pointerType !== "mouse" && moved) {
-          showStickerPreview(gesture.url, e.clientX, e.clientY, true);
+        if (gesture.pointerType === "mouse" && gesture.canExtract && moved) {
+          gesture.previewActive = true;
+          showStickerPreview(gesture.url, e.clientX, e.clientY);
+          return;
         }
-        this.stickerCarousel.scrollTop -= e.clientY - gesture.lastY;
+        if (gesture.previewActive) {
+          showStickerPreview(gesture.url, e.clientX, e.clientY, true);
+          return;
+        }
+        if (moved) {
+          clearStickerHold();
+          this.stickerCarousel.scrollTop -= e.clientY - gesture.lastY;
+        }
         gesture.lastY = e.clientY;
         return;
       }
-      if (!gesture.canExtract) return;
+      const canStartExtraction =
+        gesture.canExtract &&
+        (gesture.pointerType === "mouse" ? moved : gesture.previewActive);
+      if (!canStartExtraction) return;
       if (!gesture.extracting) {
+        clearStickerHold();
         gesture.extracting = true;
         hideStickerPreview();
         ghost.src = gesture.url;
@@ -1456,6 +1485,7 @@ class Editor {
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
       window.removeEventListener("pointercancel", onUp);
+      clearStickerHold();
       ghost.hidden = true;
       hideStickerPreview();
       if (!gesture || gesture.type !== "sticker") return;
