@@ -1100,24 +1100,19 @@ class Editor {
   }
 
   animateStickerPickup(ref) {
-    const flipX = ref.item.flipX ? -1 : 1;
-    const flipY = ref.item.flipY ? -1 : 1;
-    const targetScaleX = ref.item.scale * flipX;
-    const targetScaleY = ref.item.scale * flipY;
-    ref.art.scale({ x:targetScaleX, y:targetScaleY });
-    ref.art.to({
-      scaleX:targetScaleX * 1.2,
-      scaleY:targetScaleY * 1.2,
+    ref.group.scale({ x:1, y:1 });
+    ref.group.to({
+      scaleX:1.2,
+      scaleY:1.2,
       duration:0.12,
       easing:Konva.Easings.BackEaseOut,
       onFinish:() => {
-        ref.art.to({
-          scaleX:targetScaleX,
-          scaleY:targetScaleY,
+        ref.group.to({
+          scaleX:1,
+          scaleY:1,
           duration:0.18,
           easing:Konva.Easings.EaseInOut,
           onFinish:() => {
-            ref.transformOnly();
             this.transformer.forceUpdate();
             this.positionTransformHandle();
             this.positionFlipControls();
