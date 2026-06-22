@@ -1079,13 +1079,13 @@ class Editor {
     ref.art.to({
       scaleX: targetScaleX * 0.92,
       scaleY: targetScaleY * 0.92,
-      duration:0.12,
+      duration:0.06,
       easing:Konva.Easings.EaseInOut,
       onFinish:() => {
         ref.art.to({
           scaleX:targetScaleX,
           scaleY:targetScaleY,
-          duration:0.16,
+          duration:0.08,
           easing:Konva.Easings.BackEaseOut,
           onFinish:() => {
             ref.transformOnly();
@@ -1104,13 +1104,13 @@ class Editor {
     ref.group.to({
       scaleX:1.2,
       scaleY:1.2,
-      duration:0.12,
+      duration:0.06,
       easing:Konva.Easings.BackEaseOut,
       onFinish:() => {
         ref.group.to({
           scaleX:1,
           scaleY:1,
-          duration:0.18,
+          duration:0.09,
           easing:Konva.Easings.EaseInOut,
           onFinish:() => {
             this.transformer.forceUpdate();
@@ -1846,15 +1846,16 @@ class Editor {
   }
 
   async setBackground(bg) {
+    this.project.background = bg
+      ? { ...bg, transform: { zoom: 1, x: 0, y: 0 } }
+      : null;
+    this.markBgActive();
     if (!bg && this.bgNode) {
       const previousBgNode = this.bgNode;
       await this.animateBackgroundCollapse(previousBgNode);
       if (this.bgNode === previousBgNode) this.bgNode = null;
       this.bgImage = null;
     }
-    this.project.background = bg
-      ? { ...bg, transform: { zoom: 1, x: 0, y: 0 } }
-      : null;
     this.bgDirty = true;
     if (bg) {
       await this.renderBackground({ animate: true });
