@@ -901,6 +901,7 @@ class Editor {
       this.hideMenu();
       this.promoteItem(ref.item.id);
       this.select(ref.item.id);
+      if (!ref.isText) this.animateStickerPickup(ref);
       this.deleteDropZone.hidden = false;
     });
 
@@ -1082,6 +1083,36 @@ class Editor {
           scaleY:targetScaleY,
           duration:0.16,
           easing:Konva.Easings.BackEaseOut,
+          onFinish:() => {
+            ref.transformOnly();
+            this.transformer.forceUpdate();
+            this.positionTransformHandle();
+            this.positionFlipControls();
+            this.layer.batchDraw();
+          },
+        });
+      },
+    });
+  }
+
+  animateStickerPickup(ref) {
+    const flipX = ref.item.flipX ? -1 : 1;
+    const flipY = ref.item.flipY ? -1 : 1;
+    const targetScaleX = ref.item.scale * flipX;
+    const targetScaleY = ref.item.scale * flipY;
+    ref.art.stop();
+    ref.art.scale({ x:targetScaleX, y:targetScaleY });
+    ref.art.to({
+      scaleX:targetScaleX * 1.14,
+      scaleY:targetScaleY * 1.14,
+      duration:0.1,
+      easing:Konva.Easings.BackEaseOut,
+      onFinish:() => {
+        ref.art.to({
+          scaleX:targetScaleX,
+          scaleY:targetScaleY,
+          duration:0.16,
+          easing:Konva.Easings.EaseInOut,
           onFinish:() => {
             ref.transformOnly();
             this.transformer.forceUpdate();
