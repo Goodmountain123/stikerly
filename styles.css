@@ -1767,19 +1767,25 @@ body{
   }
   .topbar--home #btn-new::before{
     content:"";
+    position:absolute;
+    left:50%;
+    top:50%;
     width:20px;
     height:4px;
     border-radius:999px;
     background:#fff;
-    transform:none;
+    transform:translate(-50%,-50%);
   }
   .topbar--home #btn-new::after{
     content:"";
     position:absolute;
+    left:50%;
+    top:50%;
     width:4px;
     height:20px;
     border-radius:999px;
     background:#fff;
+    transform:translate(-50%,-50%);
   }
   .topbar--home #btn-delete-mode{
     width:38px;

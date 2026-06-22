@@ -10,6 +10,19 @@ let muted = false;
 let initialized = false;
 let autoplayRetry = null;
 let preloadedTracks = [];
+const MUTE_COOKIE = "stickerly_music_muted";
+
+function readMuteCookie() {
+  return document.cookie
+    .split(";")
+    .map((part) => part.trim())
+    .some((part) => part === `${MUTE_COOKIE}=1`);
+}
+
+function saveMuteCookie() {
+  const maxAge = 60 * 60 * 24 * 365;
+  document.cookie = `${MUTE_COOKIE}=${muted ? "1" : "0"}; max-age=${maxAge}; path=/; SameSite=Lax`;
+}
 
 function clearAutoplayRetry() {
   if (!autoplayRetry) return;
@@ -183,6 +196,7 @@ function render(root) {
   root.querySelector("[data-music-volume]").addEventListener("click", () => {
     muted = !muted;
     audio.muted = muted;
+    saveMuteCookie();
     syncUi();
   });
   root.querySelector("[data-music-list-toggle]").addEventListener("click", () => {
@@ -199,6 +213,8 @@ export async function initMusicPlayers() {
   audio.autoplay = true;
   audio.playsInline = true;
   audio.volume = volumeLevel;
+  muted = readMuteCookie();
+  audio.muted = muted;
   audio.addEventListener("ended", () => {
     if (!repeatOne) playAt(currentIndex + 1);
   });
