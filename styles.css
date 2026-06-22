@@ -1922,7 +1922,11 @@ body{
   .topbar--editor .iconbtn{ width:38px; height:38px; }
   .topbar--editor .iconbtn .ui-icon{ width:26px; height:26px; }
   .topbar--editor .btn{ padding:8px 11px; font-size:15px; }
-  .topbar--editor #btn-export{ font-size:12px; }
+  .topbar--editor #btn-export{
+    min-width:max-content;
+    white-space:nowrap;
+    font-size:13px;
+  }
   .topbar--editor .title-input{ font-size:18px; }
   .tray-tab{ width:52px; min-height:42px; font-size:13px; }
   .pack-search input{ font-size:13px; }
