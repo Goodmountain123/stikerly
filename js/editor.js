@@ -1853,6 +1853,12 @@ class Editor {
   }
 
   async setBackground(bg) {
+    if (!bg && this.bgNode) {
+      const previousBgNode = this.bgNode;
+      await this.animateBackgroundCollapse(previousBgNode);
+      if (this.bgNode === previousBgNode) this.bgNode = null;
+      this.bgImage = null;
+    }
     this.project.background = bg
       ? { ...bg, transform: { zoom: 1, x: 0, y: 0 } }
       : null;
@@ -1864,6 +1870,26 @@ class Editor {
       await this.renderBackground({ animate: true });
     }
     this.commit();
+  }
+
+  animateBackgroundCollapse(node) {
+    return new Promise((resolve) => {
+      node.stop();
+      node.position({ x:this.canvasW / 2, y:this.canvasH / 2 });
+      node.offset({ x:this.canvasW / 2, y:this.canvasH / 2 });
+      node.to({
+        scaleX:0.02,
+        scaleY:0.02,
+        opacity:0.15,
+        duration:0.25,
+        easing:Konva.Easings.EaseIn,
+        onFinish:() => {
+          node.destroy();
+          this.layer.batchDraw();
+          resolve();
+        },
+      });
+    });
   }
 
   async onPhotoPick(file) {
@@ -1931,6 +1957,9 @@ class Editor {
         width:this.canvasW,
         height:this.canvasH,
         fill:"#ffffff",
+        shadowColor:"rgba(52,38,72,.24)",
+        shadowBlur:32,
+        shadowOpacity:0.7,
         listening:false,
         name:"background-transition",
       });
