@@ -895,10 +895,6 @@ class Editor {
       if (promoted) this.commit();
     });
 
-    art.on("mousedown touchstart", () => {
-      if (!ref.isText) this.animateStickerPickup(ref);
-    });
-
     group.on("dragstart", () => {
       if (this.highlightedTrayItemId !== ref.item.id) {
         this.clearTrayItemHighlight();
@@ -906,6 +902,9 @@ class Editor {
       this.hideMenu();
       this.promoteItem(ref.item.id);
       this.select(ref.item.id);
+      if (!ref.isText) {
+        requestAnimationFrame(() => this.animateStickerPickup(ref));
+      }
       this.deleteDropZone.hidden = false;
     });
 
