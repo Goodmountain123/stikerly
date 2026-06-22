@@ -895,6 +895,10 @@ class Editor {
       if (promoted) this.commit();
     });
 
+    art.on("mousedown touchstart", () => {
+      if (!ref.isText) this.animateStickerPickup(ref);
+    });
+
     group.on("dragstart", () => {
       if (this.highlightedTrayItemId !== ref.item.id) {
         this.clearTrayItemHighlight();
@@ -902,7 +906,6 @@ class Editor {
       this.hideMenu();
       this.promoteItem(ref.item.id);
       this.select(ref.item.id);
-      if (!ref.isText) this.animateStickerPickup(ref);
       this.deleteDropZone.hidden = false;
     });
 
@@ -1105,15 +1108,15 @@ class Editor {
     ref.art.stop();
     ref.art.scale({ x:targetScaleX, y:targetScaleY });
     ref.art.to({
-      scaleX:targetScaleX * 1.14,
-      scaleY:targetScaleY * 1.14,
-      duration:0.1,
+      scaleX:targetScaleX * 1.2,
+      scaleY:targetScaleY * 1.2,
+      duration:0.12,
       easing:Konva.Easings.BackEaseOut,
       onFinish:() => {
         ref.art.to({
           scaleX:targetScaleX,
           scaleY:targetScaleY,
-          duration:0.16,
+          duration:0.18,
           easing:Konva.Easings.EaseInOut,
           onFinish:() => {
             ref.transformOnly();
