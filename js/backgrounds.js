@@ -1,4 +1,5 @@
 import { supabase, supabaseConfigured, publicAssetUrl } from "./supabase.js";
+import { filterEnabledBackgrounds } from "./asset-prefs.js";
 
 // backgrounds.js — Supabase backgrounds + bundled fallback assets.
 const ROOT = "./assets/backgrounds";
@@ -10,15 +11,20 @@ export async function loadBackgrounds() {
   let remoteBackgrounds = [];
   let useRemoteOnly = false;
   if (supabaseConfigured) {
-    const [{ data, error }, { data: sourceSetting }] = await Promise.all([
-      supabase.from("backgrounds").select("*").order("position"),
+    let [{ data, error }, { data: sourceSetting }] = await Promise.all([
+      supabase.from("backgrounds").select("*, pack:sticker_packs(legacy_id)").order("position"),
       supabase.from("app_settings").select("value").eq("key", "assets_source").maybeSingle(),
     ]);
+    if (error) {
+      const fallback = await supabase.from("backgrounds").select("*").order("position");
+      data = fallback.data;
+      error = fallback.error;
+    }
     useRemoteOnly = sourceSetting?.value === "supabase";
     if (!error && data?.length) {
       remoteBackgrounds = data.map((item) => ({
         id: item.legacy_id || item.id,
-        packId: item.pack_id || null,
+        packId: item.pack?.legacy_id || item.pack_id || null,
         name: item.name,
         url: publicAssetUrl(item.storage_path),
       }));
@@ -40,6 +46,9 @@ export async function loadBackgrounds() {
 }
 
 export function getBackgrounds() { return _bgs || []; }
+export function getEnabledBackgrounds() {
+  return filterEnabledBackgrounds(_bgs || []);
+}
 
 export function findBackground(id) {
   return (_bgs || []).find((b) => b.id === id) || null;

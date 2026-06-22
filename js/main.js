@@ -1,6 +1,6 @@
 // main.js — app entry: project list, new-project modal, screen routing.
 import { listProjects, getProject, putProject, deleteProject } from "./storage.js";
-import { loadPacks, findSticker } from "./packs.js";
+import { loadPacks, getPacks, findSticker } from "./packs.js";
 import {
   loadBackgrounds,
   backgroundSrc,
@@ -10,6 +10,7 @@ import { openEditor } from "./editor.js";
 import { supabase, supabaseConfigured } from "./supabase.js";
 import { installUiSounds, sounds } from "./sounds.js";
 import { initMusicPlayers } from "./music.js";
+import { isPackEnabled, setPackEnabled } from "./asset-prefs.js";
 
 installUiSounds();
 initMusicPlayers();
@@ -27,8 +28,16 @@ const emptyState = document.getElementById("empty-state");
 const deleteModeButton = document.getElementById("btn-delete-mode");
 const undoDeleteButton = document.getElementById("btn-undo-delete");
 const deleteZone = document.getElementById("project-delete-zone");
+const stickerbookPanel = document.getElementById("stickerbook-panel");
+const drawerPanel = document.getElementById("drawer-panel");
+const drawerGrid = document.getElementById("drawer-pack-grid");
+const drawerEmpty = document.getElementById("drawer-empty");
+const drawerSearch = document.getElementById("drawer-search");
+const bookTab = document.getElementById("home-tab-book");
+const drawerTab = document.getElementById("home-tab-drawer");
 let deleteMode = false;
 let deletedProjects = [];
+let activeHomeTab = "book";
 
 const modal = document.getElementById("modal-new");
 const newTitle = document.getElementById("new-title");
@@ -159,6 +168,69 @@ async function renderList() {
   }
 }
 
+function renderDrawer() {
+  const query = drawerSearch.value.trim().toLocaleLowerCase("ko");
+  const packs = getPacks().filter((pack) =>
+    !query || String(pack.name || "").toLocaleLowerCase("ko").includes(query)
+  );
+  drawerGrid.innerHTML = "";
+  drawerEmpty.hidden = packs.length > 0;
+
+  packs.forEach((pack) => {
+    const enabled = isPackEnabled(pack.id);
+    const background = pack.backgrounds?.[0];
+    const sticker = pack.stickers?.[0];
+    const card = document.createElement("article");
+    card.className = "drawer-pack-card";
+    card.classList.toggle("is-disabled", !enabled);
+    card.innerHTML = `
+      <div class="drawer-pack-card__preview">
+        ${background
+          ? `<img class="drawer-pack-card__background" src="${background.url}" alt="">`
+          : `<span class="drawer-pack-card__blank" aria-hidden="true"></span>`}
+        ${sticker
+          ? `<img class="drawer-pack-card__sticker" src="${sticker.url}" alt="">`
+          : ""}
+      </div>
+      <div class="drawer-pack-card__body">
+        <div class="drawer-pack-card__info">
+          <strong>${escapeHtml(pack.name)}</strong>
+          <span>스티커 ${pack.stickers?.length || 0}개 · 배경 ${pack.backgrounds?.length || 0}개</span>
+        </div>
+        <label class="pack-visibility-toggle">
+          <input type="checkbox" ${enabled ? "checked" : ""}>
+          <span aria-hidden="true"></span>
+          <b>${enabled ? "사용 중" : "숨김"}</b>
+        </label>
+      </div>`;
+
+    const input = card.querySelector("input");
+    const stateText = card.querySelector(".pack-visibility-toggle b");
+    input.addEventListener("change", () => {
+      setPackEnabled(pack.id, input.checked);
+      card.classList.toggle("is-disabled", !input.checked);
+      stateText.textContent = input.checked ? "사용 중" : "숨김";
+    });
+    drawerGrid.appendChild(card);
+  });
+}
+
+function switchHomeTab(tab) {
+  activeHomeTab = tab;
+  const book = tab === "book";
+  bookTab.classList.toggle("is-on", book);
+  drawerTab.classList.toggle("is-on", !book);
+  stickerbookPanel.hidden = !book;
+  drawerPanel.hidden = book;
+  deleteModeButton.hidden = !book;
+  undoDeleteButton.hidden = !book || !deleteMode || deletedProjects.length === 0;
+  document.getElementById("btn-new").hidden = !book;
+  if (!book) {
+    setDeleteMode(false);
+    renderDrawer();
+  }
+}
+
 function projectDateTitle(date = new Date()) {
   const pad = (value) => String(value).padStart(2, "0");
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}_${pad(date.getHours())}-${pad(date.getMinutes())}-${pad(date.getSeconds())}`;
@@ -240,6 +312,9 @@ function openModal() {
 function closeModal() { modal.hidden = true; }
 
 document.getElementById("btn-new").addEventListener("click", openModal);
+bookTab.addEventListener("click", () => switchHomeTab("book"));
+drawerTab.addEventListener("click", () => switchHomeTab("drawer"));
+drawerSearch.addEventListener("input", renderDrawer);
 deleteModeButton.addEventListener("click", () => setDeleteMode(!deleteMode));
 undoDeleteButton.addEventListener("click", async () => {
   const project = deletedProjects.pop();
@@ -276,6 +351,8 @@ function escapeHtml(s) {
     console.error("에셋을 불러오지 못했어요", err);
   }
   await renderList();
+  renderDrawer();
   startWelcomeTicker();
   showScreen("projects");
+  switchHomeTab(activeHomeTab);
 })();

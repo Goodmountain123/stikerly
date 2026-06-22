@@ -549,12 +549,22 @@ async function removeMusicTrack(index) {
 }
 
 async function renderPacks() {
-  const { data: packs, error } = await supabase
+  let { data: packs, error } = await supabase
     .from("sticker_packs").select("*, stickers(*), backgrounds(*)")
-    .order("position")
-    .order("position", { referencedTable: "stickers" })
-    .order("position", { referencedTable: "backgrounds" });
-  if (error) return toast("팩을 불러오지 못했어요. 최신 SQL을 실행해 주세요.");
+    .order("position");
+  if (error) {
+    const fallback = await supabase
+      .from("sticker_packs").select("*, stickers(*)")
+      .order("position");
+    packs = fallback.data;
+    error = fallback.error;
+  }
+  if (error) return toast("팩을 불러오지 못했어요.");
+  packs = (packs || []).map((pack) => ({
+    ...pack,
+    stickers: [...(pack.stickers || [])].sort((a, b) => a.position - b.position),
+    backgrounds: [...(pack.backgrounds || [])].sort((a, b) => a.position - b.position),
+  }));
   const list = $("#pack-list");
   list.innerHTML = "";
   packs.forEach((pack) => list.appendChild(packCard(pack)));
@@ -781,8 +791,13 @@ function backgroundCard(background, selection, updateSelection) {
 }
 
 async function renderBackgrounds() {
-  const { data, error } = await supabase
+  let { data, error } = await supabase
     .from("backgrounds").select("*").is("pack_id", null).order("position");
+  if (error) {
+    const fallback = await supabase.from("backgrounds").select("*").order("position");
+    data = fallback.data;
+    error = fallback.error;
+  }
   if (error) return toast("배경을 불러오지 못했어요.");
   const list = $("#background-list");
   list.innerHTML = "";

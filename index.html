@@ -28,17 +28,35 @@
       <button id="btn-new" class="btn btn--primary" aria-label="새 프로젝트">새 프로젝트</button>
     </header>
 
+    <nav class="home-tabs" aria-label="프로젝트 메뉴">
+      <button id="home-tab-book" class="home-tab is-on" type="button">스티커북</button>
+      <button id="home-tab-drawer" class="home-tab" type="button">내 서랍</button>
+    </nav>
+
     <main class="home">
-      <div id="project-grid" class="project-grid"></div>
-      <aside id="project-delete-zone" class="project-delete-zone" hidden>
-        <img class="delete-icon-img" src="./assets/ui/trash.png" alt="">
-        <strong>여기에 놓기</strong>
-      </aside>
-      <div id="empty-state" class="empty" hidden>
-        <div class="empty__art">✦</div>
-        <p class="empty__title">아직 프로젝트가 없어요</p>
-        <p class="empty__hint">새 프로젝트를 만들어 스티커를 붙여보세요.</p>
-      </div>
+      <section id="stickerbook-panel" class="home-panel">
+        <div id="project-grid" class="project-grid"></div>
+        <aside id="project-delete-zone" class="project-delete-zone" hidden>
+          <img class="delete-icon-img" src="./assets/ui/trash.png" alt="">
+          <strong>여기에 놓기</strong>
+        </aside>
+        <div id="empty-state" class="empty" hidden>
+          <div class="empty__art">✦</div>
+          <p class="empty__title">아직 프로젝트가 없어요</p>
+          <p class="empty__hint">새 프로젝트를 만들어 스티커를 붙여보세요.</p>
+        </div>
+      </section>
+      <section id="drawer-panel" class="home-panel drawer-panel" hidden>
+        <label class="drawer-search">
+          <span aria-hidden="true">⌕</span>
+          <input id="drawer-search" type="search" placeholder="팩 이름 검색" autocomplete="off">
+        </label>
+        <div id="drawer-pack-grid" class="drawer-pack-grid"></div>
+        <div id="drawer-empty" class="empty" hidden>
+          <div class="empty__art">⌕</div>
+          <p class="empty__title">찾는 팩이 없어요</p>
+        </div>
+      </section>
     </main>
   </section>
 

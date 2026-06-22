@@ -10,13 +10,14 @@ import {
   newTextItem,
   projectCanvasSize,
 } from "./model.js";
-import { getPacks, findSticker, loadImage } from "./packs.js";
+import { getPacks, getEnabledPacks, findSticker, loadImage } from "./packs.js";
 import { buildItemGroup } from "./sticker.js";
 import { buildTextGroup } from "./text.js";
 import { exportPNG, renderProjectDataURL } from "./export.js";
 import { sounds } from "./sounds.js";
 import {
   getBackgrounds,
+  getEnabledBackgrounds,
   adjustableCoverCrop,
   backgroundSrc,
   loadBgImage,
@@ -1171,7 +1172,7 @@ class Editor {
     this.stickerPackBack = document.getElementById("sticker-pack-back");
     this.stickerPackTitle = document.getElementById("sticker-pack-title");
 
-    const packs = getPacks();
+    const packs = getEnabledPacks();
     this.activePackId = null;
     this.packCarousel.innerHTML = "";
 
@@ -1462,8 +1463,9 @@ class Editor {
   }
 
   activatePack(id) {
+    const pack = getEnabledPacks().find((item) => item.id === id);
+    if (!pack) return;
     this.activePackId = id;
-    const pack = getPacks().find((item) => item.id === id);
     this.packCarousel.hidden = true;
     this.packSearchWrap.hidden = true;
     this.stickerPackDetail.hidden = false;
@@ -1480,7 +1482,7 @@ class Editor {
   }
 
   renderStickerStrip() {
-    const pack = getPacks().find((p) => p.id === this.activePackId);
+    const pack = getEnabledPacks().find((p) => p.id === this.activePackId);
     this.stickerCarousel.innerHTML = "";
     if (!pack) return;
 
@@ -1906,7 +1908,7 @@ class Editor {
     const pickBg = () => this.bgFileInput.click();
     this.bgUploadBtn = makeActionChip("bg-upload-btn", "+", "내 사진", pickBg);
 
-    getBackgrounds().forEach((bg) => {
+    getEnabledBackgrounds().forEach((bg) => {
       const chip = document.createElement("button");
       chip.type = "button";
       chip.className = "bg-chip";

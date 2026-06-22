@@ -1,4 +1,5 @@
 import { supabase, supabaseConfigured, publicAssetUrl } from "./supabase.js";
+import { filterEnabledPacks } from "./asset-prefs.js";
 
 // packs.js — loads sticker packs from Supabase, with bundled assets as fallback.
 const ROOT = "./assets/sticker_packs";
@@ -11,13 +12,17 @@ export async function loadPacks() {
   let remotePacks = [];
   let useRemoteOnly = false;
   if (supabaseConfigured) {
-    const [{ data, error }, { data: sourceSetting }] = await Promise.all([
+    let [{ data, error }, { data: sourceSetting }] = await Promise.all([
       supabase.from("sticker_packs").select("*, stickers(*), backgrounds(*)")
-        .order("position")
-        .order("position", { referencedTable: "stickers" })
-        .order("position", { referencedTable: "backgrounds" }),
+        .order("position"),
       supabase.from("app_settings").select("value").eq("key", "assets_source").maybeSingle(),
     ]);
+    if (error) {
+      const fallback = await supabase.from("sticker_packs").select("*, stickers(*)")
+        .order("position");
+      data = fallback.data;
+      error = fallback.error;
+    }
     useRemoteOnly = sourceSetting?.value === "supabase";
     if (!error && data?.length) {
       remotePacks = data.map((pack) => ({
@@ -25,12 +30,16 @@ export async function loadPacks() {
         folder: pack.id,
         name: pack.name,
         thumbnailUrl: pack.stickers[0] ? publicAssetUrl(pack.stickers[0].storage_path) : "",
-        backgrounds: (pack.backgrounds || []).map((background) => ({
+        backgrounds: [...(pack.backgrounds || [])]
+          .sort((a, b) => a.position - b.position)
+          .map((background) => ({
           id: background.legacy_id || background.id,
           name: background.name,
           url: publicAssetUrl(background.storage_path),
         })),
-        stickers: pack.stickers.map((sticker) => ({
+        stickers: [...(pack.stickers || [])]
+          .sort((a, b) => a.position - b.position)
+          .map((sticker) => ({
           assetId: sticker.legacy_asset_id || sticker.id,
           name: sticker.name,
           url: publicAssetUrl(sticker.storage_path),
@@ -78,6 +87,7 @@ export async function loadPacks() {
 }
 
 export function getPacks() { return _packs || []; }
+export function getEnabledPacks() { return filterEnabledPacks(_packs || []); }
 
 export function findSticker(packId, assetId) {
   const pack = (_packs || []).find((p) => p.id === packId);
