@@ -921,4 +921,4 @@ function escapeHtml(value) {
 
 updateSession();
 
-import "./admin-v2.js?v=20260623-2";
+import "./admin-v2.js?v=20260623-3";

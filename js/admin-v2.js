@@ -83,7 +83,7 @@ function injectAdminUi() {
 
   new MutationObserver(() => decoratePackCards()).observe($("#pack-list"), {
     childList: true,
-    subtree: true,
+    subtree: false,
   });
   loadPackDelivery();
 }
