@@ -55,6 +55,13 @@ create table if not exists public.product_assets (
   primary key (product_id, asset_type, asset_id)
 );
 
+create table if not exists public.product_packs (
+  product_id uuid not null references public.products(id) on delete cascade,
+  pack_id uuid not null references public.sticker_packs(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  primary key (product_id, pack_id)
+);
+
 create table if not exists public.user_purchases (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
@@ -79,6 +86,17 @@ create table if not exists public.user_asset_entitlements (
   primary key (user_id, asset_type, asset_id)
 );
 
+create table if not exists public.user_pack_entitlements (
+  user_id uuid not null references auth.users(id) on delete cascade,
+  pack_id uuid not null references public.sticker_packs(id) on delete cascade,
+  source_type text not null
+    check (source_type in ('purchase', 'admin', 'promotion')),
+  source_id uuid,
+  granted_at timestamptz not null default now(),
+  revoked_at timestamptz,
+  primary key (user_id, pack_id)
+);
+
 create table if not exists public.asset_catalog_releases (
   id bigint generated always as identity primary key,
   version bigint not null unique,
@@ -88,8 +106,13 @@ create table if not exists public.asset_catalog_releases (
 
 create index if not exists product_assets_asset_idx
   on public.product_assets (asset_type, asset_id);
+create index if not exists product_packs_pack_idx
+  on public.product_packs (pack_id);
 create index if not exists user_entitlements_user_idx
   on public.user_asset_entitlements (user_id)
+  where revoked_at is null;
+create index if not exists user_pack_entitlements_user_idx
+  on public.user_pack_entitlements (user_id)
   where revoked_at is null;
 create index if not exists user_purchases_user_idx
   on public.user_purchases (user_id, purchased_at desc);
@@ -168,6 +191,22 @@ language sql
 security definer
 set search_path = public
 as $$
+  insert into public.user_pack_entitlements (
+    user_id,
+    pack_id,
+    source_type,
+    source_id
+  )
+  select target_user_id, product_packs.pack_id, 'purchase', target_product_id
+  from public.product_packs
+  where product_packs.product_id = target_product_id
+  on conflict (user_id, pack_id)
+  do update set
+    source_type = excluded.source_type,
+    source_id = excluded.source_id,
+    revoked_at = null,
+    granted_at = now();
+
   insert into public.user_asset_entitlements (
     user_id,
     asset_type,
@@ -175,20 +214,73 @@ as $$
     source_type,
     source_id
   )
-  select
-    target_user_id,
-    product_assets.asset_type,
-    product_assets.asset_id,
-    'purchase',
+  select target_user_id, assets.asset_type, assets.asset_id, 'purchase',
     target_product_id
-  from public.product_assets
-  where product_assets.product_id = target_product_id
+  from (
+    select product_assets.asset_type, product_assets.asset_id
+    from public.product_assets
+    where product_assets.product_id = target_product_id
+  ) as assets
   on conflict (user_id, asset_type, asset_id)
   do update set
     source_type = excluded.source_type,
     source_id = excluded.source_id,
     revoked_at = null,
     granted_at = now();
+$$;
+
+create or replace function public.can_access_pack(target_pack_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from public.sticker_packs
+    where sticker_packs.id = target_pack_id
+      and (
+        public.is_admin()
+        or (
+          sticker_packs.published
+          and (
+            sticker_packs.access_level = 'free'
+            or exists (
+              select 1
+              from public.user_pack_entitlements
+              where user_pack_entitlements.user_id = auth.uid()
+                and user_pack_entitlements.pack_id = target_pack_id
+                and user_pack_entitlements.revoked_at is null
+            )
+            or exists (
+              select 1
+              from public.user_asset_entitlements
+              where user_asset_entitlements.user_id = auth.uid()
+                and user_asset_entitlements.revoked_at is null
+                and (
+                  (
+                    user_asset_entitlements.asset_type = 'sticker'
+                    and exists (
+                      select 1 from public.stickers
+                      where stickers.id = user_asset_entitlements.asset_id
+                        and stickers.pack_id = target_pack_id
+                    )
+                  )
+                  or (
+                    user_asset_entitlements.asset_type = 'background'
+                    and exists (
+                      select 1 from public.backgrounds
+                      where backgrounds.id = user_asset_entitlements.asset_id
+                        and backgrounds.pack_id = target_pack_id
+                    )
+                  )
+                )
+            )
+          )
+        )
+      )
+  );
 $$;
 
 create or replace function public.admin_grant_product(
@@ -233,110 +325,42 @@ with (security_invoker = true)
 as
 select sticker.*
 from public.stickers as sticker
-where sticker.published
-  and (
-    sticker.access_level = 'free'
-    or exists (
-      select 1
-      from public.user_asset_entitlements as entitlement
-      where entitlement.user_id = auth.uid()
-        and entitlement.asset_type = 'sticker'
-        and entitlement.asset_id = sticker.id
-        and entitlement.revoked_at is null
-    )
-  );
+where public.can_access_pack(sticker.pack_id);
 
 create or replace view public.available_backgrounds
 with (security_invoker = true)
 as
 select background.*
 from public.backgrounds as background
-where background.published
-  and (
-    background.access_level = 'free'
-    or exists (
-      select 1
-      from public.user_asset_entitlements as entitlement
-      where entitlement.user_id = auth.uid()
-        and entitlement.asset_type = 'background'
-        and entitlement.asset_id = background.id
-        and entitlement.revoked_at is null
-    )
-  );
+where public.can_access_pack(background.pack_id);
 
 alter table public.products enable row level security;
 alter table public.product_assets enable row level security;
+alter table public.product_packs enable row level security;
 alter table public.user_purchases enable row level security;
 alter table public.user_asset_entitlements enable row level security;
+alter table public.user_pack_entitlements enable row level security;
 alter table public.asset_catalog_releases enable row level security;
 
 drop policy if exists "Public reads packs" on public.sticker_packs;
 create policy "Users read available packs"
 on public.sticker_packs for select
 using (
-  public.is_admin()
-  or (
-    published
-    and exists (
-      select 1
-      from public.stickers
-      where stickers.pack_id = sticker_packs.id
-        and stickers.published
-        and (
-          stickers.access_level = 'free'
-          or exists (
-            select 1
-            from public.user_asset_entitlements
-            where user_asset_entitlements.user_id = auth.uid()
-              and user_asset_entitlements.asset_type = 'sticker'
-              and user_asset_entitlements.asset_id = stickers.id
-              and user_asset_entitlements.revoked_at is null
-          )
-        )
-    )
-  )
+  public.can_access_pack(id)
 );
 
 drop policy if exists "Public reads stickers" on public.stickers;
 create policy "Users read available stickers"
 on public.stickers for select
 using (
-  public.is_admin()
-  or (
-    published
-    and (
-      access_level = 'free'
-      or exists (
-        select 1
-        from public.user_asset_entitlements
-        where user_asset_entitlements.user_id = auth.uid()
-          and user_asset_entitlements.asset_type = 'sticker'
-          and user_asset_entitlements.asset_id = stickers.id
-          and user_asset_entitlements.revoked_at is null
-      )
-    )
-  )
+  public.can_access_pack(pack_id)
 );
 
 drop policy if exists "Public reads backgrounds" on public.backgrounds;
 create policy "Users read available backgrounds"
 on public.backgrounds for select
 using (
-  public.is_admin()
-  or (
-    published
-    and (
-      access_level = 'free'
-      or exists (
-        select 1
-        from public.user_asset_entitlements
-        where user_asset_entitlements.user_id = auth.uid()
-          and user_asset_entitlements.asset_type = 'background'
-          and user_asset_entitlements.asset_id = backgrounds.id
-          and user_asset_entitlements.revoked_at is null
-      )
-    )
-  )
+  public.can_access_pack(pack_id)
 );
 
 drop policy if exists "Users read published products" on public.products;
@@ -365,6 +389,22 @@ create policy "Admins manage product assets"
 on public.product_assets for all
 using (public.is_admin()) with check (public.is_admin());
 
+drop policy if exists "Users read published product packs" on public.product_packs;
+create policy "Users read published product packs"
+on public.product_packs for select
+using (
+  exists (
+    select 1 from public.products
+    where products.id = product_packs.product_id
+      and (products.published or public.is_admin())
+  )
+);
+
+drop policy if exists "Admins manage product packs" on public.product_packs;
+create policy "Admins manage product packs"
+on public.product_packs for all
+using (public.is_admin()) with check (public.is_admin());
+
 drop policy if exists "Users read own purchases" on public.user_purchases;
 create policy "Users read own purchases"
 on public.user_purchases for select
@@ -383,6 +423,16 @@ using (user_id = auth.uid() or public.is_admin());
 drop policy if exists "Admins manage entitlements" on public.user_asset_entitlements;
 create policy "Admins manage entitlements"
 on public.user_asset_entitlements for all
+using (public.is_admin()) with check (public.is_admin());
+
+drop policy if exists "Users read own pack entitlements" on public.user_pack_entitlements;
+create policy "Users read own pack entitlements"
+on public.user_pack_entitlements for select
+using (user_id = auth.uid() or public.is_admin());
+
+drop policy if exists "Admins manage pack entitlements" on public.user_pack_entitlements;
+create policy "Admins manage pack entitlements"
+on public.user_pack_entitlements for all
 using (public.is_admin()) with check (public.is_admin());
 
 drop policy if exists "Users read asset releases" on public.asset_catalog_releases;

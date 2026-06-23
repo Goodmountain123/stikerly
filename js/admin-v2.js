@@ -12,7 +12,7 @@ const escapeHtml = (value) => String(value ?? "").replace(
 );
 
 let initialized = false;
-let assetRows = [];
+let packRows = [];
 
 function toast(message) {
   const element = $("#toast");
@@ -22,35 +22,24 @@ function toast(message) {
   toast.timer = setTimeout(() => { element.hidden = true; }, 2400);
 }
 
-function injectAdminDeliveryUi() {
-  if (initialized || !$("#dashboard") || !$(".tabs")) return;
+function injectAdminUi() {
+  if (initialized || !$("#dashboard") || !$(".tabs") || !$("#packs-panel")) return;
   initialized = true;
-  const tabs = $(".tabs");
-  tabs.insertAdjacentHTML("beforeend", `
-    <button class="tab" data-tab="delivery">배포 관리</button>
+
+  $(".tabs").insertAdjacentHTML("beforeend", `
     <button class="tab" data-tab="products">상품</button>
     <button class="tab" data-tab="entitlements">사용자 권한</button>
   `);
+  $("#packs-panel").insertAdjacentHTML("afterbegin", `
+    <div class="delivery-toolbar pack-release-toolbar">
+      <strong>팩 배포 관리</strong>
+      <span>현재 버전 <b id="catalog-version">-</b></span>
+      <button id="refresh-pack-delivery" class="button secondary">새로고침</button>
+      <button id="publish-release" class="button">업데이트 배포</button>
+      <span class="delivery-note">각 팩에서 공개·무료·유료를 설정한 뒤 배포하세요.</span>
+    </div>
+  `);
   $("#dashboard").insertAdjacentHTML("beforeend", `
-    <section id="delivery-panel" class="delivery-panel" hidden>
-      <div class="delivery-toolbar">
-        <button id="delivery-refresh" class="button secondary">새로고침</button>
-        <button id="publish-release" class="button">업데이트 배포</button>
-        <span class="delivery-note">어셋 설정을 마친 뒤 한 번만 배포하세요.</span>
-      </div>
-      <div class="delivery-card">
-        <h3>현재 카탈로그 버전</h3>
-        <div id="catalog-version" class="delivery-version">-</div>
-      </div>
-      <div class="delivery-card">
-        <h3>스티커</h3>
-        <div id="delivery-stickers" class="delivery-grid"></div>
-      </div>
-      <div class="delivery-card">
-        <h3>배경</h3>
-        <div id="delivery-backgrounds" class="delivery-grid"></div>
-      </div>
-    </section>
     <section id="products-panel" class="delivery-panel" hidden>
       <div class="delivery-toolbar">
         <button id="new-product" class="button">+ 상품 추가</button>
@@ -61,7 +50,7 @@ function injectAdminDeliveryUi() {
     <section id="entitlements-panel" class="delivery-panel" hidden>
       <div class="delivery-card">
         <h3>상품 권한 수동 부여</h3>
-        <p class="delivery-note">결제 테스트나 고객 지원용입니다. 사용자 UUID와 상품을 선택하세요.</p>
+        <p class="delivery-note">결제 테스트나 고객 지원용입니다.</p>
         <div class="form">
           <input id="entitlement-user-id" placeholder="사용자 UUID">
           <select id="entitlement-product"></select>
@@ -78,92 +67,100 @@ function injectAdminDeliveryUi() {
   document.querySelectorAll(".tabs .tab").forEach((tab) => {
     tab.addEventListener("click", () => {
       const current = tab.dataset.tab;
-      $("#delivery-panel").hidden = current !== "delivery";
       $("#products-panel").hidden = current !== "products";
       $("#entitlements-panel").hidden = current !== "entitlements";
-      if (current === "delivery") loadDelivery();
+      if (current === "packs") loadPackDelivery();
       if (current === "products") loadProducts();
       if (current === "entitlements") loadEntitlements();
     });
   });
-  $("#delivery-refresh").onclick = loadDelivery;
-  $("#products-refresh").onclick = loadProducts;
+
+  $("#refresh-pack-delivery").onclick = loadPackDelivery;
   $("#publish-release").onclick = publishRelease;
+  $("#products-refresh").onclick = loadProducts;
   $("#new-product").onclick = () => editProduct();
   $("#grant-entitlement").onclick = grantEntitlement;
+
+  new MutationObserver(() => decoratePackCards()).observe($("#pack-list"), {
+    childList: true,
+    subtree: true,
+  });
+  loadPackDelivery();
 }
 
-async function loadDelivery() {
-  const [settings, stickers, backgrounds] = await Promise.all([
+async function loadPackDelivery() {
+  const [settings, packs] = await Promise.all([
     supabase.from("app_settings").select("value").eq("key", "asset_catalog_version").maybeSingle(),
-    supabase.from("stickers").select("id,name,published,access_level,content_version").order("position"),
-    supabase.from("backgrounds").select("id,name,published,access_level,content_version").order("position"),
+    supabase.from("sticker_packs")
+      .select("id,name,published,access_level,content_version")
+      .order("position"),
   ]);
-  if (settings.error || stickers.error || backgrounds.error) {
-    return toast("배포 정보를 불러오지 못했어요. 최신 SQL을 먼저 실행하세요.");
+  if (settings.error || packs.error) {
+    return toast("팩 배포 정보를 불러오지 못했어요. 최신 SQL을 실행하세요.");
   }
+  packRows = packs.data || [];
   $("#catalog-version").textContent = settings.data?.value ?? 1;
-  renderAssetRows($("#delivery-stickers"), "stickers", stickers.data || []);
-  renderAssetRows($("#delivery-backgrounds"), "backgrounds", backgrounds.data || []);
+  decoratePackCards();
 }
 
-function renderAssetRows(container, table, rows) {
-  container.innerHTML = "";
-  for (const row of rows) {
-    const element = document.createElement("div");
-    element.className = "delivery-row";
-    element.innerHTML = `
-      <strong title="${escapeHtml(row.name)}">${escapeHtml(row.name)}</strong>
-      <label><input class="asset-published" type="checkbox" ${row.published ? "checked" : ""}> 공개</label>
-      <select class="asset-access">
-        <option value="free" ${row.access_level === "free" ? "selected" : ""}>무료</option>
-        <option value="paid" ${row.access_level === "paid" ? "selected" : ""}>유료</option>
+function decoratePackCards() {
+  const packsById = new Map(packRows.map((pack) => [pack.id, pack]));
+  document.querySelectorAll("#pack-list .pack").forEach((card) => {
+    const pack = packsById.get(card.dataset.sortId);
+    if (!pack) return;
+    let controls = card.querySelector(".pack-delivery-controls");
+    if (!controls) {
+      controls = document.createElement("div");
+      controls.className = "pack-delivery-controls";
+      card.querySelector(".pack__top")?.appendChild(controls);
+    }
+    controls.innerHTML = `
+      <label><input class="pack-published" type="checkbox" ${pack.published ? "checked" : ""}> 앱에 공개</label>
+      <select class="pack-access">
+        <option value="free" ${pack.access_level === "free" ? "selected" : ""}>무료 팩</option>
+        <option value="paid" ${pack.access_level === "paid" ? "selected" : ""}>유료 팩</option>
       </select>
-      <button class="button secondary asset-save">저장</button>
+      <button class="button pack-delivery-save">저장</button>
     `;
-    element.querySelector(".asset-save").onclick = async () => {
-      const published = element.querySelector(".asset-published").checked;
-      const access_level = element.querySelector(".asset-access").value;
-      const { error } = await supabase.from(table).update({
+    controls.querySelector(".pack-delivery-save").onclick = async () => {
+      const published = controls.querySelector(".pack-published").checked;
+      const access_level = controls.querySelector(".pack-access").value;
+      const { error } = await supabase.from("sticker_packs").update({
         published,
         access_level,
-        content_version: Number(row.content_version || 1) + 1,
-      }).eq("id", row.id);
-      if (error) return toast("저장하지 못했어요.");
-      toast("저장했어요. 작업 완료 후 업데이트를 배포하세요.");
-      loadDelivery();
+        content_version: Number(pack.content_version || 1) + 1,
+      }).eq("id", pack.id);
+      if (error) return toast("팩 설정을 저장하지 못했어요.");
+      toast("팩 설정을 저장했어요. 완료 후 업데이트를 배포하세요.");
+      loadPackDelivery();
     };
-    container.appendChild(element);
-  }
+  });
 }
 
 async function publishRelease() {
-  if (!confirm("현재 변경사항을 새 앱 업데이트로 배포할까요?")) return;
+  if (!confirm("현재 팩 변경사항을 앱에 배포할까요?")) return;
   const { data, error } = await supabase.rpc("bump_asset_catalog_version");
   if (error) return toast("배포하지 못했어요. 최신 SQL을 확인하세요.");
   $("#catalog-version").textContent = data;
   toast(`카탈로그 ${data} 버전을 배포했어요.`);
 }
 
-async function fetchAssets() {
-  const [stickers, backgrounds] = await Promise.all([
-    supabase.from("stickers").select("id,name,access_level").order("name"),
-    supabase.from("backgrounds").select("id,name,access_level").order("name"),
-  ]);
-  if (stickers.error || backgrounds.error) throw stickers.error || backgrounds.error;
-  assetRows = [
-    ...(stickers.data || []).map((row) => ({ ...row, asset_type: "sticker" })),
-    ...(backgrounds.data || []).map((row) => ({ ...row, asset_type: "background" })),
-  ];
-  return assetRows;
+async function fetchPacks() {
+  const { data, error } = await supabase
+    .from("sticker_packs")
+    .select("id,name,published,access_level")
+    .order("position");
+  if (error) throw error;
+  packRows = data || [];
+  return packRows;
 }
 
 async function loadProducts() {
   try {
-    await fetchAssets();
+    await fetchPacks();
     const { data, error } = await supabase
       .from("products")
-      .select("*,product_assets(asset_type,asset_id)")
+      .select("*,product_packs(pack_id)")
       .order("position");
     if (error) throw error;
     const list = $("#product-list");
@@ -173,8 +170,8 @@ async function loadProducts() {
       card.className = "delivery-card";
       card.innerHTML = `
         <h3>${escapeHtml(product.name)}</h3>
-        <p class="delivery-note">${product.price_amount.toLocaleString()} ${escapeHtml(product.currency)}
-        · 어셋 ${product.product_assets?.length || 0}개 · ${product.published ? "판매 중" : "비공개"}</p>
+        <p class="delivery-note">${Number(product.price_amount).toLocaleString()} ${escapeHtml(product.currency)}
+        · 팩 ${product.product_packs?.length || 0}개 · ${product.published ? "판매 중" : "비공개"}</p>
         <div class="delivery-toolbar">
           <button class="button edit-product">수정</button>
           <button class="button danger delete-product">삭제</button>
@@ -191,17 +188,15 @@ async function loadProducts() {
     }
   } catch (error) {
     console.error(error);
-    toast("상품 정보를 불러오지 못했어요.");
+    toast("상품 정보를 불러오지 못했어요. 최신 SQL을 실행하세요.");
   }
 }
 
 async function editProduct(product = null) {
-  if (!assetRows.length) {
-    try { await fetchAssets(); } catch (_) { return toast("어셋을 불러오지 못했어요."); }
+  if (!packRows.length) {
+    try { await fetchPacks(); } catch (_) { return toast("팩을 불러오지 못했어요."); }
   }
-  const selected = new Set(
-    (product?.product_assets || []).map((row) => `${row.asset_type}:${row.asset_id}`),
-  );
+  const selected = new Set((product?.product_packs || []).map((row) => row.pack_id));
   const overlay = document.createElement("div");
   overlay.className = "modal";
   overlay.innerHTML = `
@@ -211,13 +206,14 @@ async function editProduct(product = null) {
       <textarea name="description" rows="3" placeholder="상품 설명">${escapeHtml(product?.description || "")}</textarea>
       <input name="price" type="number" min="0" placeholder="가격(원)" value="${product?.price_amount || 0}">
       <label><input name="published" type="checkbox" ${product?.published ? "checked" : ""}> 상점에 공개</label>
-      <strong>포함 어셋</strong>
+      <strong>포함 팩</strong>
       <div class="delivery-assets">
-        ${assetRows.map((asset) => {
-          const key = `${asset.asset_type}:${asset.id}`;
-          return `<label><input type="checkbox" name="asset" value="${key}" ${selected.has(key) ? "checked" : ""}>
-            ${asset.asset_type === "sticker" ? "스티커" : "배경"} · ${escapeHtml(asset.name)}</label>`;
-        }).join("")}
+        ${packRows.map((pack) => `
+          <label>
+            <input type="checkbox" name="pack" value="${pack.id}" ${selected.has(pack.id) ? "checked" : ""}>
+            ${escapeHtml(pack.name)} · ${pack.access_level === "paid" ? "유료" : "무료"}
+          </label>
+        `).join("")}
       </div>
       <div class="modal__actions">
         <button type="button" class="button secondary cancel">취소</button>
@@ -233,7 +229,7 @@ async function editProduct(product = null) {
     const payload = {
       name: String(form.get("name")).trim(),
       description: String(form.get("description")).trim(),
-      product_type: "bundle",
+      product_type: form.getAll("pack").length > 1 ? "bundle" : "pack",
       price_amount: Number(form.get("price") || 0),
       currency: "KRW",
       published: form.get("published") === "on",
@@ -244,14 +240,14 @@ async function editProduct(product = null) {
       : supabase.from("products").insert(payload).select().single();
     const { data: saved, error } = await query;
     if (error) return toast("상품을 저장하지 못했어요.");
-    await supabase.from("product_assets").delete().eq("product_id", saved.id);
-    const assets = form.getAll("asset").map((value) => {
-      const [asset_type, asset_id] = String(value).split(":");
-      return { product_id: saved.id, asset_type, asset_id };
-    });
-    if (assets.length) {
-      const { error: assetError } = await supabase.from("product_assets").insert(assets);
-      if (assetError) return toast("상품 어셋을 저장하지 못했어요.");
+    await supabase.from("product_packs").delete().eq("product_id", saved.id);
+    const packs = form.getAll("pack").map((pack_id) => ({
+      product_id: saved.id,
+      pack_id,
+    }));
+    if (packs.length) {
+      const { error: packError } = await supabase.from("product_packs").insert(packs);
+      if (packError) return toast("상품 팩을 저장하지 못했어요.");
     }
     overlay.remove();
     toast("상품을 저장했어요.");
@@ -295,4 +291,4 @@ async function grantEntitlement() {
   loadEntitlements();
 }
 
-injectAdminDeliveryUi();
+injectAdminUi();

@@ -10,8 +10,9 @@ Apply `schema.sql` from the web project first, then run
 - Downloading: progress state.
 - Downloaded: usable in the editor.
 
-Free published assets are automatically entitled. Paid assets become available
-only after a verified purchase grants rows in `user_asset_entitlements`.
+Free published packs are automatically available. Paid packs become available
+after a verified purchase grants a row in `user_pack_entitlements`. New assets
+added later to an owned pack are therefore included automatically.
 
 ## Publishing
 
@@ -27,6 +28,7 @@ taps the download button.
 ## Purchases
 
 Payment verification must run in a trusted server or Supabase Edge Function.
-After verification, create `user_purchases` and call
+Products contain rows in `product_packs`. After verification, create
+`user_purchases` and call
 `grant_product_assets(user_id, product_id)` with the service role. Neither
 operation may be exposed directly to the Flutter client.
