@@ -895,3 +895,5 @@ function escapeHtml(value) {
 }
 
 updateSession();
+
+import "./admin-v2.js";
