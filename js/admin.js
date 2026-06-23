@@ -1,4 +1,9 @@
-import { supabase, supabaseConfigured, publicAssetUrl } from "./supabase.js";
+import {
+  supabase,
+  supabaseConfigured,
+  publicAssetUrl,
+  signedAssetUrl,
+} from "./supabase.js";
 
 const $ = (selector) => document.querySelector(selector);
 const setup = $("#setup");
@@ -25,6 +30,16 @@ function toast(message) {
   el.hidden = false;
   clearTimeout(toast.timer);
   toast.timer = setTimeout(() => { el.hidden = true; }, 2200);
+}
+
+async function setAssetPreview(image, storagePath) {
+  if (!image || !storagePath) return;
+  try {
+    const url = await signedAssetUrl(storagePath);
+    if (image.isConnected) image.src = url;
+  } catch (error) {
+    console.error("Asset preview failed", error);
+  }
 }
 
 function autoSave(input, save) {
@@ -568,7 +583,7 @@ function renderMusicList() {
       }
       if (musicPreview) musicPreview.pause();
       musicPreview = new Audio(
-        track.storage_path ? publicAssetUrl(track.storage_path) : track.url
+        track.storage_path ? await signedAssetUrl(track.storage_path) : track.url
       );
       previewTrackId = track.id;
       musicPreview.preload = "auto";
@@ -704,6 +719,17 @@ function packCard(pack) {
     </div>`;
 
   const packSelect = card.querySelector(".pack-select");
+  if (pack.stickers[0]) {
+    setAssetPreview(
+      card.querySelector(".pack__summary img"),
+      pack.stickers[0].storage_path,
+    );
+  } else if (pack.backgrounds?.[0]) {
+    setAssetPreview(
+      card.querySelector(".pack__summary img"),
+      pack.backgrounds[0].storage_path,
+    );
+  }
   packSelect.checked = selectedPacks.has(pack.id);
   packSelect.addEventListener("click", (event) => event.stopPropagation());
   packSelect.addEventListener("change", () => {
@@ -812,6 +838,7 @@ function stickerCard(sticker, selection, updateSelection) {
     <img src="${publicAssetUrl(sticker.storage_path)}" alt="">
     <input class="asset-name" value="${escapeHtml(sticker.name)}" aria-label="스티커 이름">`;
   const checkbox = item.querySelector(".select-box");
+  setAssetPreview(item.querySelector("img"), sticker.storage_path);
   const setSelected = (selected) => {
     checkbox.checked = selected;
     if (checkbox.checked) selection.set(sticker.id, sticker);
@@ -843,6 +870,7 @@ function backgroundCard(background, selection, updateSelection) {
     <img src="${publicAssetUrl(background.storage_path)}" alt="">
     <input class="asset-name" value="${escapeHtml(background.name)}" aria-label="배경 이름">`;
   const checkbox = item.querySelector(".select-box");
+  setAssetPreview(item.querySelector("img"), background.storage_path);
   const setSelected = (selected) => {
     checkbox.checked = selected;
     if (selected) selection.set(background.id, background);

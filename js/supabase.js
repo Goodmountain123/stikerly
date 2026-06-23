@@ -15,3 +15,11 @@ export const supabase = client;
 export function publicAssetUrl(path) {
   return supabase.storage.from("assets").getPublicUrl(path).data.publicUrl;
 }
+
+export async function signedAssetUrl(path, expiresIn = 3600) {
+  const { data, error } = await supabase.storage
+    .from("assets")
+    .createSignedUrl(path, expiresIn);
+  if (error) throw error;
+  return data.signedUrl;
+}
