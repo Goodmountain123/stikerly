@@ -1,8 +1,8 @@
-import { supabase } from "./supabase.js";
+import { supabase } from "./supabase.js?v=20260623-2";
 
 const style = document.createElement("link");
 style.rel = "stylesheet";
-style.href = "./admin-v2.css";
+style.href = "./admin-v2.css?v=20260623-2";
 document.head.appendChild(style);
 
 const $ = (selector) => document.querySelector(selector);

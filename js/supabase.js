@@ -17,9 +17,11 @@ export function publicAssetUrl(path) {
 }
 
 export async function signedAssetUrl(path, expiresIn = 3600) {
-  const { data, error } = await supabase.storage
-    .from("assets")
-    .createSignedUrl(path, expiresIn);
-  if (error) throw error;
-  return data.signedUrl;
+  const storage = supabase.storage.from("assets");
+  const { data, error } = await storage.createSignedUrl(path, expiresIn);
+  if (!error && data?.signedUrl) return data.signedUrl;
+
+  const downloaded = await storage.download(path);
+  if (downloaded.error) throw downloaded.error;
+  return URL.createObjectURL(downloaded.data);
 }

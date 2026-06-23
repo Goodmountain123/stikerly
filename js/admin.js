@@ -1,9 +1,8 @@
 import {
   supabase,
   supabaseConfigured,
-  publicAssetUrl,
   signedAssetUrl,
-} from "./supabase.js";
+} from "./supabase.js?v=20260623-2";
 
 const $ = (selector) => document.querySelector(selector);
 const setup = $("#setup");
@@ -665,16 +664,14 @@ function packCard(pack) {
   card.className = "pack";
   card.dataset.sortId = pack.id;
   card.draggable = true;
-  const thumbnail = pack.stickers[0]
-    ? publicAssetUrl(pack.stickers[0].storage_path)
-    : pack.backgrounds?.[0]
-      ? publicAssetUrl(pack.backgrounds[0].storage_path)
-      : "";
+  const thumbnailPath = pack.stickers[0]?.storage_path
+    || pack.backgrounds?.[0]?.storage_path
+    || "";
   card.innerHTML = `
     <summary class="pack__summary">
       <span class="sort-grip" aria-hidden="true">⋮⋮</span>
       <input class="select-box pack-select" type="checkbox" aria-label="팩 선택">
-      ${thumbnail ? `<img src="${thumbnail}" alt="">` : `<span class="pack__empty">＋</span>`}
+      ${thumbnailPath ? `<img alt="">` : `<span class="pack__empty">＋</span>`}
       <span class="pack__summary-main">
         <span class="pack__summary-name">${escapeHtml(pack.name)}</span>
         <span class="pack__summary-count">스티커 ${pack.stickers.length}개 · 배경 ${(pack.backgrounds || []).length}개</span>
@@ -835,7 +832,7 @@ function stickerCard(sticker, selection, updateSelection) {
   item.innerHTML = `
     <span class="sort-grip asset-sort-grip" aria-hidden="true">⋮⋮</span>
     <input class="select-box" type="checkbox" aria-label="스티커 선택">
-    <img src="${publicAssetUrl(sticker.storage_path)}" alt="">
+    <img alt="">
     <input class="asset-name" value="${escapeHtml(sticker.name)}" aria-label="스티커 이름">`;
   const checkbox = item.querySelector(".select-box");
   setAssetPreview(item.querySelector("img"), sticker.storage_path);
@@ -867,7 +864,7 @@ function backgroundCard(background, selection, updateSelection) {
   item.innerHTML = `
     <span class="sort-grip asset-sort-grip" aria-hidden="true">⋮⋮</span>
     <input class="select-box" type="checkbox" aria-label="배경 선택">
-    <img src="${publicAssetUrl(background.storage_path)}" alt="">
+    <img alt="">
     <input class="asset-name" value="${escapeHtml(background.name)}" aria-label="배경 이름">`;
   const checkbox = item.querySelector(".select-box");
   setAssetPreview(item.querySelector("img"), background.storage_path);
@@ -924,4 +921,4 @@ function escapeHtml(value) {
 
 updateSession();
 
-import "./admin-v2.js";
+import "./admin-v2.js?v=20260623-2";
