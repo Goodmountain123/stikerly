@@ -2,7 +2,7 @@ import { supabase } from "./supabase.js?v=20260623-2";
 
 const style = document.createElement("link");
 style.rel = "stylesheet";
-style.href = "./admin-v2.css?v=20260624-users";
+style.href = "./admin-v2.css?v=20260624-user-list";
 document.head.appendChild(style);
 
 const $ = (selector) => document.querySelector(selector);
@@ -65,10 +65,11 @@ function injectAdminUi() {
     </section>
     <section id="users-panel" class="delivery-panel" hidden>
       <div class="delivery-toolbar">
+        <input id="user-search" class="user-search" placeholder="닉네임 또는 사용자 ID 검색">
         <button id="users-refresh" class="button secondary">새로고침</button>
         <span class="delivery-note">닉네임, 포인트, 팩 사용권한을 관리합니다.</span>
       </div>
-      <div id="user-list" class="delivery-grid delivery-user-grid"></div>
+      <div id="user-list" class="user-management"></div>
     </section>
   `);
 
@@ -91,6 +92,7 @@ function injectAdminUi() {
   $("#new-product").onclick = () => editProduct();
   $("#grant-entitlement").onclick = grantEntitlement;
   $("#users-refresh").onclick = loadUsers;
+  $("#user-search").oninput = renderUsers;
 
   new MutationObserver(() => decoratePackCards()).observe($("#pack-list"), {
     childList: true,
@@ -302,6 +304,10 @@ async function grantEntitlement() {
   loadEntitlements();
 }
 
+let userRows = [];
+let userEntitlements = new Map();
+let selectedUserId = null;
+
 async function loadUsers() {
   try {
     const [packs, profiles, entitlements] = await Promise.all([
@@ -322,105 +328,147 @@ async function loadUsers() {
     }
 
     packRows = packs.data || [];
-    const activeEntitlements = new Map();
+    userRows = profiles.data || [];
+    userEntitlements = new Map();
     for (const row of entitlements.data || []) {
       if (row.revoked_at) continue;
-      if (!activeEntitlements.has(row.user_id)) {
-        activeEntitlements.set(row.user_id, new Set());
+      if (!userEntitlements.has(row.user_id)) {
+        userEntitlements.set(row.user_id, new Set());
       }
-      activeEntitlements.get(row.user_id).add(row.pack_id);
+      userEntitlements.get(row.user_id).add(row.pack_id);
     }
-
-    const list = $("#user-list");
-    list.innerHTML = "";
-    for (const profile of profiles.data || []) {
-      list.appendChild(
-        renderUserCard(profile, activeEntitlements.get(profile.user_id) || new Set()),
-      );
+    if (selectedUserId && !userRows.some((user) => user.user_id === selectedUserId)) {
+      selectedUserId = null;
     }
-    if (!list.children.length) {
-      list.innerHTML = `<p class="delivery-note">아직 계정이 없어요.</p>`;
-    }
+    renderUsers();
   } catch (error) {
     console.error(error);
     toast("계정 정보를 불러오지 못했어요. SQL과 관리자 권한을 확인하세요.");
   }
 }
 
-function renderUserCard(profile, activePackIds) {
-  const card = document.createElement("div");
-  card.className = "delivery-card user-card";
-  card.innerHTML = `
-    <div class="user-card__head">
-      <div>
-        <h3>${escapeHtml(profile.display_name)}</h3>
-        <code>${escapeHtml(profile.user_id)}</code>
-      </div>
-      <button class="button user-save">저장</button>
+function renderUsers() {
+  const list = $("#user-list");
+  if (!list) return;
+  const query = ($("#user-search")?.value || "").trim().toLowerCase();
+  const filtered = userRows.filter((user) => {
+    const text = `${user.display_name || ""} ${user.user_id || ""}`.toLowerCase();
+    return !query || text.includes(query);
+  });
+  if (!selectedUserId && filtered.length) selectedUserId = filtered[0].user_id;
+  list.innerHTML = `
+    <div class="user-master-list">
+      ${filtered.map(renderUserListItem).join("") || `<p class="delivery-note">검색 결과가 없어요.</p>`}
     </div>
-    <label>닉네임</label>
-    <input class="user-name" value="${escapeHtml(profile.display_name)}" maxlength="20">
-    <label>보유 포인트</label>
-    <input class="user-points" type="number" min="0" step="1" value="${Number(profile.points || 0)}">
-    <div class="delivery-note">가입 ${new Date(profile.created_at).toLocaleString("ko-KR")}</div>
-    <strong>사용 가능 팩</strong>
-    <div class="delivery-assets user-pack-list">
-      ${packRows.map((pack) => `
-        <label>
-          <input type="checkbox" value="${pack.id}" ${activePackIds.has(pack.id) ? "checked" : ""}>
-          <span>${escapeHtml(pack.name)}</span>
-          <em>${pack.access_level === "paid" ? "유료" : "무료"}${pack.published ? "" : " · 비공개"}</em>
-        </label>
-      `).join("")}
-    </div>
+    <div id="user-detail" class="user-detail"></div>
   `;
-
-  card.querySelector(".user-save").onclick = async () => {
-    const display_name = card.querySelector(".user-name").value.trim();
-    const points = Number(card.querySelector(".user-points").value || 0);
-    if (!display_name) return toast("닉네임을 입력하세요.");
-    if (!Number.isFinite(points) || points < 0) return toast("포인트를 확인하세요.");
-
-    const { error: profileError } = await supabase
-      .from("account_profiles")
-      .update({ display_name, points: Math.floor(points) })
-      .eq("user_id", profile.user_id);
-    if (profileError) return toast("계정 정보를 저장하지 못했어요.");
-
-    const selectedPackIds = new Set(
-      Array.from(card.querySelectorAll(".user-pack-list input:checked")).map((input) => input.value),
-    );
-    const allPackIds = packRows.map((pack) => pack.id);
-    const grantRows = allPackIds
-      .filter((pack_id) => selectedPackIds.has(pack_id))
-      .map((pack_id) => ({
-        user_id: profile.user_id,
-        pack_id,
-        source_type: "admin",
-        revoked_at: null,
-      }));
-    if (grantRows.length) {
-      const { error: grantError } = await supabase
-        .from("user_pack_entitlements")
-        .upsert(grantRows, { onConflict: "user_id,pack_id" });
-      if (grantError) return toast("팩 권한을 저장하지 못했어요.");
-    }
-
-    const revokedPackIds = allPackIds.filter((pack_id) => !selectedPackIds.has(pack_id));
-    if (revokedPackIds.length) {
-      const { error: revokeError } = await supabase
-        .from("user_pack_entitlements")
-        .update({ revoked_at: new Date().toISOString() })
-        .eq("user_id", profile.user_id)
-        .in("pack_id", revokedPackIds);
-      if (revokeError) return toast("팩 권한 해제에 실패했어요.");
-    }
-
-    toast("계정 정보를 저장했어요.");
-    loadUsers();
-  };
-
-  return card;
+  list.querySelectorAll(".user-list-item").forEach((item) => {
+    item.onclick = () => {
+      selectedUserId = item.dataset.userId;
+      renderUsers();
+    };
+  });
+  const selected = userRows.find((user) => user.user_id === selectedUserId) || filtered[0];
+  renderUserDetail(selected);
 }
 
+function renderUserListItem(user) {
+  const count = userEntitlements.get(user.user_id)?.size || 0;
+  return `
+    <button class="user-list-item ${user.user_id === selectedUserId ? "is-on" : ""}" data-user-id="${escapeHtml(user.user_id)}">
+      <span>
+        <strong>${escapeHtml(user.display_name)}</strong>
+        <code>${escapeHtml(user.user_id)}</code>
+      </span>
+      <em>${Number(user.points || 0).toLocaleString()} P · 팩 ${count}</em>
+    </button>
+  `;
+}
+
+function renderUserDetail(profile) {
+  const detail = $("#user-detail");
+  if (!detail) return;
+  if (!profile) {
+    detail.innerHTML = `<div class="delivery-card"><p class="delivery-note">계정을 선택하세요.</p></div>`;
+    return;
+  }
+  const activePackIds = userEntitlements.get(profile.user_id) || new Set();
+  detail.innerHTML = `
+    <div class="delivery-card user-card">
+      <div class="user-card__head">
+        <div>
+          <h3>${escapeHtml(profile.display_name)}</h3>
+          <code>${escapeHtml(profile.user_id)}</code>
+        </div>
+        <button class="button user-save">저장</button>
+      </div>
+      <label>닉네임</label>
+      <input class="user-name" value="${escapeHtml(profile.display_name)}" maxlength="20">
+      <label>보유 포인트</label>
+      <input class="user-points" type="number" min="0" step="1" value="${Number(profile.points || 0)}">
+      <div class="delivery-note">가입 ${new Date(profile.created_at).toLocaleString("ko-KR")}</div>
+      <strong>사용 가능 팩</strong>
+      <div class="user-pack-table">
+        ${packRows.map((pack) => `
+          <div class="user-pack-row">
+            <span>${escapeHtml(pack.name)}</span>
+            <em>${pack.access_level === "paid" ? "유료" : "무료"}${pack.published ? "" : " · 비공개"}</em>
+            <select data-pack-id="${pack.id}">
+              <option value="enabled" ${activePackIds.has(pack.id) ? "selected" : ""}>사용 가능</option>
+              <option value="disabled" ${activePackIds.has(pack.id) ? "" : "selected"}>불가능</option>
+            </select>
+          </div>
+        `).join("")}
+      </div>
+    </div>
+  `;
+  detail.querySelector(".user-save").onclick = () => saveUserDetail(profile, detail);
+}
+
+async function saveUserDetail(profile, detail) {
+  const display_name = detail.querySelector(".user-name").value.trim();
+  const points = Number(detail.querySelector(".user-points").value || 0);
+  if (!display_name) return toast("닉네임을 입력하세요.");
+  if (!Number.isFinite(points) || points < 0) return toast("포인트를 확인하세요.");
+
+  const { error: profileError } = await supabase
+    .from("account_profiles")
+    .update({ display_name, points: Math.floor(points) })
+    .eq("user_id", profile.user_id);
+  if (profileError) return toast("계정 정보를 저장하지 못했어요.");
+
+  const selectedPackIds = new Set(
+    Array.from(detail.querySelectorAll(".user-pack-row select"))
+      .filter((select) => select.value === "enabled")
+      .map((select) => select.dataset.packId),
+  );
+  const allPackIds = packRows.map((pack) => pack.id);
+  const grantRows = allPackIds
+    .filter((pack_id) => selectedPackIds.has(pack_id))
+    .map((pack_id) => ({
+      user_id: profile.user_id,
+      pack_id,
+      source_type: "admin",
+      revoked_at: null,
+    }));
+  if (grantRows.length) {
+    const { error: grantError } = await supabase
+      .from("user_pack_entitlements")
+      .upsert(grantRows, { onConflict: "user_id,pack_id" });
+    if (grantError) return toast("팩 권한을 저장하지 못했어요.");
+  }
+
+  const revokedPackIds = allPackIds.filter((pack_id) => !selectedPackIds.has(pack_id));
+  if (revokedPackIds.length) {
+    const { error: revokeError } = await supabase
+      .from("user_pack_entitlements")
+      .update({ revoked_at: new Date().toISOString() })
+      .eq("user_id", profile.user_id)
+      .in("pack_id", revokedPackIds);
+    if (revokeError) return toast("팩 권한 해제에 실패했어요.");
+  }
+
+  toast("계정 정보를 저장했어요.");
+  loadUsers();
+}
 injectAdminUi();
