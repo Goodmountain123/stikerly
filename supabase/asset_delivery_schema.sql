@@ -343,6 +343,7 @@ alter table public.user_pack_entitlements enable row level security;
 alter table public.asset_catalog_releases enable row level security;
 
 drop policy if exists "Public reads packs" on public.sticker_packs;
+drop policy if exists "Users read available packs" on public.sticker_packs;
 create policy "Users read available packs"
 on public.sticker_packs for select
 using (
@@ -350,6 +351,7 @@ using (
 );
 
 drop policy if exists "Public reads stickers" on public.stickers;
+drop policy if exists "Users read available stickers" on public.stickers;
 create policy "Users read available stickers"
 on public.stickers for select
 using (
@@ -357,6 +359,7 @@ using (
 );
 
 drop policy if exists "Public reads backgrounds" on public.backgrounds;
+drop policy if exists "Users read available backgrounds" on public.backgrounds;
 create policy "Users read available backgrounds"
 on public.backgrounds for select
 using (
