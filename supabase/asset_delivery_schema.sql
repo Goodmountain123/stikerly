@@ -90,11 +90,25 @@ create table if not exists public.user_pack_entitlements (
   user_id uuid not null references auth.users(id) on delete cascade,
   pack_id uuid not null references public.sticker_packs(id) on delete cascade,
   source_type text not null
-    check (source_type in ('purchase', 'admin', 'promotion')),
+    check (source_type in ('free', 'purchase', 'admin', 'promotion')),
   source_id uuid,
   granted_at timestamptz not null default now(),
   revoked_at timestamptz,
   primary key (user_id, pack_id)
+);
+
+alter table public.user_pack_entitlements
+  drop constraint if exists user_pack_entitlements_source_type_check;
+alter table public.user_pack_entitlements
+  add constraint user_pack_entitlements_source_type_check
+  check (source_type in ('free', 'purchase', 'admin', 'promotion'));
+
+create table if not exists public.account_profiles (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  display_name text not null,
+  points bigint not null default 0 check (points >= 0),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
 );
 
 create table if not exists public.asset_catalog_releases (
@@ -116,6 +130,113 @@ create index if not exists user_pack_entitlements_user_idx
   where revoked_at is null;
 create index if not exists user_purchases_user_idx
   on public.user_purchases (user_id, purchased_at desc);
+
+create or replace function public.sync_account_metadata(target_user_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public, auth
+as $$
+declare
+  target_email text;
+begin
+  select lower(email) into target_email
+  from auth.users
+  where id = target_user_id;
+
+  if target_email is null then return; end if;
+
+  insert into public.account_profiles (user_id, display_name, points)
+  values (
+    target_user_id,
+    case
+      when target_email = 'testaccount1@stickerly.app' then 'testaccount1'
+      when target_email = 'testaccount2@stickerly.app' then 'testaccount2'
+      else split_part(target_email, '@', 1)
+    end,
+    case when target_email = 'testaccount1@stickerly.app' then 1000000 else 0 end
+  )
+  on conflict (user_id) do update set
+    display_name = excluded.display_name,
+    points = case
+      when target_email = 'testaccount1@stickerly.app' then 1000000
+      when target_email = 'testaccount2@stickerly.app' then 0
+      else account_profiles.points
+    end,
+    updated_at = now();
+
+  insert into public.user_pack_entitlements (
+    user_id, pack_id, source_type
+  )
+  select target_user_id, sticker_packs.id, 'free'
+  from public.sticker_packs
+  where sticker_packs.access_level = 'free'
+  on conflict (user_id, pack_id) do update set
+    revoked_at = null,
+    source_type = case
+      when user_pack_entitlements.source_type = 'purchase'
+        then user_pack_entitlements.source_type
+      else 'free'
+    end;
+end;
+$$;
+
+create or replace function public.handle_new_account()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  perform public.sync_account_metadata(new.id);
+  return new;
+end;
+$$;
+
+drop trigger if exists account_created_metadata on auth.users;
+create trigger account_created_metadata
+after insert on auth.users
+for each row execute function public.handle_new_account();
+
+create or replace function public.sync_free_pack_entitlements()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, auth
+as $$
+begin
+  if new.access_level = 'free' then
+    insert into public.user_pack_entitlements (
+      user_id, pack_id, source_type
+    )
+    select users.id, new.id, 'free'
+    from auth.users as users
+    on conflict (user_id, pack_id) do update set
+      revoked_at = null,
+      source_type = case
+        when user_pack_entitlements.source_type = 'purchase'
+          then user_pack_entitlements.source_type
+        else 'free'
+      end;
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists free_pack_entitlements on public.sticker_packs;
+create trigger free_pack_entitlements
+after insert or update of access_level on public.sticker_packs
+for each row execute function public.sync_free_pack_entitlements();
+
+do $$
+declare account record;
+begin
+  for account in select id from auth.users loop
+    perform public.sync_account_metadata(account.id);
+  end loop;
+end;
+$$;
+
 
 insert into public.app_settings (key, value)
 values ('asset_catalog_version', '1'::jsonb)
@@ -149,6 +270,11 @@ for each row execute function public.touch_updated_at();
 drop trigger if exists products_touch_updated_at on public.products;
 create trigger products_touch_updated_at
 before update on public.products
+for each row execute function public.touch_updated_at();
+
+drop trigger if exists account_profiles_touch_updated_at on public.account_profiles;
+create trigger account_profiles_touch_updated_at
+before update on public.account_profiles
 for each row execute function public.touch_updated_at();
 
 create or replace function public.bump_asset_catalog_version()
@@ -341,6 +467,7 @@ alter table public.user_purchases enable row level security;
 alter table public.user_asset_entitlements enable row level security;
 alter table public.user_pack_entitlements enable row level security;
 alter table public.asset_catalog_releases enable row level security;
+alter table public.account_profiles enable row level security;
 
 drop policy if exists "Public reads packs" on public.sticker_packs;
 drop policy if exists "Users read available packs" on public.sticker_packs;
@@ -443,6 +570,16 @@ create policy "Users read asset releases"
 on public.asset_catalog_releases for select
 using (true);
 
+drop policy if exists "Users read own account profile" on public.account_profiles;
+create policy "Users read own account profile"
+on public.account_profiles for select
+using (user_id = auth.uid() or public.is_admin());
+
+drop policy if exists "Admins manage account profiles" on public.account_profiles;
+create policy "Admins manage account profiles"
+on public.account_profiles for all
+using (public.is_admin()) with check (public.is_admin());
+
 grant select on public.available_stickers to anon, authenticated;
 grant select on public.available_backgrounds to anon, authenticated;
 revoke all on function public.grant_product_assets(uuid, uuid)
@@ -455,6 +592,10 @@ grant execute on function public.bump_asset_catalog_version()
   to authenticated;
 grant execute on function public.admin_grant_product(uuid, uuid)
   to authenticated;
+revoke all on function public.sync_account_metadata(uuid)
+  from public, anon, authenticated;
+grant execute on function public.sync_account_metadata(uuid)
+  to service_role;
 
 update storage.buckets
 set public = false
