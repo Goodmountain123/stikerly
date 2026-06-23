@@ -18,4 +18,12 @@
 .pack-delivery-controls input{min-width:0;flex:0 0 auto}
 .pack-delivery-controls select{min-width:105px;flex:0 0 auto;padding:9px}
 .pack-delivery-controls .button{padding:9px 13px}
+.delivery-user-grid{grid-template-columns:repeat(auto-fill,minmax(340px,1fr))}
+.user-card{display:grid;gap:10px}
+.user-card__head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.user-card__head code{display:block;max-width:240px;overflow:hidden;text-overflow:ellipsis;font-size:11px;color:#826f8b}
+.user-card input{width:100%;box-sizing:border-box;padding:10px;border:1px solid #eaddeb;border-radius:10px}
+.user-pack-list label{justify-content:space-between}
+.user-pack-list span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.user-pack-list em{margin-left:auto;font-size:11px;color:#826f8b;font-style:normal;white-space:nowrap}
 @media(max-width:700px){.delivery-row{grid-template-columns:1fr 1fr}.delivery-row strong{grid-column:1/-1}}
