@@ -542,6 +542,71 @@ begin
 end;
 $$;
 
+create or replace function public.purchase_product_with_points(
+  target_product_id uuid
+)
+returns public.account_profiles
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  buyer_id uuid := auth.uid();
+  product_price integer;
+  profile public.account_profiles;
+begin
+  if buyer_id is null then
+    raise exception 'Not signed in';
+  end if;
+
+  select price_amount into product_price
+  from public.products
+  where id = target_product_id
+    and published = true;
+
+  if product_price is null then
+    raise exception 'Product not found';
+  end if;
+
+  select * into profile
+  from public.account_profiles
+  where user_id = buyer_id
+  for update;
+
+  if profile.user_id is null then
+    raise exception 'Profile not found';
+  end if;
+  if profile.points < product_price then
+    raise exception 'INSUFFICIENT_POINTS';
+  end if;
+
+  update public.account_profiles
+  set points = points - product_price,
+      updated_at = now()
+  where user_id = buyer_id
+  returning * into profile;
+
+  insert into public.user_purchases (
+    user_id,
+    product_id,
+    provider,
+    provider_transaction_id,
+    status
+  )
+  values (
+    buyer_id,
+    target_product_id,
+    'points',
+    'points-' || gen_random_uuid()::text,
+    'completed'
+  )
+  on conflict (provider, provider_transaction_id) do nothing;
+
+  perform public.grant_product_assets(buyer_id, target_product_id);
+  return profile;
+end;
+$$;
+
 create or replace view public.available_stickers
 with (security_invoker = true)
 as
@@ -705,6 +770,10 @@ revoke all on function public.admin_grant_product(uuid, uuid)
 grant execute on function public.bump_asset_catalog_version()
   to authenticated;
 grant execute on function public.admin_grant_product(uuid, uuid)
+  to authenticated;
+revoke all on function public.purchase_product_with_points(uuid)
+  from public, anon, authenticated;
+grant execute on function public.purchase_product_with_points(uuid)
   to authenticated;
 revoke all on function public.sync_account_metadata(uuid)
   from public, anon, authenticated;
