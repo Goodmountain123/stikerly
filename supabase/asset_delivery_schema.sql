@@ -130,6 +130,17 @@ create table if not exists public.point_purchases (
   purchased_at timestamptz not null default now()
 );
 
+create table if not exists public.sticker_projects (
+  user_id uuid not null references auth.users(id) on delete cascade,
+  id text not null,
+  title text not null,
+  data jsonb not null,
+  thumbnail_storage_path text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  primary key (user_id, id)
+);
+
 create table if not exists public.asset_catalog_releases (
   id bigint generated always as identity primary key,
   version bigint not null unique,
@@ -151,6 +162,8 @@ create index if not exists user_purchases_user_idx
   on public.user_purchases (user_id, purchased_at desc);
 create index if not exists point_purchases_user_idx
   on public.point_purchases (user_id, purchased_at desc);
+create index if not exists sticker_projects_user_idx
+  on public.sticker_projects (user_id, updated_at desc);
 
 create or replace function public.sync_account_metadata(target_user_id uuid)
 returns void
@@ -552,6 +565,7 @@ alter table public.user_asset_entitlements enable row level security;
 alter table public.user_pack_entitlements enable row level security;
 alter table public.asset_catalog_releases enable row level security;
 alter table public.account_profiles enable row level security;
+alter table public.sticker_projects enable row level security;
 
 drop policy if exists "Public reads packs" on public.sticker_packs;
 drop policy if exists "Users read available packs" on public.sticker_packs;
@@ -674,6 +688,12 @@ create policy "Admins manage account profiles"
 on public.account_profiles for all
 using (public.is_admin()) with check (public.is_admin());
 
+drop policy if exists "Users manage own sticker projects" on public.sticker_projects;
+create policy "Users manage own sticker projects"
+on public.sticker_projects for all
+using (user_id = auth.uid() or public.is_admin())
+with check (user_id = auth.uid() or public.is_admin());
+
 grant select on public.available_stickers to anon, authenticated;
 grant select on public.available_backgrounds to anon, authenticated;
 revoke all on function public.grant_product_assets(uuid, uuid)
@@ -706,6 +726,10 @@ where id = 'assets';
 insert into storage.buckets (id, name, public)
 values ('profile-images', 'profile-images', true)
 on conflict (id) do update set public = true;
+
+insert into storage.buckets (id, name, public)
+values ('project-thumbnails', 'project-thumbnails', false)
+on conflict (id) do update set public = false;
 
 drop policy if exists "Public reads assets" on storage.objects;
 drop policy if exists "Users read available assets" on storage.objects;
@@ -767,6 +791,34 @@ using (
 )
 with check (
   bucket_id = 'profile-images'
+  and split_part(name, '/', 1) = auth.uid()::text
+);
+
+drop policy if exists "Users read own project thumbnails" on storage.objects;
+create policy "Users read own project thumbnails"
+on storage.objects for select
+using (
+  bucket_id = 'project-thumbnails'
+  and (split_part(name, '/', 1) = auth.uid()::text or public.is_admin())
+);
+
+drop policy if exists "Users upload own project thumbnails" on storage.objects;
+create policy "Users upload own project thumbnails"
+on storage.objects for insert
+with check (
+  bucket_id = 'project-thumbnails'
+  and split_part(name, '/', 1) = auth.uid()::text
+);
+
+drop policy if exists "Users update own project thumbnails" on storage.objects;
+create policy "Users update own project thumbnails"
+on storage.objects for update
+using (
+  bucket_id = 'project-thumbnails'
+  and split_part(name, '/', 1) = auth.uid()::text
+)
+with check (
+  bucket_id = 'project-thumbnails'
   and split_part(name, '/', 1) = auth.uid()::text
 );
 
