@@ -1,8 +1,8 @@
-import { supabase } from "./supabase.js?v=20260623-2";
+import { supabase, signedAssetUrl } from "./supabase.js?v=20260623-2";
 
 const style = document.createElement("link");
 style.rel = "stylesheet";
-style.href = "./admin-v2.css?v=20260624-user-list";
+style.href = "./admin-v2.css?v=20260624-products-profile";
 document.head.appendChild(style);
 
 const $ = (selector) => document.querySelector(selector);
@@ -13,6 +13,29 @@ const escapeHtml = (value) => String(value ?? "").replace(
 
 let initialized = false;
 let packRows = [];
+
+async function setDeliveryImage(image, storagePath) {
+  if (!image || !storagePath) return;
+  try {
+    const url = await signedAssetUrl(storagePath);
+    if (image.isConnected) image.src = url;
+  } catch (error) {
+    console.error("Delivery image failed", error);
+  }
+}
+
+function packThumbnailPath(pack) {
+  return pack.thumbnail_path
+    || [...(pack.stickers || [])].sort((a, b) => (a.position || 0) - (b.position || 0))[0]?.storage_path
+    || [...(pack.backgrounds || [])].sort((a, b) => (a.position || 0) - (b.position || 0))[0]?.storage_path
+    || "";
+}
+
+function productThumbnailPath(product) {
+  if (product.thumbnail_storage_path) return product.thumbnail_storage_path;
+  const packIds = new Set((product.product_packs || []).map((row) => row.pack_id));
+  return packRows.map((pack) => packIds.has(pack.id) ? packThumbnailPath(pack) : "").find(Boolean) || "";
+}
 
 function toast(message) {
   const element = $("#toast");
@@ -161,7 +184,7 @@ async function publishRelease() {
 async function fetchPacks() {
   const { data, error } = await supabase
     .from("sticker_packs")
-    .select("id,name,published,access_level")
+    .select("id,name,published,access_level,stickers(storage_path,position),backgrounds(storage_path,position)")
     .order("position");
   if (error) throw error;
   packRows = data || [];
@@ -181,7 +204,11 @@ async function loadProducts() {
     for (const product of data || []) {
       const card = document.createElement("div");
       card.className = "delivery-card";
+      const thumbnailPath = productThumbnailPath(product);
       card.innerHTML = `
+        <div class="product-card__thumb">
+          ${thumbnailPath ? `<img alt="">` : `<span>＋</span>`}
+        </div>
         <h3>${escapeHtml(product.name)}</h3>
         <p class="delivery-note">${Number(product.price_amount).toLocaleString()} ${escapeHtml(product.currency)}
         · 팩 ${product.product_packs?.length || 0}개 · ${product.published ? "판매 중" : "비공개"}</p>
@@ -190,6 +217,9 @@ async function loadProducts() {
           <button class="button danger delete-product">삭제</button>
         </div>
       `;
+      if (thumbnailPath) {
+        setDeliveryImage(card.querySelector(".product-card__thumb img"), thumbnailPath);
+      }
       card.querySelector(".edit-product").onclick = () => editProduct(product);
       card.querySelector(".delete-product").onclick = async () => {
         if (!confirm(`"${product.name}" 상품을 삭제할까요?`)) return;
@@ -218,13 +248,18 @@ async function editProduct(product = null) {
       <input name="name" placeholder="상품 이름" value="${escapeHtml(product?.name || "")}" required>
       <textarea name="description" rows="3" placeholder="상품 설명">${escapeHtml(product?.description || "")}</textarea>
       <input name="price" type="number" min="0" placeholder="가격(원)" value="${product?.price_amount || 0}">
+      <label class="product-image-field">
+        <span>상품 홍보 이미지</span>
+        <input name="productImage" type="file" accept="image/*">
+      </label>
       <label><input name="published" type="checkbox" ${product?.published ? "checked" : ""}> 상점에 공개</label>
       <strong>포함 팩</strong>
       <div class="delivery-assets">
         ${packRows.map((pack) => `
-          <label>
+          <label class="pack-option">
             <input type="checkbox" name="pack" value="${pack.id}" ${selected.has(pack.id) ? "checked" : ""}>
-            ${escapeHtml(pack.name)} · ${pack.access_level === "paid" ? "유료" : "무료"}
+            <span class="pack-option__thumb">${packThumbnailPath(pack) ? `<img data-path="${escapeHtml(packThumbnailPath(pack))}" alt="">` : "＋"}</span>
+            <span>${escapeHtml(pack.name)} · ${pack.access_level === "paid" ? "유료" : "무료"}</span>
           </label>
         `).join("")}
       </div>
@@ -235,6 +270,9 @@ async function editProduct(product = null) {
     </form>
   `;
   document.body.appendChild(overlay);
+  overlay.querySelectorAll(".pack-option__thumb img").forEach((image) => {
+    setDeliveryImage(image, image.dataset.path);
+  });
   overlay.querySelector(".cancel").onclick = () => overlay.remove();
   overlay.querySelector("form").onsubmit = async (event) => {
     event.preventDefault();
@@ -248,6 +286,18 @@ async function editProduct(product = null) {
       published: form.get("published") === "on",
       position: product?.position || Date.now(),
     };
+    const imageFile = form.get("productImage");
+    if (imageFile && imageFile.size) {
+      const safeName = imageFile.name.replace(/[^\w.-]+/g, "-");
+      const imagePath = `products/${Date.now()}-${safeName}`;
+      const upload = await supabase.storage
+        .from("assets")
+        .upload(imagePath, imageFile, { contentType: imageFile.type || "image/png", upsert: true });
+      if (upload.error) return toast("상품 이미지를 업로드하지 못했어요.");
+      payload.thumbnail_storage_path = imagePath;
+    } else if (product?.thumbnail_storage_path) {
+      payload.thumbnail_storage_path = product.thumbnail_storage_path;
+    }
     const query = product
       ? supabase.from("products").update(payload).eq("id", product.id).select().single()
       : supabase.from("products").insert(payload).select().single();

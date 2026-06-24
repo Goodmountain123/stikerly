@@ -107,9 +107,13 @@ create table if not exists public.account_profiles (
   user_id uuid primary key references auth.users(id) on delete cascade,
   display_name text not null,
   points bigint not null default 0 check (points >= 0),
+  avatar_storage_path text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table public.account_profiles
+  add column if not exists avatar_storage_path text;
 
 create table if not exists public.asset_catalog_releases (
   id bigint generated always as identity primary key,
@@ -249,6 +253,66 @@ as $$
 begin
   new.updated_at = now();
   return new;
+end;
+$$;
+
+create or replace function public.update_account_display_name(display_name text)
+returns public.account_profiles
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  normalized text := nullif(btrim(display_name), '');
+  profile public.account_profiles;
+begin
+  if auth.uid() is null then
+    raise exception 'Not signed in';
+  end if;
+  if normalized is null then
+    raise exception 'Display name is required';
+  end if;
+
+  update public.account_profiles
+  set display_name = left(normalized, 20),
+      updated_at = now()
+  where user_id = auth.uid()
+  returning * into profile;
+
+  if profile.user_id is null then
+    raise exception 'Profile not found';
+  end if;
+  return profile;
+end;
+$$;
+
+create or replace function public.update_account_avatar(avatar_path text)
+returns public.account_profiles
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  normalized text := nullif(btrim(avatar_path), '');
+  profile public.account_profiles;
+begin
+  if auth.uid() is null then
+    raise exception 'Not signed in';
+  end if;
+  if normalized is null or split_part(normalized, '/', 1) <> auth.uid()::text then
+    raise exception 'Invalid avatar path';
+  end if;
+
+  update public.account_profiles
+  set avatar_storage_path = normalized,
+      updated_at = now()
+  where user_id = auth.uid()
+  returning * into profile;
+
+  if profile.user_id is null then
+    raise exception 'Profile not found';
+  end if;
+  return profile;
 end;
 $$;
 
@@ -596,10 +660,22 @@ revoke all on function public.sync_account_metadata(uuid)
   from public, anon, authenticated;
 grant execute on function public.sync_account_metadata(uuid)
   to service_role;
+revoke all on function public.update_account_display_name(text)
+  from public, anon, authenticated;
+grant execute on function public.update_account_display_name(text)
+  to authenticated;
+revoke all on function public.update_account_avatar(text)
+  from public, anon, authenticated;
+grant execute on function public.update_account_avatar(text)
+  to authenticated;
 
 update storage.buckets
 set public = false
 where id = 'assets';
+
+insert into storage.buckets (id, name, public)
+values ('profile-images', 'profile-images', true)
+on conflict (id) do update set public = true;
 
 drop policy if exists "Public reads assets" on storage.objects;
 drop policy if exists "Users read available assets" on storage.objects;
@@ -619,7 +695,49 @@ using (
       from public.backgrounds
       where backgrounds.storage_path = storage.objects.name
     )
+    or exists (
+      select 1
+      from public.products
+      where products.thumbnail_storage_path = storage.objects.name
+        and (products.published or public.is_admin())
+    )
   )
+);
+
+drop policy if exists "Admins upload assets" on storage.objects;
+create policy "Admins upload assets"
+on storage.objects for insert
+with check (bucket_id = 'assets' and public.is_admin());
+
+drop policy if exists "Admins update assets" on storage.objects;
+create policy "Admins update assets"
+on storage.objects for update
+using (bucket_id = 'assets' and public.is_admin())
+with check (bucket_id = 'assets' and public.is_admin());
+
+drop policy if exists "Users read profile images" on storage.objects;
+create policy "Users read profile images"
+on storage.objects for select
+using (bucket_id = 'profile-images');
+
+drop policy if exists "Users upload own profile image" on storage.objects;
+create policy "Users upload own profile image"
+on storage.objects for insert
+with check (
+  bucket_id = 'profile-images'
+  and split_part(name, '/', 1) = auth.uid()::text
+);
+
+drop policy if exists "Users update own profile image" on storage.objects;
+create policy "Users update own profile image"
+on storage.objects for update
+using (
+  bucket_id = 'profile-images'
+  and split_part(name, '/', 1) = auth.uid()::text
+)
+with check (
+  bucket_id = 'profile-images'
+  and split_part(name, '/', 1) = auth.uid()::text
 );
 
 -- Important:
