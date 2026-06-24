@@ -646,6 +646,13 @@ create policy "Users read available stickers"
 on public.stickers for select
 using (
   public.can_access_pack(pack_id)
+  or exists (
+    select 1
+    from public.product_packs
+    join public.products on products.id = product_packs.product_id
+    where product_packs.pack_id = stickers.pack_id
+      and products.published = true
+  )
 );
 
 drop policy if exists "Public reads backgrounds" on public.backgrounds;
@@ -654,6 +661,13 @@ create policy "Users read available backgrounds"
 on public.backgrounds for select
 using (
   public.can_access_pack(pack_id)
+  or exists (
+    select 1
+    from public.product_packs
+    join public.products on products.id = product_packs.product_id
+    where product_packs.pack_id = backgrounds.pack_id
+      and products.published = true
+  )
 );
 
 drop policy if exists "Users read published products" on public.products;
