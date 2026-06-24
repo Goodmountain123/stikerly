@@ -105,6 +105,7 @@ alter table public.user_pack_entitlements
 
 create table if not exists public.account_profiles (
   user_id uuid primary key references auth.users(id) on delete cascade,
+  email text,
   display_name text not null,
   points bigint not null default 0 check (points >= 0),
   avatar_storage_path text,
@@ -113,7 +114,21 @@ create table if not exists public.account_profiles (
 );
 
 alter table public.account_profiles
+  add column if not exists email text,
   add column if not exists avatar_storage_path text;
+
+create table if not exists public.point_purchases (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  points bigint not null check (points > 0),
+  price_amount integer not null default 0 check (price_amount >= 0),
+  currency text not null default 'KRW',
+  provider text not null default 'manual',
+  provider_transaction_id text,
+  status text not null default 'completed'
+    check (status in ('pending', 'completed', 'refunded', 'cancelled')),
+  purchased_at timestamptz not null default now()
+);
 
 create table if not exists public.asset_catalog_releases (
   id bigint generated always as identity primary key,
@@ -134,6 +149,8 @@ create index if not exists user_pack_entitlements_user_idx
   where revoked_at is null;
 create index if not exists user_purchases_user_idx
   on public.user_purchases (user_id, purchased_at desc);
+create index if not exists point_purchases_user_idx
+  on public.point_purchases (user_id, purchased_at desc);
 
 create or replace function public.sync_account_metadata(target_user_id uuid)
 returns void
@@ -150,9 +167,10 @@ begin
 
   if target_email is null then return; end if;
 
-  insert into public.account_profiles (user_id, display_name, points)
+  insert into public.account_profiles (user_id, email, display_name, points)
   values (
     target_user_id,
+    target_email,
     case
       when target_email = 'testaccount1@stickerly.app' then 'testaccount1'
       when target_email = 'testaccount2@stickerly.app' then 'testaccount2'
@@ -161,6 +179,7 @@ begin
     case when target_email = 'testaccount1@stickerly.app' then 1000000 else 0 end
   )
   on conflict (user_id) do update set
+    email = excluded.email,
     display_name = excluded.display_name,
     points = case
       when target_email = 'testaccount1@stickerly.app' then 1000000
@@ -528,6 +547,7 @@ alter table public.products enable row level security;
 alter table public.product_assets enable row level security;
 alter table public.product_packs enable row level security;
 alter table public.user_purchases enable row level security;
+alter table public.point_purchases enable row level security;
 alter table public.user_asset_entitlements enable row level security;
 alter table public.user_pack_entitlements enable row level security;
 alter table public.asset_catalog_releases enable row level security;
@@ -607,6 +627,16 @@ using (user_id = auth.uid() or public.is_admin());
 drop policy if exists "Admins manage purchases" on public.user_purchases;
 create policy "Admins manage purchases"
 on public.user_purchases for all
+using (public.is_admin()) with check (public.is_admin());
+
+drop policy if exists "Users read own point purchases" on public.point_purchases;
+create policy "Users read own point purchases"
+on public.point_purchases for select
+using (user_id = auth.uid() or public.is_admin());
+
+drop policy if exists "Admins manage point purchases" on public.point_purchases;
+create policy "Admins manage point purchases"
+on public.point_purchases for all
 using (public.is_admin()) with check (public.is_admin());
 
 drop policy if exists "Users read own entitlements" on public.user_asset_entitlements;

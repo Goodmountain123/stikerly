@@ -26,21 +26,33 @@
 .pack-delivery-controls select{min-width:105px;flex:0 0 auto;padding:9px}
 .pack-delivery-controls .button{padding:9px 13px}
 .user-search{min-width:260px;flex:1;padding:11px 13px;border:1px solid #eaddeb;border-radius:12px}
-.user-management{display:grid;grid-template-columns:minmax(260px,360px) minmax(360px,1fr);gap:14px;align-items:start}
-.user-master-list{display:grid;gap:8px;max-height:70vh;overflow:auto}
-.user-list-item{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;padding:12px;border:1px solid #eaddeb;border-radius:14px;background:#fff;text-align:left;cursor:pointer}
-.user-list-item.is-on{border-color:#d94c85;background:#fff4f8}
-.user-list-item strong,.user-list-item code,.user-list-item em{display:block}
-.user-list-item code{max-width:210px;overflow:hidden;text-overflow:ellipsis;color:#826f8b;font-size:11px}
-.user-list-item em{color:#826f8b;font-size:12px;font-style:normal;white-space:nowrap}
-.user-card{display:grid;gap:10px;position:sticky;top:12px}
+.user-management{display:block;overflow:auto;border:1px solid #eaddeb;border-radius:16px;background:#fff}
+.user-table{min-width:980px}
+.user-table__head,.user-list-item{display:grid;grid-template-columns:42px minmax(240px,1.5fr) minmax(130px,.8fr) minmax(180px,1fr) minmax(100px,.6fr) minmax(170px,1fr) minmax(170px,1fr);align-items:center}
+.user-table__head{padding:10px 14px;border-bottom:1px solid #eaddeb;background:#fffafd;color:#826f8b;font-size:12px;font-weight:900}
+.user-table__item{border-bottom:1px solid #f0e4f0}
+.user-table__item:last-child{border-bottom:0}
+.user-list-item{gap:10px;width:100%;padding:13px 14px;border:0;background:#fff;text-align:left;cursor:pointer}
+.user-list-item.is-on{background:#fff4f8}
+.user-list-item strong,.user-list-item code,.user-list-item span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.user-list-item code{font-size:11px;color:#4e405f}
+.user-chevron{font-size:20px;font-weight:900;color:#d94c85;text-align:center}
+.user-expanded{display:grid;gap:10px;margin:0 14px 14px;padding:16px;border:1px solid #eaddeb;border-radius:16px;background:#fffafd}
 .user-card__head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
 .user-card__head code{display:block;max-width:240px;overflow:hidden;text-overflow:ellipsis;font-size:11px;color:#826f8b}
-.user-card input{width:100%;box-sizing:border-box;padding:10px;border:1px solid #eaddeb;border-radius:10px}
+.user-expanded input{width:100%;box-sizing:border-box;padding:10px;border:1px solid #eaddeb;border-radius:10px;background:#fff}
+.user-expanded__grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.user-history{padding:12px;border:1px solid #eaddeb;border-radius:14px;background:#fff}
+.user-history h4{margin:0 0 8px}
+.user-history-row{display:grid;grid-template-columns:minmax(100px,1fr) auto;gap:5px 10px;padding:8px 0;border-top:1px solid #f1e7f1}
+.user-history-row:first-of-type{border-top:0}
+.user-history-row em{grid-column:1/-1;color:#826f8b;font-style:normal;font-size:12px}
+.user-pack-dropdown{border:1px solid #eaddeb;border-radius:14px;background:#fff}
+.user-pack-dropdown summary{padding:12px 14px;font-weight:900;cursor:pointer}
 .user-pack-table{display:grid;gap:6px;max-height:360px;overflow:auto;padding:8px;border:1px solid #eaddeb;border-radius:12px}
 .user-pack-row{display:grid;grid-template-columns:minmax(120px,1fr) auto 120px;align-items:center;gap:8px;padding:8px;border-radius:10px;background:#fffafd}
 .user-pack-row span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .user-pack-row em{font-size:11px;color:#826f8b;font-style:normal;white-space:nowrap}
 .user-pack-row select{padding:8px;border:1px solid #eaddeb;border-radius:8px;background:#fff}
-@media(max-width:900px){.user-management{grid-template-columns:1fr}.user-card{position:static}}
+@media(max-width:900px){.user-expanded__grid{grid-template-columns:1fr}}
 @media(max-width:700px){.delivery-row{grid-template-columns:1fr 1fr}.delivery-row strong{grid-column:1/-1}.user-pack-row{grid-template-columns:1fr}.user-pack-row select{width:100%}}

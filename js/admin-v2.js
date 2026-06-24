@@ -2,7 +2,7 @@ import { supabase, signedAssetUrl } from "./supabase.js?v=20260623-2";
 
 const style = document.createElement("link");
 style.rel = "stylesheet";
-style.href = "./admin-v2.css?v=20260624-products-profile";
+style.href = "./admin-v2.css?v=20260624-user-table";
 document.head.appendChild(style);
 
 const $ = (selector) => document.querySelector(selector);
@@ -356,22 +356,34 @@ async function grantEntitlement() {
 
 let userRows = [];
 let userEntitlements = new Map();
+let userProductPurchases = new Map();
+let userPointPurchases = new Map();
 let selectedUserId = null;
 
 async function loadUsers() {
   try {
-    const [packs, profiles, entitlements] = await Promise.all([
+    const [packs, profiles, entitlements, productPurchases, pointPurchases] = await Promise.all([
       supabase
         .from("sticker_packs")
         .select("id,name,access_level,published")
         .order("position"),
       supabase
         .from("account_profiles")
-        .select("user_id,display_name,points,created_at,updated_at")
+        .select("user_id,email,display_name,points,created_at,updated_at")
         .order("created_at", { ascending: false }),
       supabase
         .from("user_pack_entitlements")
         .select("user_id,pack_id,source_type,revoked_at"),
+      supabase
+        .from("user_purchases")
+        .select("id,user_id,status,purchased_at,products(name,price_amount,currency)")
+        .order("purchased_at", { ascending: false })
+        .limit(200),
+      supabase
+        .from("point_purchases")
+        .select("id,user_id,points,price_amount,currency,status,purchased_at")
+        .order("purchased_at", { ascending: false })
+        .limit(200),
     ]);
     if (packs.error || profiles.error || entitlements.error) {
       throw packs.error || profiles.error || entitlements.error;
@@ -387,6 +399,8 @@ async function loadUsers() {
       }
       userEntitlements.get(row.user_id).add(row.pack_id);
     }
+    userProductPurchases = groupRowsByUser(productPurchases.error ? [] : productPurchases.data || []);
+    userPointPurchases = groupRowsByUser(pointPurchases.error ? [] : pointPurchases.data || []);
     if (selectedUserId && !userRows.some((user) => user.user_id === selectedUserId)) {
       selectedUserId = null;
     }
@@ -397,6 +411,15 @@ async function loadUsers() {
   }
 }
 
+function groupRowsByUser(rows) {
+  const grouped = new Map();
+  for (const row of rows) {
+    if (!grouped.has(row.user_id)) grouped.set(row.user_id, []);
+    grouped.get(row.user_id).push(row);
+  }
+  return grouped;
+}
+
 function renderUsers() {
   const list = $("#user-list");
   if (!list) return;
@@ -405,74 +428,126 @@ function renderUsers() {
     const text = `${user.display_name || ""} ${user.user_id || ""}`.toLowerCase();
     return !query || text.includes(query);
   });
-  if (!selectedUserId && filtered.length) selectedUserId = filtered[0].user_id;
   list.innerHTML = `
-    <div class="user-master-list">
+    <div class="user-table">
+      <div class="user-table__head">
+        <span></span>
+        <span>UID</span>
+        <span>Display name</span>
+        <span>Email</span>
+        <span>Points</span>
+        <span>Created at</span>
+        <span>Updated at</span>
+      </div>
       ${filtered.map(renderUserListItem).join("") || `<p class="delivery-note">검색 결과가 없어요.</p>`}
     </div>
-    <div id="user-detail" class="user-detail"></div>
   `;
   list.querySelectorAll(".user-list-item").forEach((item) => {
     item.onclick = () => {
-      selectedUserId = item.dataset.userId;
+      selectedUserId = selectedUserId === item.dataset.userId ? null : item.dataset.userId;
       renderUsers();
     };
   });
-  const selected = userRows.find((user) => user.user_id === selectedUserId) || filtered[0];
-  renderUserDetail(selected);
+  list.querySelectorAll(".user-save").forEach((button) => {
+    button.onclick = (event) => {
+      event.stopPropagation();
+      const detail = button.closest(".user-expanded");
+      const profile = userRows.find((user) => user.user_id === detail.dataset.userId);
+      if (profile) saveUserDetail(profile, detail);
+    };
+  });
 }
 
 function renderUserListItem(user) {
   const count = userEntitlements.get(user.user_id)?.size || 0;
+  const expanded = user.user_id === selectedUserId;
   return `
-    <button class="user-list-item ${user.user_id === selectedUserId ? "is-on" : ""}" data-user-id="${escapeHtml(user.user_id)}">
-      <span>
-        <strong>${escapeHtml(user.display_name)}</strong>
+    <div class="user-table__item">
+      <button class="user-list-item ${expanded ? "is-on" : ""}" data-user-id="${escapeHtml(user.user_id)}">
+        <span class="user-chevron">${expanded ? "⌄" : "›"}</span>
         <code>${escapeHtml(user.user_id)}</code>
-      </span>
-      <em>${Number(user.points || 0).toLocaleString()} P · 팩 ${count}</em>
-    </button>
+        <strong>${escapeHtml(user.display_name || "-")}</strong>
+        <span>${escapeHtml(user.email || "-")}</span>
+        <span>${Number(user.points || 0).toLocaleString()} P</span>
+        <span>${formatDate(user.created_at)}</span>
+        <span>${formatDate(user.updated_at)}</span>
+      </button>
+      ${expanded ? renderUserExpanded(user, count) : ""}
+    </div>
   `;
 }
 
-function renderUserDetail(profile) {
-  const detail = $("#user-detail");
-  if (!detail) return;
-  if (!profile) {
-    detail.innerHTML = `<div class="delivery-card"><p class="delivery-note">계정을 선택하세요.</p></div>`;
-    return;
-  }
+function formatDate(value) {
+  return value ? new Date(value).toLocaleString("ko-KR") : "-";
+}
+
+function renderUserExpanded(profile, count) {
   const activePackIds = userEntitlements.get(profile.user_id) || new Set();
-  detail.innerHTML = `
-    <div class="delivery-card user-card">
+  const productRows = userProductPurchases.get(profile.user_id) || [];
+  const pointRows = userPointPurchases.get(profile.user_id) || [];
+  return `
+    <div class="user-expanded" data-user-id="${escapeHtml(profile.user_id)}">
       <div class="user-card__head">
         <div>
-          <h3>${escapeHtml(profile.display_name)}</h3>
+          <h3>${escapeHtml(profile.display_name || "-")}</h3>
           <code>${escapeHtml(profile.user_id)}</code>
         </div>
-        <button class="button user-save">저장</button>
+        <button class="button user-save" type="button">저장</button>
       </div>
       <label>닉네임</label>
-      <input class="user-name" value="${escapeHtml(profile.display_name)}" maxlength="20">
+      <input class="user-name" value="${escapeHtml(profile.display_name || "")}" maxlength="20">
       <label>보유 포인트</label>
       <input class="user-points" type="number" min="0" step="1" value="${Number(profile.points || 0)}">
-      <div class="delivery-note">가입 ${new Date(profile.created_at).toLocaleString("ko-KR")}</div>
-      <strong>사용 가능 팩</strong>
-      <div class="user-pack-table">
-        ${packRows.map((pack) => `
-          <div class="user-pack-row">
-            <span>${escapeHtml(pack.name)}</span>
-            <em>${pack.access_level === "paid" ? "유료" : "무료"}${pack.published ? "" : " · 비공개"}</em>
-            <select data-pack-id="${pack.id}">
-              <option value="enabled" ${activePackIds.has(pack.id) ? "selected" : ""}>사용 가능</option>
-              <option value="disabled" ${activePackIds.has(pack.id) ? "" : "selected"}>불가능</option>
-            </select>
-          </div>
-        `).join("")}
+      <div class="user-expanded__grid">
+        ${renderHistory("최근 포인트 구매 내역", pointRows, renderPointPurchase)}
+        ${renderHistory("최근 상품 구매 내역", productRows, renderProductPurchase)}
       </div>
+      <details class="user-pack-dropdown">
+        <summary>사용가능 팩 ${count}개</summary>
+        <div class="user-pack-table">
+          ${packRows.map((pack) => `
+            <div class="user-pack-row">
+              <span>${escapeHtml(pack.name)}</span>
+              <em>${pack.access_level === "paid" ? "유료" : "무료"}${pack.published ? "" : " · 비공개"}</em>
+              <select data-pack-id="${pack.id}">
+                <option value="enabled" ${activePackIds.has(pack.id) ? "selected" : ""}>사용 가능</option>
+                <option value="disabled" ${activePackIds.has(pack.id) ? "" : "selected"}>불가능</option>
+              </select>
+            </div>
+          `).join("")}
+        </div>
+      </details>
     </div>
   `;
-  detail.querySelector(".user-save").onclick = () => saveUserDetail(profile, detail);
+}
+
+function renderHistory(title, rows, renderer) {
+  return `
+    <section class="user-history">
+      <h4>${title}</h4>
+      ${rows.slice(0, 5).map(renderer).join("") || `<p class="delivery-note">내역 없음</p>`}
+    </section>
+  `;
+}
+
+function renderPointPurchase(row) {
+  return `
+    <div class="user-history-row">
+      <strong>${Number(row.points || 0).toLocaleString()} P</strong>
+      <span>${Number(row.price_amount || 0).toLocaleString()} ${escapeHtml(row.currency || "KRW")}</span>
+      <em>${escapeHtml(row.status || "-")} · ${formatDate(row.purchased_at)}</em>
+    </div>
+  `;
+}
+
+function renderProductPurchase(row) {
+  return `
+    <div class="user-history-row">
+      <strong>${escapeHtml(row.products?.name || "상품")}</strong>
+      <span>${Number(row.products?.price_amount || 0).toLocaleString()} ${escapeHtml(row.products?.currency || "KRW")}</span>
+      <em>${escapeHtml(row.status || "-")} · ${formatDate(row.purchased_at)}</em>
+    </div>
+  `;
 }
 
 async function saveUserDetail(profile, detail) {
